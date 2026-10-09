@@ -11,6 +11,7 @@ Suponen un documento que ya pasa el esquema. Comprueban:
 - sentencias aleatorias solo en `flow.setup` y en nodos `chance`; lvalues válidos
 - sin recursión entre funciones (las expresiones deben ser totales)
 - salidas: transiciones incondicionales al final, `$exit` solo dentro de fases, nodos con salida
+- nodos simultáneos sin transiciones por acción; `pass` reservado en ventanas
 """
 
 from __future__ import annotations
@@ -64,7 +65,7 @@ class _Checker:
         self.calls: dict[str, set[str]] = {name: set() for name in self.arity}
         self.current_function: str | None = None
 
-    # --- utilidades ---------------------------------------------------------------------------
+    # --- utilidades -----------------------------------------------------------------------------
 
     def error(self, path: str, message: str) -> None:
         self.problems.append(Problem(path, message))
@@ -77,7 +78,7 @@ class _Checker:
             seen.add(item["name"])
         return seen
 
-    # --- documento ----------------------------------------------------------------------------
+    # --- documento ------------------------------------------------------------------------------
 
     def run(self) -> list[Problem]:
         doc = self.doc
@@ -166,7 +167,7 @@ class _Checker:
         for name in sorted(self.calls):
             visit(name, [])
 
-    # --- flow ---------------------------------------------------------------------------------
+    # --- flow -----------------------------------------------------------------------------------
 
     def flow(self, flow: dict[str, Any]) -> None:
         self.collect_nodes(flow["nodes"], "flow/nodes")
@@ -201,7 +202,15 @@ class _Checker:
                 self.actions(node["actions"], path, in_phase)
                 self.block(node.get("resolve", []), base.at("resolve"))
                 self.transitions(transitions, base.at("transitions"), in_phase)
-                self.require_exit(node, path)
+                for j, action in enumerate(node["actions"]):
+                    if action.get("transitions"):
+                        self.error(
+                            f"{path}/actions/{j}/transitions",
+                            "en un nodo simultáneo las acciones se resuelven juntas: "
+                            "las transiciones van en el nodo",
+                        )
+                if not transitions:
+                    self.error(path, "un nodo simultáneo necesita transiciones de nodo")
             case "window":
                 self.expr(node["eligible"], base.at("eligible"))
                 if "order" in node:
@@ -212,6 +221,12 @@ class _Checker:
                     self.error(
                         path, "una ventana necesita transiciones de nodo (todos pueden pasar)"
                     )
+                for j, action in enumerate(node["actions"]):
+                    if action["name"] == "pass":
+                        self.error(
+                            f"{path}/actions/{j}/name",
+                            "'pass' está reservado: en una ventana pasar es implícito",
+                        )
             case "chance" | "auto":
                 self.block(
                     node.get("effects", []), replace(base, chance=kind == "chance").at("effects")
@@ -227,6 +242,8 @@ class _Checker:
                 for i, child in enumerate(node["nodes"]):
                     self.node(child, f"{path}/nodes/{i}", in_phase=True)
                 self.transitions(transitions, base.at("transitions"), in_phase)
+                if not transitions and any(_exits(child) for child in node["nodes"]):
+                    self.error(path, "un hijo sale con '$exit' pero la fase no tiene transiciones")
             case "terminal":
                 self.expr(node["payoff"], base.at("payoff"))
                 if "rank" in node:
@@ -281,7 +298,7 @@ class _Checker:
                 )
             self.block(t.get("effects", []), tctx.at("effects"))
 
-    # --- sentencias ---------------------------------------------------------------------------
+    # --- sentencias -----------------------------------------------------------------------------
 
     def block(self, stmts: list[Any], ctx: _Ctx) -> None:
         local_names = ctx.locals
@@ -318,7 +335,7 @@ class _Checker:
         if not (isinstance(node, list) and node and node[0] == "var"):
             self.error(ctx.path, "solo se puede modificar el estado: var, index o field sobre var")
 
-    # --- expresiones --------------------------------------------------------------------------
+    # --- expresiones ----------------------------------------------------------------------------
 
     def expr(self, e: Any, ctx: _Ctx) -> None:
         op, args = e[0], e[1:]
@@ -417,6 +434,13 @@ class _Checker:
                     self.selector(value, sub)
                 case "vis":
                     self.visibility(value, sub.path)
+
+
+def _exits(node: dict[str, Any]) -> bool:
+    """¿Tiene el nodo alguna transición (propia o de sus acciones) hacia '$exit'?"""
+    groups = [node.get("transitions", [])]
+    groups += [a.get("transitions", []) for a in node.get("actions", [])]
+    return any(t["to"] == "$exit" for group in groups for t in group)
 
 
 def wellformed_problems(doc: dict[str, Any]) -> list[Problem]:

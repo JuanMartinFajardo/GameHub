@@ -5,6 +5,63 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-09 — Sesión 3: Fase 1, motor de referencia en Python
+
+**Respuestas recibidas**
+- Commits: uno por tarea. → Fase 0 en `main` (3 commits); Fase 1 en la rama `f1/motor-referencia`
+  (un commit por tarea), pendiente de fusionar con el visto bueno del usuario (ADR-026).
+- Arrancar la Fase 1: sí. Las ADR propuestas se consideran aceptadas (sin objeciones).
+
+**Qué se hizo**
+- `gamehub.ir.hashing`: hash de reglas (JSON canónico + SHA-256), insensible a `meta`, `doc` y
+  valores por defecto (ADR-025). Validación: `pass` reservado en ventanas, sin transiciones por
+  acción en nodos simultáneos, fases de las que se sale con `$exit` con transiciones.
+- **Motor de referencia** (`gamehub.engine`):
+  - valores inmutables con orden canónico; tipos; JSON;
+  - **PCG32** idéntico a la implementación de referencia en C (vector de prueba verificado),
+    sorteos reproducibles y **enumeración exacta** de resultados de azar (ADR-022);
+  - los 87 operadores y las 14 sentencias del catálogo, compilados a funciones;
+  - semántica del flow: decisiones, simultáneos, ventanas (priority/collect/race), azar, fases con
+    `on_enter`/`on_exit`/`$exit` (ADR-024), avance hasta quiescencia sin recursión;
+  - visibilidad: vistas redactadas, eventos resueltos por asiento, estados de información con
+    recuerdo perfecto (verificado: en Kuhn el asiento 1 no distingue KQ de JQ);
+  - acciones legales, forma canónica y construcción progresiva (`options`);
+  - instantánea y huella del estado; replays `.ghr.json` verificados paso a paso.
+- Drivers: `play_match`, `RandomAgent`, `fuzz`; **trazas doradas** en `spec/conformance` (6 juegos).
+- **API builder** (`gamehub.build`): tres juegos reconstruidos con ella dan el mismo hash de reglas
+  que sus JSON escritos a mano.
+- **CLI**: `gamehub play` (hot-seat y bots, pantalla de cambio de jugador), `fuzz`, `replay`,
+  `conformance`.
+- Juegos nuevos: **piedra-papel-tijera** y **Nim** (con variante misère).
+- Docs: `docs/wiki/motor.md` (semántica operacional exacta), ADR-022 a 026, roadmap, arquitectura,
+  glosario, README.
+- 132 tests; `ruff` y `pyright` limpios.
+- Perfilado de Mentiroso: la mitad del tiempo era deduplicar subconjuntos ya distintos; corregido (×1,8) sin cambiar las trazas de conformidad.
+
+**Aceptación de la Fase 1**
+
+| Juego | Partidas aleatorias | Errores | Partidas/s | Comprobación |
+|---|---:|---:|---:|---|
+| Tres en raya | 100 000 | 0 | 1 579 | Pago medio de X +0,294 (teórico +0,297) |
+| Dilema del prisionero | 100 000 | 0 | 11 972 | Pago medio 2,249 (exacto 9/4) |
+| Piedra, papel o tijera | 100 000 | 0 | 11 790 | Pago medio −0,003 (exacto 0) |
+| Nim (3, 5, 7) | 100 000 | 0 | 2 805 | — |
+| Póker de Kuhn | 100 000 | 0 | 4 600 | Pago medio +0,133 (exacto 1/8) |
+| Mentiroso (3 jugadores) | 1 000 | 0 | 0,4 (≈ 0,9 tras optimizar) | 391 pasos de media; gana un 31,6 / 32,2 / 36,2 % por asiento: el asiento 0 recibe 18 cartas y los demás 17 |
+
+Además: valor exacto del juego aleatorio calculado sobre el árbol completo (Kuhn = 1/8, dilema = 9/4,
+PPT = 0); replays idénticos bit a bit; vistas sin fugas; partida completa jugable en la terminal.
+
+**Decisiones**: ADR-022 (PCG32), 023 (sin pydantic), 024 (orden de `$exit`), 025 (hash), 026 (ramas).
+
+**Pendiente / siguientes pasos**
+- Del usuario: fusionar `f1/motor-referencia` en `main`; variantes de Mentiroso (pregunta 9b).
+- F2: compilador de Nomos (`.game` → IR) con tipos, formateador, stdlib v0 y paquetes.
+
+**Progreso:** ≈ 13 % (F0 y F1 completas).
+
+---
+
 ## 2026-10-09 — Sesión 2: respuestas del usuario y Fase 0 completada
 
 **Respuestas recibidas**

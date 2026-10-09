@@ -125,7 +125,7 @@ def catalog_problems(catalog: Catalog) -> list[str]:
     return problems
 
 
-# --- Generación de esquemas ------------------------------------------------------------------
+# --- Generación de esquemas --------------------------------------------------------------------
 
 _IDENT = {"$ref": "common.schema.json#/$defs/ident"}
 _EXPR = {"$ref": "expr.schema.json"}

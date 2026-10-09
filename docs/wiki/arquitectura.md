@@ -49,8 +49,9 @@ flowchart TB
 
 ## 2. Estructura del monorepo (propuesta)
 
-> **Estado (2026-10-09):** existen `spec/` (IR v0), `python/` (paquete `gamehub`: validación de
-> la IR y CLI) y `docs/`. El resto de directorios se crea en la fase que los necesita.
+> **Estado (2026-10-09):** existen `spec/` (IR v0, trazas de conformidad), `python/` (paquete
+> `gamehub`: validación, motor de referencia, builder y CLI) y `docs/`. El resto de directorios se
+> crea en la fase que los necesita.
 
 ```
 GameHub/
@@ -99,31 +100,34 @@ wizard/
 
 ## 3. El contrato de motor (Game API)
 
-Todos los motores (Python, C++, WASM) implementan **la misma interfaz**, verificada por la suite de
-conformidad. Es deliberadamente parecida a OpenSpiel para que el puente sea trivial.
+Todos los motores (Python, C++, WASM) implementan **la misma interfaz**, verificada por las
+[trazas de conformidad](../../spec/conformance). Es deliberadamente parecida a OpenSpiel para que el
+puente sea trivial. Implementada en el motor de referencia (Fase 1, detalle en [motor](motor.md)):
 
 ```python
 class Game:
-    info: GameInfo                       # nº asientos, propiedades, hash de reglas/interfaz
-    def new_match(self, params: dict, seed: int) -> State: ...
+    id, version, title, rules_hash, players            # (mín, máx)
+    def new_state(self, num_players=None, params=None) -> State: ...
 
-class State:                             # INMUTABLE: apply devuelve un estado nuevo
-    def status(self) -> Status           # DECISION | CHANCE | TERMINAL
-    def active_seats(self) -> list[Seat]
-    def legal_actions(self, seat: Seat, prefix: dict = {}) -> ActionSpace   # + construcción progresiva
-    def chance_outcomes(self) -> list[tuple[Outcome, Fraction]] | Sampler
-    def apply(self, seat: Seat, action: Action) -> tuple["State", list[Event]]
-    def apply_chance(self, outcome: Outcome) -> tuple["State", list[Event]]
-    def view(self, seat: Seat | None) -> View          # None = vista omnisciente (depuración)
-    def observation(self, seat: Seat) -> Observation   # pública + privada del último paso
-    def information_state(self, seat: Seat) -> bytes   # clave del conjunto de información
-    def payoffs(self) -> list[Fraction]
-    def to_json(self) -> dict                          # notación de posición universal
-    def hash(self) -> int                              # Zobrist derivado del esquema
+class State:                                           # INMUTABLE: cada paso devuelve otro estado
+    status: Status                                     # CHANCE | DECISION | TERMINAL
+    active_seats: tuple[int, ...]
+    payoffs: tuple | None
+    def legal_actions(self, seat) -> list[Action]
+    def options(self, seat, name=None, args=None) -> list   # construcción progresiva
+    def apply_action(self, seat, action) -> State
+    def chance_outcomes(self, limit=100_000) -> list[tuple[Outcome, Fraction]]
+    def sample_chance(self, rng: Pcg32) -> Outcome
+    def apply_chance(self, outcome) -> State
+    def view(self, seat | None) -> dict                # None = omnisciente
+    def events(self, seat | None) -> list[dict]        # eventos del último paso
+    def information_state(self, seat) -> str           # clave del conjunto de información
+    def snapshot(self) -> dict;  def digest(self) -> str
+    def history(self) -> list[Step];  def decode_action(self, seat, json) -> Action
 ```
 
-El **bucle de partida no está en el motor**: lo ponen los *drivers* (servidor, CLI, simulador del
-Studio, entrenador RL, torneo).
+El **bucle de partida no está en el motor**: lo ponen los *drivers* (`play_match`, `fuzz`, la CLI,
+el servidor, el simulador del Studio, el entrenador RL, los torneos).
 
 ## 4. Pila tecnológica (propuesta)
 

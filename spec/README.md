@@ -8,9 +8,9 @@ Contratos formales que todos los componentes (Python, C++, web) deben cumplir.
 | `ir/v0/ir.schema.json` | Esquema del documento completo (juego, estado, funciones, flow, nodos, acciones) |
 | `ir/v0/common.schema.json`, `type.schema.json` | Identificadores, textos, visibilidad, bloques y tipos |
 | `ir/v0/expr.schema.json`, `stmt.schema.json` | **Generados** desde `ops.json` (`gamehub ir schemas --write`); no editar a mano |
-| `ir/examples/*.ir.json` | Juegos de validación escritos a mano: tres en raya, dilema del prisionero, póker de Kuhn, Mentiroso |
+| `ir/examples/*.ir.json` | Juegos de validación escritos a mano: tres en raya, dilema del prisionero, piedra-papel-tijera, Nim, póker de Kuhn, Mentiroso |
 | `protocol/` | Protocolo de partidas (Fase 3) |
-| `conformance/` | Trazas doradas para verificar motores (Fase 1 en adelante) |
+| `conformance/<juego>/seed-<n>.ghr.json` | **Trazas doradas**: partidas con semilla fija y la huella del estado en cada paso; todo motor debe reproducirlas (`gamehub conformance --check`) |
 
 Validar: `cd python && uv run gamehub ir check ../spec/ir/examples/*.ir.json`
 

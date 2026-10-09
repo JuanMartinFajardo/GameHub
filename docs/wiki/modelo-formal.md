@@ -148,6 +148,9 @@ activos del statechart, búfer de envíos pendientes, rasgos de historial y relo
 **Determinismo:** $(\mathcal{G}, \theta, \text{semilla}, \text{secuencia de acciones}) \Rightarrow$
 trayectoria única. Un *replay* es exactamente esa tupla.
 
+Los detalles exactos (orden de evaluación de transiciones, `$exit`, ventanas, sorteos de azar,
+eventos) están en la semántica operacional del [motor de referencia](motor.md).
+
 ## 5. Propiedades que se derivan automáticamente
 
 | Propiedad | Definición | Cómo se determina |

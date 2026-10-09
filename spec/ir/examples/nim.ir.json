@@ -1,0 +1,83 @@
+{
+  "ir_version": "0.1.0",
+  "game": { "id": "nim", "version": "1.0.0" },
+  "meta": {
+    "title": { "es": "Nim", "en": "Nim" },
+    "description": {
+      "es": "Por turnos, cada jugador quita tantos objetos como quiera de un único montón. En la versión normal gana quien se lleva el último; en la misère, pierde. Con juego perfecto, quien mueve pierde si y solo si la suma-nim (XOR) de los montones es 0 (Bouton, 1901)."
+    },
+    "license": "CC-BY-4.0",
+    "tags": ["classic", "combinatorial", "impartial", "perfect-information"]
+  },
+  "players": { "min": 2, "max": 2 },
+  "params": [
+    {
+      "name": "sizes",
+      "type": ["list", "Int"],
+      "default": ["list", ["const", 3], ["const", 5], ["const", 7]],
+      "doc": { "es": "Tamaño inicial de cada montón" }
+    },
+    {
+      "name": "misere",
+      "type": "Bool",
+      "default": ["const", false],
+      "doc": { "es": "Si es cierto, pierde quien se lleva el último objeto" }
+    }
+  ],
+  "constraints": [
+    {
+      "expr": ["and",
+                ["gt", ["len", ["param", "sizes"]], ["const", 0]],
+                ["all", "h", ["param", "sizes"], ["ge", ["local", "h"], ["const", 0]]],
+                ["gt", ["sum", "h", ["param", "sizes"], ["local", "h"]], ["const", 0]]],
+      "message": { "es": "Hace falta al menos un montón, ninguno negativo y algún objeto en total" }
+    }
+  ],
+  "state": [
+    { "name": "heaps", "type": ["list", "Int"], "init": ["param", "sizes"] },
+    { "name": "turn", "type": "Seat", "init": ["const", 0] }
+  ],
+  "flow": {
+    "start": "Take",
+    "nodes": [
+      {
+        "id": "Take",
+        "kind": "decision",
+        "actor": ["var", "turn"],
+        "actions": [
+          {
+            "name": "take",
+            "params": [
+              {
+                "name": "heap",
+                "type": "Int",
+                "domain": ["range", ["const", 0], ["sub", ["len", ["var", "heaps"]], ["const", 1]]]
+              },
+              {
+                "name": "count",
+                "type": "Int",
+                "domain": ["range", ["const", 1], ["index", ["var", "heaps"], ["arg", "heap"]]]
+              }
+            ],
+            "effects": [
+              ["assign", ["index", ["var", "heaps"], ["arg", "heap"]],
+                ["sub", ["index", ["var", "heaps"], ["arg", "heap"]], ["arg", "count"]]]
+            ]
+          }
+        ],
+        "transitions": [
+          { "to": "End", "when": ["eq", ["sum", "h", ["var", "heaps"], ["local", "h"]], ["const", 0]] },
+          { "to": "Take", "effects": [["assign", ["var", "turn"], ["next_seat", ["var", "turn"]]]] }
+        ]
+      },
+      {
+        "id": "End",
+        "kind": "terminal",
+        "doc": { "es": "turn es quien acaba de llevarse el último objeto." },
+        "payoff": ["win_loss",
+                    ["if", ["param", "misere"], ["other_seat", ["var", "turn"]], ["var", "turn"]],
+                    ["const", 1], ["const", -1]]
+      }
+    ]
+  }
+}

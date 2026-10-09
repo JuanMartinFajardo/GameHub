@@ -19,7 +19,9 @@
 | Guarda | guard | Condición booleana pura de una acción (`requires`) o transición (`when`). |
 | Hash de interfaz | interface hash | Huella de los esquemas de vista/acciones/eventos; compatibilidad de UIs y bots. |
 | Hash de reglas | rules hash | Huella de la IR resuelta; identifica exactamente una versión de las reglas. |
+| Huella (digest) | digest | SHA-256 de la instantánea de un estado; permite comparar motores paso a paso. |
 | IR núcleo / resuelta | core IR | La IR sin azúcar que ejecutan los motores (la de autor llega en la Fase 2). |
+| Instantánea | snapshot | Configuración completa de un estado en JSON canónico (incluye caras de cartas y envíos pendientes). |
 | Nodo | node | Caja del flow: `decision`, `simultaneous`, `window`, `chance`, `auto`, `phase`, `call`, `terminal`. |
 | Nomos | Nomos | El lenguaje de descripción de juegos de GameHub (archivos `.game`). |
 | Observación | observation | Lo que un jugador recibe tras un paso: vista redactada + eventos visibles (pública + privada). |
@@ -30,6 +32,7 @@
 | Replay | replay | Tupla (hash de reglas, parámetros, semilla, acciones) que reproduce una partida exacta. |
 | Sala | room | Instancia alojada de un juego con código de acceso. |
 | Statechart | statechart | Máquina de estados jerárquica (Harel); el modelo del flow. |
+| Traza de conformidad | conformance trace | Replay con semilla fija que todo motor debe reproducir bit a bit (`spec/conformance`). |
 | Ubicación | location | Parte direccionable del estado (variable, zona, tamaño, atributo) sobre la que se define la visibilidad. |
 | Ventana de reacción | reaction window | Nodo `window`: varios asientos pueden responder a un evento ("¡Mentiroso!"). |
 | Vista | view | Estado redactado para un asiento concreto. |

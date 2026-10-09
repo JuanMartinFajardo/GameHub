@@ -177,3 +177,26 @@ def test_exit_inside_phase_is_valid(coin_game: Doc) -> None:
     ]
     coin_game["flow"]["start"] = "Round"
     assert check(coin_game) == []
+
+
+def test_window_reserves_pass(coin_game: Doc) -> None:
+    window_without_exit(coin_game)
+    window = coin_game["flow"]["nodes"][1]
+    window["actions"] = [{"name": "pass"}]
+    window["transitions"] = [{"to": "End"}]
+    assert any("'pass' está reservado" in p.message for p in check(coin_game))
+
+
+def test_simultaneous_actions_cannot_transition(coin_game: Doc) -> None:
+    guess = coin_game["flow"]["nodes"][0]
+    guess["kind"] = "simultaneous"
+    guess["actors"] = guess.pop("actor")
+    guess["actions"][0]["transitions"] = [{"to": "Flip"}]
+    problems = check(coin_game)
+    assert any("se resuelven juntas" in p.message for p in problems), problems
+
+
+def test_phase_without_transitions_cannot_be_exited(coin_game: Doc) -> None:
+    test_exit_inside_phase_is_valid(coin_game)
+    coin_game["flow"]["nodes"][0]["transitions"] = []
+    assert any("la fase no tiene transiciones" in p.message for p in check(coin_game))

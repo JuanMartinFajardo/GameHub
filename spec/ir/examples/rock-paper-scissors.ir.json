@@ -1,0 +1,58 @@
+{
+  "ir_version": "0.1.0",
+  "game": { "id": "rock-paper-scissors", "version": "1.0.0" },
+  "meta": {
+    "title": { "es": "Piedra, papel o tijera", "en": "Rock, paper, scissors" },
+    "description": { "es": "Simultáneo y de suma cero. Único equilibrio de Nash: mezclar (1/3, 1/3, 1/3); valor 0." },
+    "license": "CC-BY-4.0",
+    "tags": ["classic", "simultaneous", "zero-sum"]
+  },
+  "players": { "min": 2, "max": 2 },
+  "types": [{ "kind": "enum", "name": "Hand", "values": ["Rock", "Paper", "Scissors"] }],
+  "state": [
+    { "name": "hand", "type": ["per_player", ["option", "Hand"]], "init": ["const", null] }
+  ],
+  "functions": [
+    {
+      "name": "beats",
+      "doc": { "es": "a gana a b: cada mano gana a la anterior en el ciclo Rock → Paper → Scissors → Rock." },
+      "params": [["a", "Hand"], ["b", "Hand"]],
+      "returns": "Bool",
+      "body": ["eq", ["mod", ["sub", ["ord", ["arg", "a"]], ["ord", ["arg", "b"]]], ["const", 3]], ["const", 1]]
+    },
+    {
+      "name": "score",
+      "params": [["s", "Seat"]],
+      "returns": "Int",
+      "body": ["let", "mine", ["unwrap", ["index", ["var", "hand"], ["arg", "s"]]],
+                ["let", "theirs", ["unwrap", ["index", ["var", "hand"], ["other_seat", ["arg", "s"]]]],
+                  ["case", [
+                    [["call", "beats", ["local", "mine"], ["local", "theirs"]], ["const", 1]],
+                    [["call", "beats", ["local", "theirs"], ["local", "mine"]], ["const", -1]]
+                  ], ["const", 0]]]]
+    }
+  ],
+  "flow": {
+    "start": "Show",
+    "nodes": [
+      {
+        "id": "Show",
+        "kind": "simultaneous",
+        "actors": ["seats"],
+        "actions": [
+          {
+            "name": "show",
+            "params": [{ "name": "h", "type": "Hand", "domain": ["enum_values", "Hand"] }],
+            "effects": [["assign", ["index", ["var", "hand"], ["actor"]], ["arg", "h"]]]
+          }
+        ],
+        "transitions": [{ "to": "End" }]
+      },
+      {
+        "id": "End",
+        "kind": "terminal",
+        "payoff": ["map", "s", ["seats"], ["call", "score", ["local", "s"]]]
+      }
+    ]
+  }
+}
