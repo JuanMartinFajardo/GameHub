@@ -63,7 +63,7 @@ def test_nomos_games_are_playable(path: Path) -> None:
     game_ = load_nomos(path)
     # Mentiroso es lento en el motor de referencia (≈ 1 s por partida) y su IR es idéntica a la
     # del ejemplo, que ya se juega en los tests del motor.
-    games = 3 if path.stem == "mentiroso" else 300
+    games = {"mentiroso": 3, "connect-four": 60, "dudo": 100}.get(path.stem, 300)
     report = fuzz(game_, games, seed=1, num_players=game_.players[0])
     assert not report.errors and report.completed == games
 

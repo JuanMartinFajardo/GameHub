@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Tests del dilema del prisionero iterado (un combinador no lleva tests: se extiende).
+
+import iterated_pd.{IteratedPD}
+
+/// El dilema iterado con sus tests.
+game IteratedPDTests extends IteratedPD {
+  test "cooperar siempre: 3 por ronda a cada uno" {
+    params { rounds: 3 }
+    play 0: choose(Cooperate), 1: choose(Cooperate)
+    play 0: choose(Cooperate), 1: choose(Cooperate)
+    play 0: choose(Cooperate), 1: choose(Cooperate)
+    expect payoff == [9, 9]
+  }
+
+  test "el castigo: toma y daca contra quien traiciona" {
+    params { rounds: 3 }
+    play 0: choose(Cooperate), 1: choose(Defect)
+    expect totals[0] == 0 and totals[1] == 5 and round == 2
+    play 0: choose(Defect), 1: choose(Defect)
+    play 0: choose(Defect), 1: choose(Cooperate)
+    expect payoff == [6, 6]
+  }
+
+  test "las elecciones de una ronda no pasan a la siguiente" {
+    params { rounds: 2 }
+    play 0: choose(Defect), 1: choose(Defect)
+    expect is_none(choice[0]) and is_none(choice[1])
+  }
+}

@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Dudo (también perudo o «liar's dice»): dados escondidos bajo un cubilete y apuestas sobre
+// cuántos dados de cada cara hay en la mesa.
+
+import std.dice.{count_with_wild}
+
+/// Cada jugador tira sus dados en secreto. Por turnos, cada uno sube la apuesta («hay al menos
+/// q dados que muestran la cara f», contando los ases como comodines) o duda de la anterior. Al
+/// dudar se levantan los cubiletes: si la apuesta era cierta pierde un dado quien dudó y si no,
+/// quien apostó; quien pierde empieza la ronda siguiente. Quien se queda sin dados queda fuera
+/// y gana el último que conserva alguno.
+game Dudo {
+  meta {
+    title: { es: "Dudo", en: "Liar's dice" }
+    version: "1.0.0"
+    description: {
+      es: "Faroles con dados: información imperfecta, azar y de dos a cuatro jugadores.",
+      en: "Bluffing with dice: imperfect information, chance and two to four players."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["dice", "bluffing", "imperfect-information"]
+  }
+  players 2..4
+
+  params {
+    /// Dados de cada jugador al empezar
+    dice: Int = 3
+    assert dice >= 1 and dice <= 5, "de 1 a 5 dados por jugador"
+  }
+
+  state {
+    /// Los dados de cada jugador, bajo su cubilete
+    @visible(owner)
+    cup: per_player List<Int>
+    /// Cuántos dados le quedan a cada uno (eso sí se ve)
+    dice_left: per_player Int = dice
+    @visible(none)
+    die: Int = 1
+    /// La apuesta en vigor: al menos `quantity` dados con la cara `face` (0 = aún no hay)
+    quantity: Int = 0
+    face: Int = 2
+    bidder: Seat = 0
+    turn: Seat = 0
+    loser: Seat = 0
+  }
+
+  fn total() -> Int = sum(s in seats : dice_left[s])
+  fn alive() -> Int = count(s in seats : dice_left[s] > 0)
+  /// El primer jugador con dados empezando por `s`.
+  fn first_alive_from(s: Seat) -> Seat = first([t for t in seats_from(s) if dice_left[t] > 0])
+
+  flow {
+    start -> Roll
+
+    /// Todos los que siguen en juego tiran sus dados.
+    chance Roll {
+      for s in seats {
+        cup[s] = []
+        for k in 1..dice_left[s] {
+          die = roll(6)
+          cup[s] += [die]
+        }
+      }
+      quantity = 0
+      face = 2
+      -> Bid
+    }
+
+    decision Bid {
+      actor: turn
+      /// Apostar a que hay al menos `q` dados con la cara `f`.
+      action bid(q in 1..total(), f in 2..6) requires q > quantity or q == quantity and f > face {
+        quantity = q
+        face = f
+        bidder = actor
+        -> Bid { turn = first_alive_from(next(actor)) }
+      }
+      /// Dudar de la apuesta anterior: se levantan los cubiletes.
+      action dudo() requires quantity > 0 {
+        reveal cup to all
+        loser =
+          actor if count_with_wild(flat_map(s in seats : cup[s]), face, 1) >= quantity else bidder
+        dice_left[loser] -= 1
+        -> End when alive() == 1
+        -> Roll { turn = first_alive_from(loser) }
+      }
+    }
+
+    terminal End { payoff: [num_players - 1 if dice_left[s] > 0 else -1 for s in seats] }
+  }
+
+  test "la apuesta tiene que subir" {
+    play bid(2, 3)
+    expect illegal bid(2, 3)
+    expect illegal bid(1, 6)
+    expect legal bid(2, 4)
+    expect legal bid(3, 2)
+  }
+
+  test "dudar de una apuesta cierta cuesta un dado a quien duda" {
+    set cup[0] = [3, 1, 6]
+    set cup[1] = [3, 2, 2]
+    play bid(3, 3), dudo()
+    expect dice_left[0] == 3 and dice_left[1] == 2 and turn == 1
+  }
+
+  test "dudar de una apuesta falsa cuesta un dado a quien apostó" {
+    set cup[0] = [3, 1, 6]
+    set cup[1] = [3, 2, 2]
+    play bid(4, 3), dudo()
+    expect dice_left[0] == 2 and dice_left[1] == 3 and turn == 0
+  }
+
+  test "el último con dados gana" {
+    params { dice: 1 }
+    set cup[0] = [5]
+    set cup[1] = [2]
+    play bid(2, 5), dudo()
+    expect at(End) and payoff == [-1, 1]
+  }
+
+  test "con tres jugadores, quien se queda sin dados deja de jugar" {
+    players 3
+    params { dice: 1 }
+    set cup[0] = [5]
+    set cup[1] = [2]
+    set cup[2] = [4]
+    play bid(2, 6), dudo()
+    expect dice_left[0] == 0 and turn == 1
+    play bid(1, 2)
+    expect turn == 2
+  }
+
+  invariant all(s in seats : dice_left[s] >= 0 and dice_left[s] <= dice) and alive() >= 1
+}

@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Pares o nones (matching pennies): suma cero, de la familia 2×2.
+
+import two_by_two.{TwoByTwo}
+
+/// Cada jugador enseña una moneda: si coinciden gana el jugador 0 y si no, el 1. No hay
+/// equilibrio en estrategias puras; el mixto es elegir cara o cruz al 50 %, con valor 0.
+game MatchingPennies extends TwoByTwo {
+  meta {
+    title: { es: "Pares o nones", en: "Matching pennies" }
+    version: "1.0.0"
+    description: {
+      es: "Suma cero y sin equilibrio puro: lo único que funciona es ser impredecible.",
+      en: "Zero-sum with no pure equilibrium: being unpredictable is all that works."
+    }
+    tags: ["classic", "simultaneous", "zero-sum"]
+  }
+
+  override enum Choice { Heads, Tails }
+
+  override params {
+    row_payoffs: List<Real> = [1, -1, -1, 1]
+    column_payoffs: List<Real> = [-1, 1, 1, -1]
+  }
+
+  test "si coinciden gana el jugador 0" {
+    play 0: choose(Tails), 1: choose(Tails)
+    expect payoff == [1, -1]
+  }
+
+  test "si no coinciden gana el jugador 1" {
+    play 0: choose(Heads), 1: choose(Tails)
+    expect payoff == [-1, 1]
+  }
+}

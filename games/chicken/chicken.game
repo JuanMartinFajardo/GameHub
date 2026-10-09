@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// La gallina: un juego de anticoordinación de la familia 2×2.
+
+import two_by_two.{TwoByTwo}
+
+/// Dos conductores van de frente: quien se aparta es la gallina, pero si ninguno se aparta, el
+/// choque es lo peor para los dos. Dos equilibrios de Nash puros: que se aparte uno y el otro no.
+game Chicken extends TwoByTwo {
+  meta {
+    title: { es: "La gallina", en: "Chicken" }
+    version: "1.0.0"
+    description: {
+      es: "Anticoordinación: a cada uno le conviene hacer lo contrario que el otro.",
+      en: "Anti-coordination: each player wants to do the opposite of the other."
+    }
+    tags: ["classic", "simultaneous", "anti-coordination"]
+  }
+
+  override enum Choice { Swerve, Straight }
+
+  override params {
+    row_payoffs: List<Real> = [0, -1, 1, -10]
+    column_payoffs: List<Real> = [0, 1, -1, -10]
+  }
+
+  test "apartarse los dos" {
+    play 0: choose(Swerve), 1: choose(Swerve)
+    expect payoff == [0, 0]
+  }
+
+  test "quien sigue recto gana si el otro se aparta" {
+    play 0: choose(Straight), 1: choose(Swerve)
+    expect payoff == [1, -1]
+  }
+
+  test "el choque" {
+    play 0: choose(Straight), 1: choose(Straight)
+    expect payoff == [-10, -10]
+  }
+}

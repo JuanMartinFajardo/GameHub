@@ -89,12 +89,26 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   guardar (también en módulos importados) y formato con `gamehub fmt --stdin` (nuevo). Un test
   comprueba que la gramática cubre todas las palabras reservadas y funciones del lenguaje.
   Corregido: un juego sin `flow` daba un error sin posición (ahora uno solo, en el juego).
+- **Juegos nuevos en Nomos**, cada uno un paquete con tests (64 comprobaciones en total, todas
+  en verde, sin avisos):
+  - **Conecta 4** (tablero y línea parametrizables; invariante: las fichas no flotan);
+  - **familia 2×2**: base `two-by-two` (dos tablas de pagos como opciones) y las variantes
+    **caza del ciervo**, **gallina**, **pares o nones** y **batalla de los sexos** con `extends`
+    (`override enum` para renombrar las opciones, `override params` para los pagos);
+  - **dilema del prisionero iterado** con `repeat(PrisonersDilemma, rounds: 10)` y un
+    `tests.game` que lo extiende;
+  - **póker de Leduc** (dos rondas, límite de subidas, carta común);
+  - **Dudo** de 2 a 4 jugadores, que usa `std.dice`.
+- Mejoras que salieron al escribirlos: el análisis de fugas entiende `reveal … to all`; las
+  funciones de módulo tienen su propio ámbito (sus parámetros pueden llamarse como cosas del
+  juego); la recuperación de errores del parser respeta los corchetes anidados (un error dentro
+  de un texto ya no cierra el bloque y lo arrastra todo); los textos traducibles admiten saltos
+  de línea entre idiomas.
 
-**Pendiente en F2**: juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
-documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
+**Pendiente en F2**: documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
 empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
 
-**Progreso:** ≈ 23 % (F2 casi terminada).
+**Progreso:** ≈ 24 % (F2 terminada a falta de la documentación).
 
 ---
 

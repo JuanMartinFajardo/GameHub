@@ -1,0 +1,8 @@
+[game]
+name = "chicken"
+version = "1.0.0"
+license = "CC-BY-4.0"
+authors = ["GameHub"]
+
+[dependencies]
+two-by-two = { path = "../two-by-two" }

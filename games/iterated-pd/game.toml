@@ -1,0 +1,8 @@
+[game]
+name = "iterated-pd"
+version = "1.0.0"
+license = "CC-BY-4.0"
+authors = ["GameHub"]
+
+[dependencies]
+prisoners-dilemma = { path = "../prisoners-dilemma" }

@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Póker de Leduc (Southey et al., 2005): el póker de juguete que más se usa en investigación
+// después del de Kuhn. Seis cartas, dos rondas de apuestas y una carta común.
+
+/// Cada jugador pone 1 de apuesta inicial y recibe una carta oculta de una baraja de seis (J, Q,
+/// K, dos de cada). Hay dos rondas de apuestas: en la primera se apuesta de 2 en 2 y en la
+/// segunda, de 4 en 4, con dos subidas como mucho por ronda. Entre las dos se descubre una carta
+/// común. Quien empareja con ella gana; si no, gana la carta más alta, y si empatan se reparten
+/// el bote.
+game LeducPoker {
+  meta {
+    title: { es: "Póker de Leduc", en: "Leduc poker" }
+    version: "1.0.0"
+    description: {
+      es: "Información imperfecta, azar y dos rondas de apuestas: el banco de pruebas clásico de CFR.",
+      en: "Imperfect information, chance and two betting rounds: the classic CFR testbed."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["poker", "imperfect-information", "research"]
+  }
+  players 2
+
+  enum Card { J, Q, K }
+  enum Move { Check, Bet, Call, Raise, Fold }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<Card> = [J, J, Q, Q, K, K]
+    @visible(owner) @size_visible(all)
+    hand: per_player Bag<Card>
+    /// La carta común
+    board: Zone<Card>
+    /// Fichas aportadas, apuesta inicial incluida
+    put: per_player Int = 1
+    round: Int = 1
+    /// Jugadas de la ronda en curso
+    moves: List<Move>
+    turn: Seat = 0
+  }
+
+  /// Lo que se apuesta o se sube en la ronda: 2 en la primera, 4 en la segunda.
+  fn step() -> Int = 2 if round == 1 else 4
+  fn facing() -> Bool = put[turn] < put[other(turn)]
+  fn raises() -> Int = count(m in moves : m == Bet or m == Raise)
+  /// La ronda acaba cuando los dos pasan o cuando alguien iguala.
+  fn closed() -> Bool = moves == [Check, Check] or last(moves) == Call
+  /// Fuerza de una mano: pareja con la carta común (lo máximo) o el valor de la carta.
+  fn strength(s: Seat) -> Int = 10 if only(hand[s]) == top(board) else ord(only(hand[s]))
+  fn record(m: Move) -> List<Move> = append(moves, m)
+
+  flow {
+    start -> Deal
+
+    chance Deal {
+      shuffle deck
+      deal 1 from deck to each hand
+      -> Betting
+    }
+
+    decision Betting {
+      actor: turn
+      action check() requires not facing() { moves = record(Check) }
+      action bet() requires not facing() and raises() < 2 {
+        put[actor] += step()
+        moves = record(Bet)
+      }
+      action call() requires facing() {
+        put[actor] = put[other(actor)]
+        moves = record(Call)
+      }
+      action raise() requires facing() and raises() < 2 {
+        put[actor] = put[other(actor)] + step()
+        moves = record(Raise)
+      }
+      action fold() requires facing() { moves = record(Fold) }
+      -> Folded when last(moves) == Fold
+      -> Flop when closed() and round == 1
+      -> Showdown when closed()
+      -> Betting { turn = other(turn) }
+    }
+
+    /// Se descubre una de las cuatro cartas que quedan y empieza la segunda ronda, otra vez con
+    /// el jugador 0.
+    chance Flop {
+      shuffle deck
+      move top 1 from deck to board
+      round = 2
+      moves = []
+      turn = 0
+      -> Betting
+    }
+
+    /// Quien se retira pierde lo que había puesto.
+    terminal Folded { payoff: win_loss(other(turn), put[turn], -put[turn]) }
+
+    terminal Showdown {
+      let a = strength(0)
+      let b = strength(1)
+      payoff: [0, 0] if a == b else win_loss(0 if a > b else 1, put[1], -put[1])
+    }
+  }
+
+  test "la pareja con la carta común gana" {
+    chance where only(hand[0]) == J and only(hand[1]) == K
+    play check(), check()
+    chance where top(board) == J
+    play check(), check()
+    expect at(Showdown) and payoff == [1, -1]
+  }
+
+  test "sin pareja gana la carta más alta" {
+    chance where only(hand[0]) == J and only(hand[1]) == K
+    play bet(), call()
+    chance where top(board) == Q
+    play bet(), call()
+    expect payoff == [-7, 7]
+  }
+
+  test "si empatan se reparten el bote" {
+    chance where only(hand[0]) == Q and only(hand[1]) == Q
+    play check(), check()
+    chance where top(board) == K
+    play check(), check()
+    expect payoff == [0, 0]
+  }
+
+  test "retirarse pierde lo apostado" {
+    play bet(), raise(), fold()
+    expect at(Folded) and payoff == [-3, 3]
+  }
+
+  test "como mucho dos subidas por ronda" {
+    play bet(), raise()
+    expect illegal raise()
+    expect legal call()
+    expect put[0] == 3 and put[1] == 5
+  }
+
+  /// Las seis cartas están siempre en algún sitio.
+  invariant size(deck) + size(board) + sum(s in seats : size(hand[s])) == 6
+
+  invariant raises() <= 2 and all(s in seats : put[s] >= 1 and put[s] <= 13)
+}

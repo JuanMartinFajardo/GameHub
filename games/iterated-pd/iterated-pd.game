@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Dilema del prisionero iterado: el del torneo de Axelrod (1980). Al repetirse, cooperar puede
+// compensar: quien traiciona hoy puede ser castigado mañana.
+
+import prisoners_dilemma.{PrisonersDilemma}
+
+/// El dilema del prisionero jugado `rounds` veces seguidas; gana quien más suma. Cada ronda
+/// empieza de cero, pero los jugadores recuerdan lo que pasó en las anteriores.
+game IteratedPD = repeat(PrisonersDilemma, rounds: 10, payoff: sum)

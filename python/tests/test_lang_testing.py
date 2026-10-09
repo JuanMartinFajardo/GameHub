@@ -54,7 +54,17 @@ def test_games_pass_their_own_tests(path: Path) -> None:
         report = GameTester(compiled).run_all(playouts=2)
         assert [str(t.failure) for t in report.tests if t.failure] == []
         assert report.playouts.failure is None
-        assert report.tests, "cada juego trae sus tests"
+
+
+def test_every_game_package_has_tests() -> None:
+    for package in sorted({path.parent for path in GAMES}):
+        tests = [
+            case
+            for path in package.glob("*.game")
+            for compiled in compile_file(path).games.values()
+            for case in compiled.tests
+        ]
+        assert tests, f"{package.name} no tiene tests"
 
 
 def test_failed_expectation_shows_the_values() -> None:

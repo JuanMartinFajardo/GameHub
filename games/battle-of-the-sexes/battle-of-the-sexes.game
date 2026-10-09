@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// La batalla de los sexos: coordinación con preferencias distintas, de la familia 2×2.
+
+import two_by_two.{TwoByTwo}
+
+/// Una pareja quiere salir junta, pero uno prefiere la ópera y el otro el fútbol, y no pueden
+/// hablarlo. Dos equilibrios de Nash puros (los dos van al mismo sitio) y uno mixto.
+game BattleOfTheSexes extends TwoByTwo {
+  meta {
+    title: { es: "La batalla de los sexos", en: "Battle of the sexes" }
+    version: "1.0.0"
+    description: {
+      es: "Coordinación con conflicto: los dos quieren coincidir, pero cada uno prefiere un sitio.",
+      en: "Coordination with conflict: both want to meet, but each prefers a different place."
+    }
+    tags: ["classic", "simultaneous", "coordination"]
+  }
+
+  override enum Choice { Opera, Football }
+
+  override params {
+    row_payoffs: List<Real> = [3, 0, 0, 2]
+    column_payoffs: List<Real> = [2, 0, 0, 3]
+  }
+
+  test "en la ópera" {
+    play 0: choose(Opera), 1: choose(Opera)
+    expect payoff == [3, 2]
+  }
+
+  test "sin coincidir no gana nadie" {
+    play 0: choose(Opera), 1: choose(Football)
+    expect payoff == [0, 0]
+  }
+}
