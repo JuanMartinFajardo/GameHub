@@ -322,6 +322,7 @@ def _decompile(args: argparse.Namespace) -> int:
 
 
 def _check(args: argparse.Namespace) -> int:
+    from gamehub.analysis import classify
     from gamehub.ir.hashing import rules_hash
     from gamehub.lang.compiler import compile_file
     from gamehub.lang.diagnostics import print_diagnostics
@@ -342,8 +343,11 @@ def _check(args: argparse.Namespace) -> int:
                 print(f"✗ {path}: {errors} error{'es' if errors != 1 else ''}")
             continue
         if args.format == "text":
+            warnings = len(result.diagnostics.warnings)
+            note = f" · {warnings} aviso{'s' if warnings != 1 else ''}" if warnings else ""
             for name, game in result.games.items():
-                print(f"✓ {path}: {name} ({rules_hash(game.ir)[:19]}…)")
+                print(f"✓ {path}: {name} ({rules_hash(game.ir)[:19]}…){note}")
+                print(f"    {' · '.join(classify(game.ir).labels())}")
     if args.format == "json":
         print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if failed else 0
@@ -352,7 +356,7 @@ def _check(args: argparse.Namespace) -> int:
 def _test(args: argparse.Namespace) -> int:
     from gamehub.lang.compiler import compile_file
     from gamehub.lang.diagnostics import render, use_color
-    from gamehub.lang.testing import GameTester
+    from gamehub.lang.testing import GameTester, show_value
 
     color = args.format == "text" and use_color(sys.stdout)
     passed = failed = 0
@@ -388,25 +392,32 @@ def _test(args: argparse.Namespace) -> int:
                 if t.failure is not None:
                     show(_indent(render(t.failure, color=color), 4) + "\n")
             playouts = game_report.playouts
-            if game_report.invariants:
-                entry["invariants"] = {
-                    "count": game_report.invariants,
+            count = game_report.invariants
+            if args.playouts:
+                entry["playouts"] = {
+                    "invariants": count,
                     "playouts": playouts.playouts,
                     "states": playouts.states,
                     "ok": playouts.failure is None,
+                    "payoff_sums": sorted(str(x) for x in playouts.payoff_sums),
                 } | ({"failure": playouts.failure.to_json()} if playouts.failure else {})
-                count = game_report.invariants
-                what = f"{count} invariante{'s' if count != 1 else ''}"
+                what = (
+                    f"{count} invariante{'s' if count != 1 else ''} en"
+                    if count
+                    else "sin errores en"
+                )
                 if playouts.failure is None:
-                    if args.playouts:
-                        passed += 1
-                        show(
-                            f"  ✓ {what} en {playouts.playouts} partidas aleatorias "
-                            f"({playouts.states} estados)"
-                        )
+                    passed += 1
+                    show(
+                        f"  ✓ {what} {playouts.playouts} partidas aleatorias "
+                        f"({playouts.states} estados)"
+                    )
+                    if len(playouts.payoff_sums) == 1:
+                        total = show_value(next(iter(playouts.payoff_sums)))
+                        show(f"    los pagos suman siempre {total}")
                 else:
                     failed += 1
-                    show(f"  ✗ {what} en partidas aleatorias")
+                    show(f"  ✗ partidas aleatorias{' (invariantes)' if count else ''}")
                     show(_indent(render(playouts.failure, color=color), 4) + "\n")
             if not game_report.tests and not game_report.invariants:
                 show("  (sin tests ni invariantes)")

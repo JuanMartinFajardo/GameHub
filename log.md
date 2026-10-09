@@ -35,14 +35,24 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   jugadas legales. Errores nuevos: E601/E602 (configuración del test) y E610–E614 (fallos).
   Motor: `State.evaluate`, `State.edited` e `illegal_reason`. Los 19 tests y 4 invariantes de los
   juegos pasan; en CI.
+- **Análisis de `gamehub check`** (paquete `gamehub.analysis`, sobre la IR, así que sirven también
+  para IR escrita a mano o por el futuro editor visual): nodos inalcanzables (W401), transiciones
+  que pueden no cubrir todos los casos (W402, reconoce parejas `c`/`not c`, `a < b`/`a >= b` y
+  enums completos), nodos sin camino a un final (W403), bucles de nodos `auto` sin efectos
+  (W404), **fugas de información v1** (W405: datos ocultos que llegan a estado o eventos públicos,
+  también por un `if`; quién juega o qué nodo sigue según datos ocultos; jugadas legales que
+  dependen de lo que el actor no ve), declaraciones sin usar (W406; los usos en tests cuentan) y
+  transiciones tapadas en IR a mano (W407). **Clasificación** estática (jugadores, azar,
+  información, simultaneidad, suma cero si se puede asegurar). Los avisos se sitúan en el texto
+  con un mapa de fuentes. Los seis juegos no dan ningún aviso; el fregadero da los esperables.
+  `gamehub test` juega siempre las partidas aleatorias e informa si los pagos suman constante.
 
-**Pendiente en F2**: análisis de `check` (alcanzabilidad, exhaustividad, bucles,
-fugas, clasificación); `import` + stdlib v0; `extends`/`override`/`remove` y combinadores
+**Pendiente en F2**: `import` + stdlib v0; `extends`/`override`/`remove` y combinadores
 `repeat`/`best_of`; paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
 `viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
 documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki).
 
-**Progreso:** ≈ 18 % (F2 a medias).
+**Progreso:** ≈ 19 % (F2 a medias).
 
 ---
 

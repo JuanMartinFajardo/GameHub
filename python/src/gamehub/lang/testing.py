@@ -82,11 +82,13 @@ class TestResult:
 
 @dataclass
 class PlayoutReport:
-    """Invariantes comprobados en partidas aleatorias."""
+    """Invariantes comprobados en partidas aleatorias (y la suma de los pagos de cada final:
+    si es siempre la misma, el juego parece de suma constante)."""
 
     playouts: int = 0
     states: int = 0
     failure: Diagnostic | None = None
+    payoff_sums: set[Fraction] = field(default_factory=set)
 
 
 @dataclass
@@ -121,7 +123,7 @@ class GameTester:
         for case in self.compiled.tests:
             if select is None or select.lower() in case.name.lower():
                 report.tests.append(self.run(case))
-        if playouts and self.invariants:
+        if playouts:
             report.playouts = self.playouts(playouts, seed)
         return report
 
@@ -176,7 +178,10 @@ class GameTester:
                         inv, explanation, state, [f"{where}, tras {steps} pasos{_last_step(state)}"]
                     )
                     return report
-                if state.is_terminal or steps >= PLAYOUT_MAX_STEPS:
+                if state.payoffs is not None:
+                    report.payoff_sums.add(Fraction(sum(state.payoffs)))
+                    break
+                if steps >= PLAYOUT_MAX_STEPS:
                     break
                 try:
                     if state.status is Status.CHANCE:

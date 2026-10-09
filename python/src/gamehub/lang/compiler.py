@@ -4,17 +4,20 @@ de tipos y traducción a GameIR, y validación final de la IR con `gamehub.ir.ch
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from gamehub.analysis.lint import lint
 from gamehub.ir import check as check_ir
 from gamehub.lang import ast
 from gamehub.lang.checker import Checker
 from gamehub.lang.diagnostics import CompileError, Diagnostics
 from gamehub.lang.model import CompiledGame, External, GameModel
 from gamehub.lang.parser import parse
-from gamehub.lang.source import Source
+from gamehub.lang.source import Source, Span
 
 if TYPE_CHECKING:
     from gamehub.engine.game import Game
@@ -56,25 +59,110 @@ def compile_source(source: Source) -> CompileResult:
     result = CompileResult(source, tree, diagnostics)
     if diagnostics.has_errors:
         return result
+    models: dict[str, GameModel] = {}
     for item in tree.items:
         if isinstance(item, ast.GameDecl):
             model = collect(tree, item, diagnostics)
             compiled = Checker(model, diagnostics).run()
             result.games[item.name] = compiled
+            models[item.name] = model
         elif isinstance(item, ast.GameAlias):
             diagnostics.error(
                 "E501", "los combinadores de juegos aún no están disponibles", item.span
             )
-    if not diagnostics.has_errors:
-        for compiled in result.games.values():
-            for problem in check_ir(compiled.ir):
-                diagnostics.error(
-                    "E900",
-                    f"error interno del compilador: la IR generada no es válida: {problem}",
-                    compiled.span,
-                    help="esto es un fallo de GameHub, no de tu juego: por favor, infórmalo",
-                )
+    if diagnostics.has_errors:
+        return result
+    for name, compiled in result.games.items():
+        problems = check_ir(compiled.ir)
+        for problem in problems:
+            diagnostics.error(
+                "E900",
+                f"error interno del compilador: la IR generada no es válida: {problem}",
+                compiled.span,
+                help="esto es un fallo de GameHub, no de tu juego: por favor, infórmalo",
+            )
+        if not problems:
+            warn(compiled, models[name], diagnostics)
     return result
+
+
+def warn(compiled: CompiledGame, model: GameModel, diagnostics: Diagnostics) -> None:
+    """Avisos de los análisis estáticos (`gamehub.analysis.lint`), situados en el texto."""
+    spans = source_map(model)
+    for finding in lint(compiled.ir, _test_exprs(compiled)):
+        where = finding.where
+        span = None
+        while where and span is None:
+            span = spans.get(where)
+            where = _enclosing(where)
+        diagnostics.warning(finding.code, finding.message, span or compiled.span, help=finding.help)
+
+
+def _enclosing(where: tuple[str, ...]) -> tuple[str, ...]:
+    """El elemento que contiene a otro (para situar un aviso si no hay posición exacta)."""
+    match where:
+        case ("action_transition", node, action, _):
+            return ("action", node, action)
+        case ("transition", node, _) | ("action", node, _):
+            return ("node", node)
+    return ()
+
+
+def _test_exprs(compiled: CompiledGame) -> Iterator[object]:
+    """Expresiones de los tests e invariantes: también cuentan como usos de las declaraciones."""
+    for inv in compiled.invariants:
+        yield inv.expr
+    for case in compiled.tests:
+        for step in case.steps:
+            for value in (step.value, step.target, *step.entries.values()):
+                if isinstance(value, list):
+                    yield value
+            for call in step.actions:
+                yield from call.args
+
+
+def source_map(model: GameModel) -> dict[tuple[str, ...], Span]:
+    """Posición en el texto de cada elemento de la IR al que puede referirse un aviso (el
+    nombre del nodo, la acción, la variable…)."""
+    spans: dict[tuple[str, ...], Span] = {}
+    for p in model.params:
+        spans[("param", p.name)] = _name_span(p.span, p.name)
+    for v in model.state:
+        spans[("var", v.name)] = _name_span(v.span, v.name)
+    for f in model.functions:
+        spans[("function", f.name)] = _name_span(f.span, f.name)
+    for t in model.types:
+        spans[("type", t.name)] = _name_span(t.span, t.name)
+
+    def visit(nodes: list[ast.NodeDecl]) -> None:
+        for node in nodes:
+            spans[("node", node.name)] = _name_span(node.span, node.name)
+            i = 0
+            for member in node.members:
+                if isinstance(member, ast.Transition):
+                    spans[("transition", node.name, str(i))] = member.span
+                    i += 1
+                elif isinstance(member, ast.ActionDecl):
+                    key = ("action", node.name, member.name)
+                    spans[key] = _name_span(member.span, member.name)
+                    for j, t in enumerate(member.transitions):
+                        spans[("action_transition", node.name, member.name, str(j))] = t.span
+                elif isinstance(member, ast.NodeDecl):
+                    visit([member])
+
+    visit(model.nodes)
+    return spans
+
+
+def _name_span(span: Span, name: str) -> Span:
+    """El trozo de `span` donde aparece `name` como palabra (o `span` si no aparece)."""
+    source = span.source
+    if source is None:
+        return span
+    match = re.compile(rf"\b{re.escape(name)}\b").search(source.text, span.start, span.end)
+    if match is None:
+        return span
+    return Span(source, match.start(), match.end())
 
 
 def compile_file(path: Path) -> CompileResult:
