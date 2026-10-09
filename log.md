@@ -84,8 +84,13 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   condiciones y efectos en Nomos, definiciones), en el idioma pedido.
 - **`gamehub diff A B`** o **`gamehub diff REV1..REV2 archivo`**: diff semántico por elementos
   (no por líneas), en texto o JSON, que dice si cambian las reglas o solo los textos.
+- **Extensión de VS Code** (`editors/vscode/nomos`, JavaScript sin compilación): gramática
+  TextMate, configuración del lenguaje, diagnósticos de `gamehub check --format json` al abrir y
+  guardar (también en módulos importados) y formato con `gamehub fmt --stdin` (nuevo). Un test
+  comprueba que la gramática cubre todas las palabras reservadas y funciones del lenguaje.
+  Corregido: un juego sin `flow` daba un error sin posición (ahora uno solo, en el juego).
 
-**Pendiente en F2**: extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
+**Pendiente en F2**: juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
 documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
 empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
 

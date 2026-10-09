@@ -106,7 +106,7 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 - [x] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones
 - [x] `gamehub viz`: diagrama de solo lectura (Mermaid / Graphviz) — primer "editor visual"
 - [x] `gamehub rules`: **reglamento autogenerado** v0 (Markdown)
-- [ ] Extensión VS Code: resaltado (TextMate) + diagnósticos
+- [x] Extensión VS Code: resaltado (TextMate) + diagnósticos (+ formato) en `editors/vscode/nomos`
 - [ ] Juegos en `.game`: los de F1 (incluido Mentiroso) + Conecta 4, familia 2×2, PD iterado, Leduc, Dudo
 
 **Aceptación:** todos los juegos de la ola 1 en `.game` pasan sus tests; `fmt` idempotente;

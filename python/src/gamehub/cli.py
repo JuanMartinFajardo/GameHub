@@ -148,7 +148,12 @@ def _parser() -> argparse.ArgumentParser:
 
     fmt = commands.add_parser("fmt", help="formatea archivos .game (formato canónico de Nomos)")
     fmt.add_argument(
-        "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
+        "files", nargs="*", type=Path, metavar="RUTA", help="archivos .game o directorios"
+    )
+    fmt.add_argument(
+        "--stdin",
+        action="store_true",
+        help="formatea la entrada estándar y escribe el resultado en la salida (editores)",
     )
     fmt.add_argument("--check", action="store_true", help="no escribe; falla si alguno cambiaría")
     fmt.add_argument(
@@ -619,6 +624,16 @@ def _fmt(args: argparse.Namespace) -> int:
     from gamehub.lang.printer import format_source
     from gamehub.lang.source import Source
 
+    if args.stdin:
+        try:
+            sys.stdout.write(format_source(Source("<entrada>", sys.stdin.read())))
+        except CompileError as exc:
+            print_diagnostics(exc.diagnostics.sorted())
+            return 1
+        return 0
+    if not args.files:
+        print("error: indica archivos .game o directorios (o --stdin)", file=sys.stderr)
+        return 2
     changed = failed = 0
     for path in _game_files(args.files):
         try:

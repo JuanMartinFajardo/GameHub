@@ -1,0 +1,153 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Nomos",
+  "scopeName": "source.nomos",
+  "fileTypes": ["game"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#annotations" },
+    { "include": "#declarations" },
+    { "include": "#blocks" },
+    { "include": "#builtins" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#types" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.documentation.nomos", "match": "///(?!/).*$" },
+        { "name": "comment.line.double-slash.nomos", "match": "//.*$" },
+        { "name": "comment.block.nomos", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.nomos",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.nomos",
+          "match": "\\\\(?:[ntr\"\\\\0]|u\\{[0-9a-fA-F]+\\})"
+        },
+        { "name": "invalid.illegal.escape.nomos", "match": "\\\\." }
+      ]
+    },
+    "annotations": {
+      "name": "storage.modifier.annotation.nomos",
+      "match": "@[A-Za-z_][A-Za-z0-9_]*"
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(game|enum|struct|extends)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.nomos" },
+            "2": { "name": "entity.name.type.nomos" }
+          }
+        },
+        {
+          "match": "\\b(fn|action)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.nomos" },
+            "2": { "name": "entity.name.function.nomos" }
+          }
+        },
+        {
+          "match": "\\b(decision|simultaneous|window|chance|auto|phase|terminal)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.node.nomos" },
+            "2": { "name": "entity.name.section.node.nomos" }
+          }
+        },
+        {
+          "match": "(->)\\s*([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.operator.transition.nomos" },
+            "2": { "name": "entity.name.section.node.nomos" }
+          }
+        },
+        {
+          "match": "\\b(remove)\\s+(node|fn|state|param|enum|struct|action)\\b",
+          "captures": {
+            "1": { "name": "keyword.declaration.nomos" },
+            "2": { "name": "keyword.declaration.nomos" }
+          }
+        }
+      ]
+    },
+    "blocks": {
+      "patterns": [
+        {
+          "name": "variable.other.member.nomos",
+          "match": "\\b(actor|actors|eligible|mode|order|payoff|rank)(?=\\s*:)"
+        },
+        {
+          "name": "keyword.other.block.nomos",
+          "match": "\\b(resolve|on_enter|on_exit)(?=\\s*\\{)"
+        }
+      ]
+    },
+    "builtins": {
+      "name": "support.function.builtin.nomos",
+      "match": "\\b(abs|all|any|append|argmax|argmin|at|cell|cells|concat|contains|count|difference|distinct|fill|filter|first|flat_map|in_bounds|intersection|is_none|items|last|len|lines|map|max|min|neighbors|next|only|ord|other|prev|random|range|rat|reverse|roll|sample|seats_from|set|size|slice|sort_by|subsets|sum|top|union|unwrap|win_loss)(?=\\s*\\()"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.nomos",
+          "match": "\\b(if|else|for|in|match|case|when|requires|start|exit)\\b"
+        },
+        {
+          "name": "keyword.declaration.nomos",
+          "match": "\\b(game|extends|meta|players|params|state|fn|enum|struct|flow|test|invariant|import|override|remove|extend|let|assert|action)\\b"
+        },
+        {
+          "name": "storage.type.node.nomos",
+          "match": "\\b(decision|simultaneous|window|chance|auto|phase|terminal)\\b"
+        },
+        {
+          "name": "keyword.other.statement.nomos",
+          "match": "\\b(move|flip|shuffle|deal|reveal|emit|reward|fail)\\b"
+        },
+        {
+          "name": "keyword.other.contextual.nomos",
+          "match": "\\b(from|to|each|as|of|top|bottom|face_up|face_down|face|play|expect|legal|illegal|seed|where|node|per_player)\\b"
+        },
+        {
+          "name": "keyword.operator.word.nomos",
+          "match": "\\b(and|or|not|div)\\b"
+        },
+        {
+          "name": "constant.language.nomos",
+          "match": "\\b(true|false|none)\\b"
+        },
+        {
+          "name": "variable.language.nomos",
+          "match": "\\b(actor|viewer|owner|seats|num_players|payoff|active)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.decimal.nomos", "match": "\\b[0-9][0-9_]*\\.[0-9][0-9_]*\\b" },
+        { "name": "constant.numeric.integer.nomos", "match": "\\b[0-9][0-9_]*\\b" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.nomos",
+          "match": "\\b(Bool|Int|Real|Text|Seat|Cell|List|Set|Map|Zone|Bag|Grid)\\b"
+        },
+        { "name": "entity.name.type.nomos", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" }
+      ]
+    },
+    "operators": {
+      "name": "keyword.operator.nomos",
+      "match": "\\.\\.<|\\.\\.|->|=>|==|!=|<=|>=|\\+=|-=|\\*=|[-+*/%<>=?]"
+    }
+  }
+}

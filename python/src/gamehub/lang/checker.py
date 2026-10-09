@@ -732,6 +732,14 @@ class Checker:
         m = self.model
         flow: dict[str, Any] = {}
         top = {n.name for n in m.nodes}
+        if m.flow_span.source is None and not m.nodes:
+            self.error(
+                "E405",
+                f"el juego {m.name} no tiene flow",
+                m.decl.span,
+                help="añade flow { start -> Nodo … } con los nodos de la partida",
+            )
+            return {"start": "Start", "nodes": []}
         if m.start is None:
             self.error(
                 "E405",
