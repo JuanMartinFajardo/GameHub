@@ -56,14 +56,25 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   40/48, `rank_value`, `is_red`…), `std.dice` (caras, recuentos con comodín, escaleras…),
   `std.grid` (direcciones, rayos, distancias) y `std.graph` (grafos como listas de aristas,
   ciclos, vecinos). Probada con tests escritos en Nomos (`tests/fixtures/stdlib.game`).
+- **Mods**: `game V extends Base { … }` (la base puede ser del archivo, importada o un
+  combinador) con declaraciones nuevas, `override` (fn, tipos, nodos —también dentro de fases—,
+  params, state; un `override params` con `assert` sustituye las restricciones), `remove` y
+  `extend node` (acciones al final, transiciones delante). Meta mezclado sin `id`/`version`; tests
+  e invariantes no se heredan; la base no cambia. Errores E505.
+- **Combinadores**: `game G = repeat(Base, rounds: n, payoff: sum|mean)` y
+  `best_of(Base, rounds: n)`, como transformaciones de la IR (fase de ronda, terminales que
+  apuntan el resultado, nodo «Siguiente», terminal final; `rounds` pasa a ser un parámetro; nombres
+  nuevos sin choques). Errores E506. Un combinador se puede extender (se descompila), p. ej. para
+  añadirle tests. Probado: PD iterado (9/9 cooperando, media 3 y 4/3), al mejor de 3 (suma cero),
+  variantes del tres en raya (inverso, con pase, 4×4).
+- En un `import`, `prisoners_dilemma` encuentra también `prisoners-dilemma.game`.
 
-**Pendiente en F2**: `extends`/`override`/`remove` y combinadores
-`repeat`/`best_of`; paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
+**Pendiente en F2**: paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
 `viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
 documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
 empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
 
-**Progreso:** ≈ 20 % (F2 a medias).
+**Progreso:** ≈ 21 % (F2 a medias).
 
 ---
 

@@ -4,6 +4,7 @@ de tipos y traducción a GameIR, y validación final de la IR con `gamehub.ir.ch
 
 from __future__ import annotations
 
+import difflib
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -12,10 +13,12 @@ from typing import TYPE_CHECKING
 
 from gamehub.analysis.lint import lint
 from gamehub.ir import check as check_ir
-from gamehub.lang import ast
-from gamehub.lang.checker import Checker
+from gamehub.lang import ast, combinators
+from gamehub.lang.checker import Checker, kebab
+from gamehub.lang.combinators import COMBINATORS
 from gamehub.lang.diagnostics import CompileError, Diagnostics
 from gamehub.lang.model import CompiledGame, External, GameModel
+from gamehub.lang.mods import derive
 from gamehub.lang.modules import Imported, Loader
 from gamehub.lang.parser import parse
 from gamehub.lang.source import Source, Span
@@ -63,17 +66,11 @@ def compile_source(source: Source) -> CompileResult:
     imported = Loader(diagnostics).root_imports(tree, source)
     if diagnostics.has_errors:
         return result
-    models: dict[str, GameModel] = {}
-    for item in tree.items:
-        if isinstance(item, ast.GameDecl):
-            model = collect(tree, item, diagnostics, imported)
-            compiled = Checker(model, diagnostics).run()
+    games = _Games(tree, diagnostics, imported)
+    for item in tree.games:
+        compiled = games.compiled(item.name, item.span)
+        if compiled is not None:
             result.games[item.name] = compiled
-            models[item.name] = model
-        elif isinstance(item, ast.GameAlias):
-            diagnostics.error(
-                "E501", "los combinadores de juegos aún no están disponibles", item.span
-            )
     if not tree.games:
         check_module(tree, diagnostics, imported)
     if diagnostics.has_errors:
@@ -87,9 +84,156 @@ def compile_source(source: Source) -> CompileResult:
                 compiled.span,
                 help="esto es un fallo de GameHub, no de tu juego: por favor, infórmalo",
             )
-        if not problems:
-            warn(compiled, models[name], diagnostics)
+        model = games.models.get(name)
+        if not problems and model is not None:
+            warn(compiled, model, diagnostics)
     return result
+
+
+class _Games:
+    """Los juegos que puede usar un archivo (los suyos y los importados), compilados bajo
+    demanda: `extends` y los combinadores necesitan su base antes."""
+
+    def __init__(self, tree: ast.File, diagnostics: Diagnostics, imported: list[Imported]) -> None:
+        self.tree = tree
+        self.diagnostics = diagnostics
+        self.imported = imported
+        self.local = {g.name: g for g in tree.games}
+        self.foreign: dict[str, ast.GameDecl | ast.GameAlias] = {}
+        for item in imported:
+            if isinstance(item.decl, ast.GameDecl | ast.GameAlias):
+                if item.name in self.local:
+                    diagnostics.error(
+                        "E202",
+                        f"el juego `{item.name}` choca con el importado de {item.module}",
+                        self.local[item.name].span,
+                    )
+                else:
+                    self.foreign[item.name] = item.decl
+        self.models: dict[str, GameModel] = {}
+        self.results: dict[str, CompiledGame | None] = {}
+        self.visiting: list[str] = []
+
+    def decl(self, name: str, span: Span) -> ast.GameDecl | ast.GameAlias | None:
+        decl = self.local.get(name) or self.foreign.get(name)
+        if decl is None:
+            known = [*self.local, *self.foreign]
+            close = difflib.get_close_matches(name, known, n=1, cutoff=0.7)
+            self.diagnostics.error(
+                "E201",
+                f"juego desconocido: {name}",
+                span,
+                help=f"¿quisiste decir `{close[0]}`?" if close else "impórtalo con import",
+            )
+        return decl
+
+    def enter(self, name: str, span: Span) -> bool:
+        if name in self.visiting:
+            chain = " → ".join([*self.visiting[self.visiting.index(name) :], name])
+            self.diagnostics.error("E505", f"un juego no puede basarse en sí mismo: {chain}", span)
+            return False
+        self.visiting.append(name)
+        return True
+
+    def compiled(self, name: str, span: Span) -> CompiledGame | None:
+        if name in self.results:
+            return self.results[name]
+        decl = self.decl(name, span)
+        if decl is None or not self.enter(name, span):
+            return None
+        try:
+            if isinstance(decl, ast.GameAlias):
+                result = self.combine(decl)
+            else:
+                model = self.model_of(decl)
+                result = Checker(model, self.diagnostics).run() if model is not None else None
+        finally:
+            self.visiting.pop()
+        self.results[name] = result
+        return result
+
+    def model(self, name: str, span: Span) -> GameModel | None:
+        """Modelo (sin comprobar) de un juego, para extenderlo."""
+        if name in self.models:
+            return self.models[name]
+        decl = self.decl(name, span)
+        if decl is None:
+            return None
+        if isinstance(decl, ast.GameAlias):
+            compiled = self.compiled(name, span)
+            if compiled is None:
+                return None
+            # Un combinador solo existe como IR: se descompila para poder extenderlo.
+            from gamehub.lang.decompile import decompile
+
+            game = decompile(compiled.ir, name).items[0]
+            assert isinstance(game, ast.GameDecl)
+            return collect(ast.File(items=[game]), game, self.diagnostics)
+        if not self.enter(name, span):
+            return None
+        try:
+            return self.model_of(decl)
+        finally:
+            self.visiting.pop()
+
+    def model_of(self, decl: ast.GameDecl) -> GameModel | None:
+        if decl.name in self.models:
+            return self.models[decl.name]
+        if decl.extends is None:
+            model: GameModel | None = collect(self.tree, decl, self.diagnostics, self.imported)
+        else:
+            base = self.model(decl.extends, decl.span)
+            if base is None:
+                return None
+            externals_ = externals(self.tree, decl.items, self.diagnostics, self.imported)
+            model = derive(base, decl, externals_, self.diagnostics)
+        if model is not None:
+            self.models[decl.name] = model
+        return model
+
+    def combine(self, alias: ast.GameAlias) -> CompiledGame | None:
+        if alias.combinator not in COMBINATORS:
+            self.diagnostics.error(
+                "E506",
+                f"combinador desconocido: {alias.combinator}",
+                alias.span,
+                help="se admiten repeat(Juego, rounds: n, payoff: sum|mean) y "
+                "best_of(Juego, rounds: n)",
+            )
+            return None
+        allowed = {"rounds", "payoff"} if alias.combinator == "repeat" else {"rounds"}
+        rounds: int | None = None
+        payoff = "sum"
+        for key, value in alias.args:
+            if key not in allowed:
+                self.diagnostics.error(
+                    "E506",
+                    f"{alias.combinator} no tiene el argumento `{key}`",
+                    value.span,
+                    help="argumentos: " + ", ".join(sorted(allowed)),
+                )
+            elif key == "rounds":
+                if isinstance(value, ast.IntLit) and value.value >= 1:
+                    rounds = value.value
+                else:
+                    self.diagnostics.error(
+                        "E506", "rounds tiene que ser un entero positivo", value.span
+                    )
+            elif isinstance(value, ast.Name) and value.name in ("sum", "mean"):
+                payoff = value.name
+            else:
+                self.diagnostics.error("E506", "payoff es sum o mean", value.span)
+        if rounds is None:
+            if not any(key == "rounds" for key, _ in alias.args):
+                self.diagnostics.error(
+                    "E506", f"{alias.combinator} necesita rounds: <número de rondas>", alias.span
+                )
+            return None
+        base = self.compiled(alias.base, alias.span)
+        if base is None:
+            return None
+        ir = combinators.apply(alias.combinator, base.ir, kebab(alias.name), rounds, payoff)
+        return CompiledGame(alias.name, ir, [], [], alias.span)
 
 
 def warn(compiled: CompiledGame, model: GameModel, diagnostics: Diagnostics) -> None:
@@ -197,10 +341,6 @@ def collect(
 ) -> GameModel:
     model = GameModel(name=game.name, decl=game)
     model.externals = externals(tree, game.items, diagnostics, imported or [])
-    if game.extends is not None:
-        diagnostics.error(
-            "E501", "la herencia de juegos (extends) aún no está disponible", game.span
-        )
     for item in game.items:
         add_item(model, item, diagnostics)
     return model
@@ -212,7 +352,11 @@ def externals(
     """Declaraciones de módulo de un juego: las de primer nivel del archivo y las importadas.
     Una declaración del archivo o del juego no puede llamarse como una importada."""
     out: list[External] = []
-    by_name = {item.name: item for item in imported}
+    by_name = {
+        item.name: item
+        for item in imported
+        if isinstance(item.decl, ast.EnumDecl | ast.StructDecl | ast.FnDecl)
+    }
     for item in tree.items:
         if isinstance(item, ast.EnumDecl | ast.StructDecl | ast.FnDecl):
             out.append(External(item, ""))
@@ -225,7 +369,10 @@ def externals(
                 item.span,
                 help="cambia el nombre o no lo importes",
             )
-    out.extend(External(item.decl, item.module) for item in by_name.values())
+    for item in by_name.values():
+        decl = item.decl
+        assert isinstance(decl, ast.EnumDecl | ast.StructDecl | ast.FnDecl)
+        out.append(External(decl, item.module))
     return out
 
 

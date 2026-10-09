@@ -99,7 +99,7 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 - [x] `gamehub check`: tipos, nodos inalcanzables, transiciones no exhaustivas, bucles sin
       progreso, **fugas de información** (v1 sencilla), clasificación del juego
 - [x] `gamehub fmt`: formateador canónico que conserva comentarios (round-trip probado)
-- [ ] Módulos e `import` (hecho); `extends` / `override` / `remove` (mods); combinadores (`repeat`, `best_of`)
+- [x] Módulos e `import`; `extends` / `override` / `remove` / `extend node` (mods); combinadores (`repeat`, `best_of`)
 - [x] Bloques `test` e `invariant`; `gamehub test` (invariantes también en partidas aleatorias)
 - [x] **stdlib v0**: `std.cards` (French52, Spanish40/48), `std.dice`, `std.grid`, `std.graph`
 - [ ] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork`

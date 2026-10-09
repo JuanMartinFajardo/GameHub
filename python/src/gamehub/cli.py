@@ -424,7 +424,7 @@ def _test(args: argparse.Namespace) -> int:
                     failed += 1
                     show(f"  ✗ partidas aleatorias{' (invariantes)' if count else ''}")
                     show(_indent(render(playouts.failure, color=color), 4) + "\n")
-            if not game_report.tests and not game_report.invariants:
+            if not game_report.tests and not game_report.invariants and not args.playouts:
                 show("  (sin tests ni invariantes)")
     if args.format == "json":
         summary = {"passed": passed, "failed": failed, "results": report}

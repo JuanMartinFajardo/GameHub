@@ -475,8 +475,12 @@ class Parser:
                 return ast.OverrideDecl(item=self.finish(inner, start))
             case "remove":
                 self.advance()
-                what = self.ident("qué eliminar (node, fn, state, param, enum, struct, action)")
-                if what.text not in ("node", "fn", "state", "param", "enum", "struct", "action"):
+                kinds = ("node", "fn", "state", "param", "enum", "struct", "action")
+                if self.at("fn", "state", "enum", "struct", "action"):
+                    what = self.advance()  # palabras reservadas
+                else:
+                    what = self.ident("qué eliminar (node, fn, state, param, enum, struct, action)")
+                if what.text not in kinds:
                     raise self.fail(
                         f"no se puede eliminar '{what.text}'",
                         what.span,

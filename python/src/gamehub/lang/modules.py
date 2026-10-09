@@ -4,8 +4,9 @@
 - Resolución de `a.b`: `std.…` es la biblioteca estándar (`stdlib/std/…`); el resto se busca
   relativo al directorio del archivo que importa (`a/b.game`). Las dependencias de paquetes
   (`game.toml`) se resolverán aquí también.
-- Un módulo aporta sus declaraciones de primer nivel: `enum`, `struct` y `fn`. Sus funciones no
-  leen el estado de ningún juego: son funciones puras de sus argumentos.
+- Un módulo aporta sus declaraciones de primer nivel: `enum`, `struct`, `fn` y juegos (para
+  `extends` y los combinadores). Sus funciones no leen el estado de ningún juego: son funciones
+  puras de sus argumentos.
 - `import m.{X}` trae `X` y lo que `X` necesita del módulo (sus tipos y funciones auxiliares);
   `import m.*` trae todo lo que declara el propio módulo. Lo importado solo llega a la IR si el
   juego lo usa.
@@ -25,7 +26,7 @@ from gamehub.lang.diagnostics import Diagnostics
 from gamehub.lang.parser import parse
 from gamehub.lang.source import Source, Span
 
-Decl = ast.EnumDecl | ast.StructDecl | ast.FnDecl
+Decl = ast.EnumDecl | ast.StructDecl | ast.FnDecl | ast.GameDecl | ast.GameAlias
 STD = "std"
 
 
@@ -118,10 +119,18 @@ class Loader:
     # --- carga ----------------------------------------------------------------------------------
 
     def resolve(self, parts: list[str], source: Source) -> Path:
+        """Archivo de un módulo. En un `import` cada parte es un identificador, así que
+        `prisoners_dilemma` también encuentra `prisoners-dilemma.game` (el nombre habitual de
+        los archivos de juego)."""
         if parts[0] == STD:
             return stdlib_dir().joinpath(*parts).with_suffix(".game")
         base = source.path.parent if source.path is not None else Path.cwd()
-        return base.joinpath(*parts).with_suffix(".game")
+        path = base.joinpath(*parts).with_suffix(".game")
+        if not path.is_file():
+            hyphenated = base.joinpath(*(p.replace("_", "-") for p in parts)).with_suffix(".game")
+            if hyphenated.is_file():
+                return hyphenated
+        return path
 
     def load(self, parts: list[str], source: Source, span: Span) -> Module | None:
         name = ".".join(parts)
@@ -206,6 +215,10 @@ def references(node: Any) -> set[str]:
             found.add(x.type_name)
         elif isinstance(x, ast.TName | ast.TGeneric):
             found.add(x.name)
+        elif isinstance(x, ast.GameDecl) and x.extends is not None:
+            found.add(x.extends)
+        elif isinstance(x, ast.GameAlias):
+            found.add(x.base)
         if dataclasses.is_dataclass(x) and not isinstance(x, type):
             for f in dataclasses.fields(x):
                 if f.name not in ("span", "trivia", "doc", "end_comments"):
