@@ -29,6 +29,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/gamehub"]
 
+# La especificación (esquemas, catálogo, ejemplos) y la biblioteca estándar de Nomos viajan dentro
+# del paquete: spec_dir() y stdlib_dir() las encuentran subiendo directorios, igual que en el repo.
+[tool.hatch.build.targets.wheel.force-include]
+"../spec" = "gamehub/spec"
+"../stdlib" = "gamehub/stdlib"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
