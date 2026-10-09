@@ -1,0 +1,36 @@
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node / web
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+.vite/
+
+# C++
+/core/build*/
+cmake-build-*/
+compile_commands.json
+
+# Editores
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Salidas locales de GameHub
+*.ghr.tmp
+/out/
