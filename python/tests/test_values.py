@@ -6,7 +6,16 @@ from fractions import Fraction
 import pytest
 
 from gamehub.engine.errors import RuleError
-from gamehub.engine.values import Grid, MapValue, SetValue, TypeTable, Zone, ZoneItem, sort_key
+from gamehub.engine.values import (
+    Grid,
+    MapValue,
+    SetValue,
+    TypeTable,
+    Zone,
+    ZoneItem,
+    sort_key,
+    to_json,
+)
 
 DECLS = [
     {"kind": "enum", "name": "Suit", "values": ["Clubs", "Hearts"]},
@@ -55,13 +64,13 @@ def test_json_roundtrip(types: TypeTable) -> None:
     hand = types.parse(["list", "Card"])
     j = [{"suit": "Hearts", "rank": "Ace"}, {"suit": "Clubs", "rank": "Two"}]
     value = types.decode(j, hand)
-    assert types.encode(value, hand) == j
+    assert to_json(value) == j
     assert types.decode({"suit": "Hearts", "rank": "Two"}, card).get("rank").name == "Two"
     real = types.parse("Real")
-    assert types.encode(Fraction(5, 2), real) == "5/2"
+    assert to_json(Fraction(5, 2)) == "5/2"
     assert types.decode("4/2", real) == 2 and isinstance(types.decode("4/2", real), int)
     bag = types.parse(["bag", "Rank"])
-    assert types.encode(types.decode(["Two", "Ace"], bag), bag) == {
+    assert to_json(types.decode(["Two", "Ace"], bag)) == {
         "size": 2,
         "items": ["Ace", "Two"],
     }

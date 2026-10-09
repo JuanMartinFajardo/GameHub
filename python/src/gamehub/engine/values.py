@@ -190,7 +190,7 @@ def sort_key(v: Any) -> tuple[Any, ...]:
     raise TypeError(f"valor desconocido: {v!r}")
 
 
-# --- Tipos ---------------------------------------------------------------------------------------
+# --- Tipos -------------------------------------------------------------------------------------
 
 PRIMITIVES = frozenset({"Bool", "Int", "Real", "Text", "Seat", "Cell"})
 
@@ -245,38 +245,7 @@ class TypeTable:
             return Type("grid", args=(self.parse(inner),), dims=dims)
         return Type(head, args=tuple(self.parse(r) for r in rest))
 
-    # --- JSON ------------------------------------------------------------------------------------
-
-    def encode(self, v: Any, t: Type) -> Any:
-        """Valor → JSON, guiado por el tipo (formato de vistas, acciones y replays)."""
-        match t.kind:
-            case "prim":
-                if t.name == "Real":
-                    v = norm_num(v)
-                    return v if isinstance(v, int) else f"{v.numerator}/{v.denominator}"
-                if t.name == "Cell":
-                    return [v[0], v[1]]
-                return v
-            case "enum":
-                return v.name
-            case "struct":
-                types = dict(self.structs[t.name])
-                return {k: self.encode(x, types[k]) for k, x in v.fields}
-            case "option":
-                return None if v is None else self.encode(v, t.inner)
-            case "list" | "per_player":
-                return [self.encode(x, t.inner) for x in v]
-            case "set":
-                return [self.encode(x, t.inner) for x in v.items]
-            case "tuple":
-                return [self.encode(x, tt) for x, tt in zip(v, t.args, strict=True)]
-            case "map":
-                return [[self.encode(k, t.args[0]), self.encode(x, t.args[1])] for k, x in v.items]
-            case "zone" | "bag":
-                return {"size": len(v), "items": [self.encode(i.value, t.inner) for i in v.items]}
-            case "grid":
-                return [[self.encode(x, t.inner) for x in row] for row in v.rows()]
-        raise TypeError(f"tipo desconocido: {t}")
+    # --- JSON (entrada) -------------------------------------------------------------------------
 
     def decode(self, j: Any, t: Type) -> Any:
         """JSON → valor (acciones recibidas, parámetros, replays). Valida la forma."""
@@ -346,6 +315,37 @@ class TypeTable:
                     raise TypeError(j)
                 return (int(r), int(c))
         raise TypeError(name)
+
+
+#: Marcador de valor oculto en vistas y eventos.
+HIDDEN: dict[str, bool] = {"$hidden": True}
+
+
+def to_json(v: Any) -> Any:
+    """Valor → JSON. Los valores en tiempo de ejecución se autodescriben, así que no hace falta
+    el tipo: enums como su nombre, structs como objetos, listas/tuplas/casillas/per_player como
+    arrays, conjuntos en orden canónico, mapas como pares, zonas como {size, items}, racionales no
+    enteros como "n/d"."""
+    if v is None or isinstance(v, bool | int | str):
+        return v
+    if isinstance(v, Fraction):
+        v = norm_num(v)
+        return v if isinstance(v, int) else f"{v.numerator}/{v.denominator}"
+    if isinstance(v, EnumValue):
+        return v.name
+    if isinstance(v, StructValue):
+        return {k: to_json(x) for k, x in v.fields}
+    if isinstance(v, tuple):
+        return [to_json(x) for x in v]
+    if isinstance(v, SetValue):
+        return [to_json(x) for x in v.items]
+    if isinstance(v, MapValue):
+        return [[to_json(k), to_json(x)] for k, x in v.items]
+    if isinstance(v, Zone):
+        return {"size": len(v), "items": [to_json(i.value) for i in v.items]}
+    if isinstance(v, Grid):
+        return [[to_json(x) for x in row] for row in v.rows()]
+    raise TypeError(f"valor desconocido: {v!r}")
 
 
 def _as_list(j: Any) -> list[Any]:

@@ -65,7 +65,7 @@ class _Checker:
         self.calls: dict[str, set[str]] = {name: set() for name in self.arity}
         self.current_function: str | None = None
 
-    # --- utilidades ---------------------------------------------------------------------------
+    # --- utilidades -----------------------------------------------------------------------------
 
     def error(self, path: str, message: str) -> None:
         self.problems.append(Problem(path, message))
@@ -78,7 +78,7 @@ class _Checker:
             seen.add(item["name"])
         return seen
 
-    # --- documento ----------------------------------------------------------------------------
+    # --- documento ------------------------------------------------------------------------------
 
     def run(self) -> list[Problem]:
         doc = self.doc
@@ -167,7 +167,7 @@ class _Checker:
         for name in sorted(self.calls):
             visit(name, [])
 
-    # --- flow ---------------------------------------------------------------------------------
+    # --- flow -----------------------------------------------------------------------------------
 
     def flow(self, flow: dict[str, Any]) -> None:
         self.collect_nodes(flow["nodes"], "flow/nodes")
@@ -296,7 +296,7 @@ class _Checker:
                 )
             self.block(t.get("effects", []), tctx.at("effects"))
 
-    # --- sentencias ---------------------------------------------------------------------------
+    # --- sentencias -----------------------------------------------------------------------------
 
     def block(self, stmts: list[Any], ctx: _Ctx) -> None:
         local_names = ctx.locals
@@ -333,7 +333,7 @@ class _Checker:
         if not (isinstance(node, list) and node and node[0] == "var"):
             self.error(ctx.path, "solo se puede modificar el estado: var, index o field sobre var")
 
-    # --- expresiones --------------------------------------------------------------------------
+    # --- expresiones ----------------------------------------------------------------------------
 
     def expr(self, e: Any, ctx: _Ctx) -> None:
         op, args = e[0], e[1:]
