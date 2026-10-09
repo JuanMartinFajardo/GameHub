@@ -46,7 +46,7 @@ def _parser() -> argparse.ArgumentParser:
     schemas.set_defaults(handler=lambda a: sync_schemas(write=a.write))
 
     play = commands.add_parser("play", help="jugar en la terminal (hot-seat y bots)")
-    play.add_argument("game", type=Path, metavar="JUEGO.ir.json")
+    play.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
     play.add_argument(
         "--seats", help="tipo de cada asiento: human, random o first (p. ej. human,random)"
     )
@@ -58,7 +58,7 @@ def _parser() -> argparse.ArgumentParser:
     play.set_defaults(handler=_play)
 
     fuzz = commands.add_parser("fuzz", help="partidas aleatorias en busca de errores de reglas")
-    fuzz.add_argument("game", type=Path, metavar="JUEGO.ir.json")
+    fuzz.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
     fuzz.add_argument("--games", type=int, default=1000)
     fuzz.add_argument("--players", type=int)
     fuzz.add_argument("--max-steps", type=int, default=10_000)
@@ -69,11 +69,29 @@ def _parser() -> argparse.ArgumentParser:
     replay = commands.add_parser("replay", help="re-simula y verifica un replay .ghr.json")
     replay.add_argument("file", type=Path, metavar="ARCHIVO.ghr.json")
     replay.add_argument(
-        "--game", type=Path, metavar="JUEGO.ir.json", help="por defecto, el ejemplo con ese id"
+        "--game",
+        type=Path,
+        metavar="JUEGO",
+        help="archivo .game o .ir.json (por defecto, el ejemplo con ese id)",
     )
     replay.add_argument("--seat", type=int, help="mostrar la partida desde este asiento")
     replay.add_argument("--quiet", action="store_true", help="solo verificar")
     replay.set_defaults(handler=_replay)
+
+    compile_ = commands.add_parser("compile", help="compila un archivo .game a GameIR (JSON)")
+    compile_.add_argument("file", type=Path, metavar="ARCHIVO.game")
+    compile_.add_argument("--name", help="juego a compilar si el archivo contiene varios")
+    compile_.add_argument("-o", "--output", type=Path, metavar="SALIDA.ir.json")
+    compile_.set_defaults(handler=_compile)
+
+    check_game = commands.add_parser(
+        "check", help="comprueba archivos .game (sintaxis, nombres, tipos, flow)"
+    )
+    check_game.add_argument(
+        "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
+    )
+    check_game.add_argument("--format", choices=("text", "json"), default="text")
+    check_game.set_defaults(handler=_check)
 
     fmt = commands.add_parser("fmt", help="formatea archivos .game (formato canónico de Nomos)")
     fmt.add_argument(
@@ -96,6 +114,7 @@ def _check_or_write(parser: argparse.ArgumentParser) -> None:
 
 
 def _match_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--name", help="juego a usar si el archivo .game contiene varios")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
         "--param", action="append", default=[], metavar="NOMBRE=VALOR", help="parámetro del juego"
@@ -137,9 +156,8 @@ def _ir_check(args: argparse.Namespace) -> int:
 
 def _play(args: argparse.Namespace) -> int:
     from gamehub.console.play import play_terminal
-    from gamehub.engine import load_game
 
-    game = load_game(args.game)
+    game = _load_game(args.game, args.name)
     if args.seats:
         seats = [s.strip() for s in args.seats.split(",")]
     else:
@@ -151,11 +169,10 @@ def _play(args: argparse.Namespace) -> int:
 
 
 def _fuzz(args: argparse.Namespace) -> int:
-    from gamehub.engine import load_game
     from gamehub.engine.match import fuzz
     from gamehub.engine.replay import record, save
 
-    game = load_game(args.game)
+    game = _load_game(args.game, args.name)
     if args.failures:
         args.failures.mkdir(parents=True, exist_ok=True)
 
@@ -188,13 +205,13 @@ def _fuzz(args: argparse.Namespace) -> int:
 
 def _replay(args: argparse.Namespace) -> int:
     from gamehub.console.render import event_text
-    from gamehub.engine import EngineError, load_game
+    from gamehub.engine import EngineError
     from gamehub.engine.replay import load, replay
     from gamehub.ir.spec import examples_dir
 
     data = load(args.file)
     game_path = args.game or examples_dir() / f"{data['game']['id']}.ir.json"
-    game = load_game(game_path)
+    game = _load_game(game_path, None)
     try:
         final = replay(game, data)
     except EngineError as exc:
@@ -222,6 +239,69 @@ def _game_files(paths: list[Path]) -> list[Path]:
         else:
             files.append(path)
     return files
+
+
+def _load_game(path: Path, name: str | None) -> Any:
+    """Un juego desde un archivo .game (compilándolo) o .ir.json."""
+    from gamehub.engine import load_game
+
+    if path.suffix == ".game":
+        from gamehub.lang.compiler import load_nomos
+
+        return load_nomos(path, name)
+    return load_game(path)
+
+
+def _compile(args: argparse.Namespace) -> int:
+    from gamehub.lang.compiler import compile_file
+    from gamehub.lang.diagnostics import print_diagnostics
+
+    result = compile_file(args.file)
+    print_diagnostics(result.diagnostics.sorted())
+    if not result.ok:
+        return 1
+    try:
+        game = result.game(args.name)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    from gamehub.ir.jsonfmt import dumps
+
+    text = dumps(game.ir)
+    if args.output is None:
+        sys.stdout.write(text)
+    else:
+        args.output.write_text(text, encoding="utf-8")
+        print(f"✓ {args.output}", file=sys.stderr)
+    return 0
+
+
+def _check(args: argparse.Namespace) -> int:
+    from gamehub.ir.hashing import rules_hash
+    from gamehub.lang.compiler import compile_file
+    from gamehub.lang.diagnostics import print_diagnostics
+
+    failed = 0
+    report: list[dict[str, Any]] = []
+    for path in _game_files(args.files):
+        result = compile_file(path)
+        diagnostics = result.diagnostics.sorted()
+        if args.format == "json":
+            report.extend(d.to_json() for d in diagnostics)
+        else:
+            print_diagnostics(diagnostics, sys.stdout)
+        if not result.ok:
+            failed += 1
+            if args.format == "text":
+                errors = len(result.diagnostics.errors)
+                print(f"✗ {path}: {errors} error{'es' if errors != 1 else ''}")
+            continue
+        if args.format == "text":
+            for name, game in result.games.items():
+                print(f"✓ {path}: {name} ({rules_hash(game.ir)[:19]}…)")
+    if args.format == "json":
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 1 if failed else 0
 
 
 def _fmt(args: argparse.Namespace) -> int:

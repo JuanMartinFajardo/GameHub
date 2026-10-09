@@ -530,7 +530,7 @@ class Parser:
                 value = self.text()
             return self.finish(ast.MetaEntry(key=key, value=value), start)
 
-        items, end = self.block(entry)
+        items, end = self.block(entry, commas=True)
         entries = [i for i in items if isinstance(i, ast.MetaEntry)]
         return ast.MetaBlock(entries=entries, end_comments=self.claim(end))
 
