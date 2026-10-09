@@ -242,6 +242,8 @@ class _Checker:
                 for i, child in enumerate(node["nodes"]):
                     self.node(child, f"{path}/nodes/{i}", in_phase=True)
                 self.transitions(transitions, base.at("transitions"), in_phase)
+                if not transitions and any(_exits(child) for child in node["nodes"]):
+                    self.error(path, "un hijo sale con '$exit' pero la fase no tiene transiciones")
             case "terminal":
                 self.expr(node["payoff"], base.at("payoff"))
                 if "rank" in node:
@@ -432,6 +434,13 @@ class _Checker:
                     self.selector(value, sub)
                 case "vis":
                     self.visibility(value, sub.path)
+
+
+def _exits(node: dict[str, Any]) -> bool:
+    """¿Tiene el nodo alguna transición (propia o de sus acciones) hacia '$exit'?"""
+    groups = [node.get("transitions", [])]
+    groups += [a.get("transitions", []) for a in node.get("actions", [])]
+    return any(t["to"] == "$exit" for group in groups for t in group)
 
 
 def wellformed_problems(doc: dict[str, Any]) -> list[Problem]:
