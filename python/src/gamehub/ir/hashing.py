@@ -22,12 +22,15 @@ def canonical_json(value: Any) -> str:
 
 
 def strip_cosmetic(doc: dict[str, Any]) -> dict[str, Any]:
-    """Copia del documento sin `meta`, sin campos `doc` y sin `message` en `constraints`.
+    """Copia del documento sin `meta`, sin campos `doc`, sin `message` en `constraints` y sin
+    valores por defecto explícitos (listas vacías, visibilidad `all`).
 
     No entra en las S-expresiones (listas que empiezan por una cadena): un campo llamado `doc`
     dentro de un literal de struct o de un evento forma parte de las reglas.
     """
-    stripped = {k: _strip(v) for k, v in doc.items() if k not in ("meta", "doc")}
+    stripped = {
+        k: _strip(v) for k, v in doc.items() if k not in ("meta", "doc") and not _is_default(k, v)
+    }
     if "constraints" in stripped:
         stripped["constraints"] = [
             {k: v for k, v in c.items() if k != "message"} for c in stripped["constraints"]
@@ -40,9 +43,17 @@ def rules_hash(doc: dict[str, Any]) -> str:
     return f"sha256:{digest}"
 
 
+#: Claves cuyo valor por defecto no cambia las reglas: se omiten antes de calcular el hash.
+_DEFAULTS = {"visibility": "all", "size_visibility": "all"}
+
+
+def _is_default(key: str, value: Any) -> bool:
+    return value == [] or _DEFAULTS.get(key) == value
+
+
 def _strip(node: Any) -> Any:
     if isinstance(node, dict):
-        return {k: _strip(v) for k, v in node.items() if k != "doc"}
+        return {k: _strip(v) for k, v in node.items() if k != "doc" and not _is_default(k, v)}
     if isinstance(node, list):
         if node and isinstance(node[0], str):
             return node

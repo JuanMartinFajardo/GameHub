@@ -169,6 +169,34 @@ class State:
             actions.append(PASS)
         return actions
 
+    def options(
+        self, seat_: int, name: str | None = None, args: dict[str, Any] | None = None
+    ) -> list[Any]:
+        """Construcción progresiva de una acción.
+
+        - Sin `name`: nombres de las acciones con al menos una forma legal (y `pass` en ventanas).
+        - Con `name` y los primeros argumentos ya elegidos (en orden de declaración): valores del
+          siguiente parámetro que admiten al menos una acción legal completa. Lista vacía si ya
+          están todos.
+        """
+        if seat_ not in self.active_seats:
+            return []
+        node = self.game.nodes[self.node or ""]
+        env = self._env(actor=seat_)
+        if name is None:
+            names = [a.name for a in node.actions if next(_complete(a, env, 0, {}), None)]
+            return [*names, "pass"] if node.kind == "window" else names
+        adef = node.actions_by_name.get(name)
+        if adef is None:
+            return []
+        chosen = dict(args or {})
+        i = len(chosen)
+        if [p.name for p in adef.params[:i]] != list(chosen) or i >= len(adef.params):
+            return []
+        p = adef.params[i]
+        values = iterate(p.domain(env.with_args(dict(chosen))), "dominio")
+        return [v for v in values if next(_complete(adef, env, i + 1, {**chosen, p.name: v}), None)]
+
     def is_legal(self, seat_: int, action: Action) -> bool:
         try:
             self._canonical(seat_, action)

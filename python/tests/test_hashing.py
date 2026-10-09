@@ -56,3 +56,12 @@ def test_canonical_json_is_compact_sorted_utf8() -> None:
 def test_floats_are_rejected() -> None:
     with pytest.raises(TypeError):
         canonical_json({"x": 0.5})
+
+
+def test_hash_ignores_explicit_defaults(ttt: dict[str, Any]) -> None:
+    variant = copy.deepcopy(ttt)
+    for var in variant["state"]:
+        var.pop("visibility", None)
+    variant["params"] = []
+    variant["flow"]["nodes"][0]["actions"][0]["transitions"] = []
+    assert rules_hash(variant) == rules_hash(ttt)

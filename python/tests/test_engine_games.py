@@ -208,3 +208,15 @@ def test_mentiroso_canonicalizes_card_order() -> None:
     a = s.apply_action(0, Action.of("play", cards=(hand[1], hand[0])))
     b = s.apply_action(0, Action.of("play", cards=(hand[0], hand[1])))
     assert a.step.action == b.step.action
+
+
+def test_progressive_action_building() -> None:
+    s = game("tictactoe").new_state().apply_action(0, place(1, 1))
+    assert s.options(1) == ["place"]
+    cells = s.options(1, "place")
+    assert len(cells) == 8 and (1, 1) not in cells
+    assert s.options(1, "place", {"c": (0, 0)}) == []
+    assert s.options(0) == []
+    window = mentiroso_dealt()
+    window = _play_claiming_aces(window, honest=True)
+    assert window.options(1) == ["liar", "pass"]
