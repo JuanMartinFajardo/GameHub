@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Formato
+        run: uv run ruff format --check .
+      - name: Tipos
+        run: uv run pyright
+      - name: Esquemas generados al día
+        run: uv run gamehub ir schemas --check
+      - name: Juegos de validación
+        run: uv run gamehub ir check ../spec/ir/examples/*.ir.json
+      - name: Tests
+        run: uv run pytest

@@ -1,0 +1,49 @@
+[project]
+name = "gamehub"
+version = "0.0.1"
+description = "GameHub: diseñar, jugar y analizar juegos definidos formalmente (lenguaje Nomos)."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [{ name = "Juan Martin Fajardo" }]
+dependencies = [
+  "jsonschema>=4.23",
+  "referencing>=0.35",
+]
+
+[project.scripts]
+gamehub = "gamehub.cli:main"
+
+[dependency-groups]
+dev = [
+  "pre-commit>=4.0",
+  "pyright>=1.1.390",
+  "pytest>=8.3",
+  "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gamehub"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# Los textos están en español y usan tipografía no ASCII a propósito.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

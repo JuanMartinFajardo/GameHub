@@ -1,0 +1,26 @@
+# Hooks locales (no descargan nada): usan el entorno de python/ gestionado por uv.
+# Activación opcional: cd python && uv run pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --project python ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --project python ruff format
+        language: system
+        types: [python]
+      - id: ir-schemas
+        name: esquemas de la IR generados al día
+        entry: uv run --project python gamehub ir schemas --check
+        language: system
+        pass_filenames: false
+        files: ^spec/ir/
+      - id: ir-examples
+        name: juegos de validación
+        entry: uv run --project python gamehub ir check
+        language: system
+        files: ^spec/ir/examples/.*\.ir\.json$
