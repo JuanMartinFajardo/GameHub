@@ -1,0 +1,155 @@
+{
+  "ir_version": "0.1.0",
+  "game": { "id": "mentiroso", "version": "0.1.0" },
+  "meta": {
+    "title": { "es": "Mentiroso", "en": "Bullshit (Cheat)" },
+    "description": {
+      "es": "Por turnos, cada jugador pone de 1 a 4 cartas boca abajo en el centro declarando que son del rango que toca (As, Dos, Tres… y vuelta a empezar). Cualquiera puede gritar ¡Mentiroso!: se levantan las cartas; si era mentira, quien jugó se lleva todo el montón; si era verdad, se lo lleva quien acusó. Gana quien se queda sin cartas sin ser pillado."
+    },
+    "license": "CC-BY-4.0",
+    "tags": ["cards", "bluffing", "imperfect-information", "reaction-window"]
+  },
+  "players": { "min": 3, "max": 6 },
+  "params": [
+    { "name": "max_play", "type": "Int", "default": ["const", 4], "doc": { "es": "Máximo de cartas por jugada" } }
+  ],
+  "constraints": [
+    { "expr": ["ge", ["param", "max_play"], ["const", 1]], "message": { "es": "max_play debe ser al menos 1" } }
+  ],
+  "types": [
+    { "kind": "enum", "name": "Suit", "values": ["Clubs", "Diamonds", "Hearts", "Spades"] },
+    {
+      "kind": "enum",
+      "name": "Rank",
+      "values": ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen", "King"]
+    },
+    {
+      "kind": "struct",
+      "name": "Card",
+      "fields": [{ "name": "suit", "type": "Suit" }, { "name": "rank", "type": "Rank" }]
+    }
+  ],
+  "state": [
+    {
+      "name": "deck",
+      "type": ["zone", "Card"],
+      "init": ["flat_map", "s", ["enum_values", "Suit"],
+                ["map", "r", ["enum_values", "Rank"],
+                  ["struct", "Card", { "suit": ["local", "s"], "rank": ["local", "r"] }]]],
+      "visibility": "none",
+      "size_visibility": "all"
+    },
+    { "name": "hand", "type": ["per_player", ["bag", "Card"]], "init": ["list"], "visibility": "owner", "size_visibility": "all" },
+    { "name": "pile", "type": ["zone", "Card"], "init": ["list"], "visibility": "none", "size_visibility": "all", "doc": { "es": "Montón central, boca abajo" } },
+    { "name": "turn", "type": "Seat", "init": ["const", 0], "visibility": "all" },
+    { "name": "rank", "type": "Rank", "init": ["enum", "Rank", "Ace"], "visibility": "all", "doc": { "es": "Rango que toca declarar" } },
+    { "name": "last_by", "type": "Seat", "init": ["const", 0], "visibility": "all", "doc": { "es": "Quién hizo la última jugada" } },
+    { "name": "last_count", "type": "Int", "init": ["const", 0], "visibility": "all", "doc": { "es": "Cuántas cartas se jugaron (se ven, aunque boca abajo)" } },
+    { "name": "winner", "type": "Seat", "init": ["const", 0], "visibility": "all" }
+  ],
+  "functions": [
+    {
+      "name": "next_rank",
+      "params": [["r", "Rank"]],
+      "returns": "Rank",
+      "body": ["index", ["enum_values", "Rank"],
+                ["mod", ["add", ["ord", ["arg", "r"]], ["const", 1]], ["len", ["enum_values", "Rank"]]]]
+    },
+    {
+      "name": "last_play",
+      "doc": { "es": "Cartas de la última jugada: las de arriba del montón." },
+      "params": [],
+      "returns": ["list", "Card"],
+      "body": ["slice", ["items", ["var", "pile"]], ["const", 0], ["var", "last_count"]]
+    },
+    {
+      "name": "truthful",
+      "params": [],
+      "returns": "Bool",
+      "body": ["all", "c", ["call", "last_play"], ["eq", ["field", ["local", "c"], "rank"], ["var", "rank"]]]
+    }
+  ],
+  "flow": {
+    "start": "Deal",
+    "nodes": [
+      {
+        "id": "Deal",
+        "kind": "chance",
+        "doc": { "es": "Se baraja y se reparte toda la baraja, una carta a cada jugador por turnos." },
+        "effects": [
+          ["shuffle", ["var", "deck"]],
+          ["for", "i", ["range", ["const", 0], ["sub", ["size", ["var", "deck"]], ["const", 1]]], [
+            ["move", ["var", "deck"], ["index", ["var", "hand"], ["mod", ["local", "i"], ["param", "num_players"]]], ["top", ["const", 1]]]
+          ]]
+        ],
+        "transitions": [{ "to": "Play" }]
+      },
+      {
+        "id": "Play",
+        "kind": "decision",
+        "actor": ["var", "turn"],
+        "actions": [
+          {
+            "name": "play",
+            "doc": { "es": "Poner cartas boca abajo declarando el rango que toca." },
+            "params": [
+              {
+                "name": "cards",
+                "type": ["list", "Card"],
+                "domain": ["subsets", ["items", ["index", ["var", "hand"], ["actor"]]], ["const", 1], ["param", "max_play"]],
+                "visibility": "none",
+                "size_visibility": "all"
+              }
+            ],
+            "effects": [
+              ["move", ["index", ["var", "hand"], ["actor"]], ["var", "pile"], ["values", ["arg", "cards"]]],
+              ["assign", ["var", "last_by"], ["actor"]],
+              ["assign", ["var", "last_count"], ["len", ["arg", "cards"]]],
+              ["emit", "claim", { "seat": ["actor"], "count": ["len", ["arg", "cards"]], "rank": ["var", "rank"] }]
+            ]
+          }
+        ],
+        "transitions": [{ "to": "Challenge" }]
+      },
+      {
+        "id": "Challenge",
+        "kind": "window",
+        "doc": { "es": "Todos los demás deciden a la vez si acusan; si acusan varios, cuenta el primero en sentido horario desde quien jugó." },
+        "eligible": ["difference", ["seats"], ["list", ["var", "last_by"]]],
+        "mode": "collect",
+        "order": ["difference", ["seats_from", ["next_seat", ["var", "last_by"]]], ["list", ["var", "last_by"]]],
+        "actions": [
+          {
+            "name": "liar",
+            "doc": { "es": "¡Mentiroso!" },
+            "effects": [
+              ["reveal", ["call", "last_play"], ["seats"], { "es": "Cartas levantadas" }],
+              ["if", ["call", "truthful"],
+                [["move", ["var", "pile"], ["index", ["var", "hand"], ["actor"]], ["all"]]],
+                [["move", ["var", "pile"], ["index", ["var", "hand"], ["var", "last_by"]], ["all"]]]]
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "to": "End",
+            "when": ["eq", ["size", ["index", ["var", "hand"], ["var", "last_by"]]], ["const", 0]],
+            "effects": [["assign", ["var", "winner"], ["var", "last_by"]]]
+          },
+          {
+            "to": "Play",
+            "effects": [
+              ["assign", ["var", "turn"], ["next_seat", ["var", "turn"]]],
+              ["assign", ["var", "rank"], ["call", "next_rank", ["var", "rank"]]]
+            ]
+          }
+        ]
+      },
+      {
+        "id": "End",
+        "kind": "terminal",
+        "payoff": ["map", "s", ["seats"], ["if", ["eq", ["local", "s"], ["var", "winner"]], ["const", 1], ["const", 0]]]
+      }
+    ]
+  }
+}

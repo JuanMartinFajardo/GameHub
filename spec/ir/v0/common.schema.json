@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gamehub.invalid/spec/ir/v0/common.schema.json",
+  "title": "GameIR v0 — definiciones comunes",
+  "$defs": {
+    "ident": {
+      "description": "Identificador: variables, parámetros, funciones, tipos, nodos, campos.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "slug": {
+      "description": "Identificador de juego en minúsculas con guiones (p. ej. kuhn-poker).",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$"
+    },
+    "text": {
+      "description": "Texto visible para personas: cadena simple o mapa idioma → texto.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+          "additionalProperties": { "type": "string" }
+        }
+      ]
+    },
+    "visibility": {
+      "description": "Quién ve una ubicación: atajos o un predicado con viewer/owner/item_face_up ligados.",
+      "oneOf": [
+        { "enum": ["all", "none", "owner"] },
+        {
+          "type": "object",
+          "required": ["when"],
+          "additionalProperties": false,
+          "properties": { "when": { "$ref": "expr.schema.json" } }
+        }
+      ]
+    },
+    "block": {
+      "description": "Secuencia de sentencias (efectos).",
+      "type": "array",
+      "items": { "$ref": "stmt.schema.json" }
+    }
+  }
+}

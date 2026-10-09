@@ -1,0 +1,2595 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "GENERADO desde ops.json por gamehub.ir.catalog. No editar a mano.",
+  "$id": "https://gamehub.invalid/spec/ir/v0/expr.schema.json",
+  "title": "GameIR v0 — expresión (catálogo 0.1.0)",
+  "type": "array",
+  "minItems": 1,
+  "prefixItems": [
+    {
+      "enum": [
+        "abs",
+        "actor",
+        "add",
+        "all",
+        "and",
+        "any",
+        "append",
+        "arg",
+        "argmax",
+        "argmin",
+        "at",
+        "call",
+        "case",
+        "cell",
+        "cells",
+        "concat",
+        "const",
+        "contains",
+        "count",
+        "difference",
+        "distinct",
+        "div",
+        "enum",
+        "enum_values",
+        "eq",
+        "field",
+        "fill",
+        "filter",
+        "first",
+        "flat_map",
+        "ge",
+        "gt",
+        "idiv",
+        "if",
+        "in_bounds",
+        "index",
+        "intersection",
+        "is_none",
+        "item_face_up",
+        "items",
+        "last",
+        "le",
+        "len",
+        "let",
+        "lines",
+        "list",
+        "local",
+        "lt",
+        "map",
+        "max",
+        "max_of",
+        "min",
+        "min_of",
+        "mod",
+        "mul",
+        "ne",
+        "neg",
+        "neighbors",
+        "next_seat",
+        "not",
+        "only",
+        "or",
+        "ord",
+        "other_seat",
+        "owner",
+        "param",
+        "prev_seat",
+        "range",
+        "rat",
+        "reverse",
+        "seats",
+        "seats_from",
+        "set",
+        "size",
+        "slice",
+        "sort_by",
+        "struct",
+        "sub",
+        "subsets",
+        "sum",
+        "top",
+        "tuple",
+        "union",
+        "unwrap",
+        "var",
+        "viewer",
+        "win_loss"
+      ]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "abs"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/abs"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "actor"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/actor"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "add"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/add"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "all"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/all"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "and"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/and"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "any"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/any"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "append"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/append"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "arg"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/arg"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "argmax"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/argmax"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "argmin"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/argmin"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "at"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/at"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "call"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/call"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "case"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/case"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "cell"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/cell"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "cells"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/cells"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "concat"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/concat"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "const"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/const"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "contains"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/contains"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "count"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/count"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "difference"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/difference"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "distinct"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/distinct"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "div"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/div"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "enum"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/enum"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "enum_values"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/enum_values"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "eq"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/eq"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "field"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/field"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "fill"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/fill"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "filter"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/filter"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "first"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/first"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "flat_map"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/flat_map"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "ge"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/ge"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "gt"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/gt"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "idiv"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/idiv"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "if"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/if"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "in_bounds"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/in_bounds"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "index"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/index"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "intersection"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/intersection"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "is_none"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/is_none"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "item_face_up"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/item_face_up"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "items"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/items"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "last"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/last"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "le"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/le"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "len"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/len"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "let"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/let"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "lines"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/lines"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "list"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/list"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "local"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/local"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "lt"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/lt"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "map"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/map"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "max"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/max"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "max_of"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/max_of"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "min"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/min"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "min_of"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/min_of"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "mod"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/mod"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "mul"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/mul"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "ne"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/ne"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "neg"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/neg"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "neighbors"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/neighbors"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "next_seat"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/next_seat"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "not"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/not"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "only"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/only"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "or"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/or"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "ord"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/ord"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "other_seat"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/other_seat"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "owner"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/owner"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "param"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/param"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "prev_seat"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/prev_seat"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "range"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/range"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "rat"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/rat"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "reverse"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/reverse"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "seats"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/seats"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "seats_from"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/seats_from"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "set"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/set"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "size"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/size"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "slice"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/slice"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "sort_by"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/sort_by"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "struct"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/struct"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "sub"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/sub"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "subsets"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/subsets"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "sum"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/sum"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "top"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/top"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "tuple"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/tuple"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "union"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/union"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "unwrap"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/unwrap"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "var"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/var"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "viewer"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/viewer"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "win_loss"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/win_loss"
+      }
+    }
+  ],
+  "$defs": {
+    "abs": {
+      "description": "Valor absoluto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "abs"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "actor": {
+      "description": "Asiento que realiza la acción en curso.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "actor"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "add": {
+      "description": "Suma (exacta).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "add"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "all": {
+      "description": "[\"all\", x, colección, predicado].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "all"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "and": {
+      "description": "Conjunción con cortocircuito.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "and"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "any": {
+      "description": "Existe algún x que cumple el predicado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "any"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "append": {
+      "description": "Lista con un elemento añadido al final.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "append"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "arg": {
+      "description": "Parámetro de la acción o función en curso.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "arg"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "argmax": {
+      "description": "Primer x que maximiza la expresión; error si vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "argmax"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "argmin": {
+      "description": "Primer x que minimiza la expresión; error si vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "argmin"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "at": {
+      "description": "Cierto si el nodo está activo o es antecesor del activo.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "at"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "call": {
+      "description": "Llamada a una función pura declarada.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "call"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "case": {
+      "description": "Primera condición cierta; si ninguna, el valor por defecto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "case"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "$ref": "expr.schema.json"
+              },
+              {
+                "$ref": "expr.schema.json"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "cell": {
+      "description": "Casilla (fila, columna) de una rejilla.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "cell"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "cells": {
+      "description": "Casillas de una rejilla por filas.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "cells"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "concat": {
+      "description": "Concatenación de listas.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "concat"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "const": {
+      "description": "Literal: null (none), booleano, entero o texto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "const"
+        },
+        {
+          "type": [
+            "null",
+            "boolean",
+            "integer",
+            "string"
+          ]
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "contains": {
+      "description": "[\"contains\", colección, x].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "contains"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "count": {
+      "description": "Número de x que cumplen el predicado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "count"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "difference": {
+      "description": "Elementos del primero que no están en el segundo (conserva el orden).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "difference"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "distinct": {
+      "description": "Elimina duplicados conservando el primer orden de aparición.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "distinct"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "div": {
+      "description": "División exacta (racional); error si el divisor es 0.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "div"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "enum": {
+      "description": "Valor de enumerado: [\"enum\", \"Mark\", \"X\"].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "enum"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "enum_values": {
+      "description": "Valores del enumerado en orden de declaración.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "enum_values"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "eq": {
+      "description": "Igualdad estructural.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "eq"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "field": {
+      "description": "Campo de un struct.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "field"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "fill": {
+      "description": "Pagos: el mismo valor para todos los asientos.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "fill"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "filter": {
+      "description": "Elementos que cumplen el predicado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "filter"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "first": {
+      "description": "Primer elemento; error si está vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "first"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "flat_map": {
+      "description": "Concatena las listas producidas para cada x.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "flat_map"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "ge": {
+      "description": "Mayor o igual.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "ge"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "gt": {
+      "description": "Mayor que.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "gt"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "idiv": {
+      "description": "División entera hacia −∞.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "idiv"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "if": {
+      "description": "Condicional: [\"if\", c, entonces, si_no].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "if"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "in_bounds": {
+      "description": "Si la casilla está dentro de la rejilla.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "in_bounds"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "index": {
+      "description": "Acceso por clave/índice: lista, mapa, per_player, rejilla (por Cell).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "index"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "intersection": {
+      "description": "Intersección de conjuntos.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "intersection"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "is_none": {
+      "description": "Cierto si el opcional está vacío.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "is_none"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "item_face_up": {
+      "description": "Si el elemento de zona evaluado está boca arriba; solo en visibilidad de zonas.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "item_face_up"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "items": {
+      "description": "Valores de una zona (índice 0 = arriba) o de una bolsa (orden canónico).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "items"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "last": {
+      "description": "Último elemento; error si está vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "last"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "le": {
+      "description": "Menor o igual.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "le"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "len": {
+      "description": "Longitud de lista, conjunto, mapa o texto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "len"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "let": {
+      "description": "[\"let\", x, valor, cuerpo].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "let"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "lines": {
+      "description": "Todas las líneas rectas (filas, columnas, diagonales) de longitud k.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "lines"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "list": {
+      "description": "Lista literal.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "list"
+        }
+      ],
+      "minItems": 1,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "local": {
+      "description": "Variable local ligada por let, for o una comprensión.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "local"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "lt": {
+      "description": "Menor que (números; enums por orden de declaración).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "lt"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "map": {
+      "description": "Lista de la expresión evaluada para cada x.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "map"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "max": {
+      "description": "Máximo de los argumentos.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "max"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "max_of": {
+      "description": "Máximo de la expresión; error si vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "max_of"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "min": {
+      "description": "Mínimo de los argumentos.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "min"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "min_of": {
+      "description": "Mínimo de la expresión; error si vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "min_of"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "mod": {
+      "description": "Resto con el signo del divisor.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "mod"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "mul": {
+      "description": "Producto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "mul"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "ne": {
+      "description": "Desigualdad estructural.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "ne"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "neg": {
+      "description": "Opuesto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "neg"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "neighbors": {
+      "description": "Casillas vecinas (8-vecindad) dentro de la rejilla.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "neighbors"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "next_seat": {
+      "description": "Siguiente asiento en sentido horario.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "next_seat"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "not": {
+      "description": "Negación.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "not"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "only": {
+      "description": "Único elemento de una colección de tamaño 1; error en otro caso.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "only"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "or": {
+      "description": "Disyunción con cortocircuito.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "or"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "ord": {
+      "description": "Posición (desde 0) de un valor de enumerado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "ord"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "other_seat": {
+      "description": "El otro asiento (solo partidas de 2).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "other_seat"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "owner": {
+      "description": "Dueño de la ubicación per_player; en visibilidad e inicialización.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "owner"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "param": {
+      "description": "Parámetro de la partida (incluye num_players).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "param"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "prev_seat": {
+      "description": "Asiento anterior.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "prev_seat"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "range": {
+      "description": "Enteros de lo a hi, ambos incluidos (vacía si lo > hi).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "range"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "rat": {
+      "description": "Racional exacto n/d, con d > 0.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "rat"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "integer"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "reverse": {
+      "description": "Lista invertida.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "reverse"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "seats": {
+      "description": "Asientos [0, …, num_players-1].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "seats"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "seats_from": {
+      "description": "Todos los asientos en sentido horario empezando por el dado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "seats_from"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "set": {
+      "description": "Conjunto literal.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "set"
+        }
+      ],
+      "minItems": 1,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "size": {
+      "description": "Número de elementos de una zona o bolsa.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "size"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "slice": {
+      "description": "Sublista [lo, hi) semiabierta, recortada a los límites.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "slice"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "sort_by": {
+      "description": "Ordenación estable por la clave.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "sort_by"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "struct": {
+      "description": "Registro literal de un struct declarado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "struct"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/ident"
+          },
+          "additionalProperties": {
+            "$ref": "expr.schema.json"
+          }
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "sub": {
+      "description": "Resta.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "sub"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "subsets": {
+      "description": "Sub-multiconjuntos distintos de tamaño lo..hi, en orden canónico (para dominios de acción).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "subsets"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "sum": {
+      "description": "Suma de la expresión sobre la colección (0 si vacía).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "sum"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "top": {
+      "description": "Elemento superior de una zona ordenada; error si está vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "top"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "tuple": {
+      "description": "Tupla de 2 o más componentes.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "tuple"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "items": {
+        "$ref": "expr.schema.json"
+      }
+    },
+    "union": {
+      "description": "Unión de conjuntos.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "union"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "unwrap": {
+      "description": "Valor de un opcional; error de regla si está vacío.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "unwrap"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "var": {
+      "description": "Variable de estado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "var"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "viewer": {
+      "description": "Asiento observador; solo en políticas de visibilidad.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "viewer"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "win_loss": {
+      "description": "Pagos: valor de victoria para el asiento ganador y de derrota para el resto.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "win_loss"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    }
+  }
+}

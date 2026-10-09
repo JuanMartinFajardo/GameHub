@@ -1,0 +1,136 @@
+{
+  "ir_version": "0.1.0",
+  "game": { "id": "kuhn-poker", "version": "1.0.0" },
+  "meta": {
+    "title": { "es": "Póker de Kuhn", "en": "Kuhn poker" },
+    "description": { "es": "Tres cartas, una por jugador, una ronda de apuestas. Valor del juego para el asiento 0: -1/18." },
+    "license": "CC-BY-4.0",
+    "tags": ["benchmark", "imperfect-information", "chance", "zero-sum"]
+  },
+  "players": { "min": 2, "max": 2 },
+  "types": [
+    { "kind": "enum", "name": "Card", "values": ["J", "Q", "K"], "doc": { "es": "Ordenadas: J < Q < K" } },
+    { "kind": "enum", "name": "Move", "values": ["Check", "Bet", "Call", "Fold"] }
+  ],
+  "state": [
+    {
+      "name": "deck",
+      "type": ["zone", "Card"],
+      "init": ["list", ["enum", "Card", "J"], ["enum", "Card", "Q"], ["enum", "Card", "K"]],
+      "visibility": "none",
+      "size_visibility": "all"
+    },
+    {
+      "name": "hand",
+      "type": ["per_player", ["bag", "Card"]],
+      "init": ["list"],
+      "visibility": "owner",
+      "size_visibility": "all"
+    },
+    { "name": "put", "type": ["per_player", "Int"], "init": ["const", 1], "visibility": "all", "doc": { "es": "Fichas aportadas, ante incluido" } },
+    { "name": "moves", "type": ["list", "Move"], "init": ["list"], "visibility": "all" }
+  ],
+  "functions": [
+    {
+      "name": "opening",
+      "doc": { "es": "Nadie ha apostado todavía: se puede pasar o apostar." },
+      "params": [],
+      "returns": "Bool",
+      "body": ["or",
+                ["eq", ["var", "moves"], ["list"]],
+                ["eq", ["var", "moves"], ["list", ["enum", "Move", "Check"]]]]
+    },
+    {
+      "name": "facing_bet",
+      "params": [],
+      "returns": "Bool",
+      "body": ["and",
+                ["gt", ["len", ["var", "moves"]], ["const", 0]],
+                ["eq", ["last", ["var", "moves"]], ["enum", "Move", "Bet"]]]
+    },
+    {
+      "name": "record",
+      "doc": { "es": "Historial con una jugada más." },
+      "params": [["m", "Move"]],
+      "returns": ["list", "Move"],
+      "body": ["append", ["var", "moves"], ["arg", "m"]]
+    }
+  ],
+  "flow": {
+    "start": "Deal",
+    "nodes": [
+      {
+        "id": "Deal",
+        "kind": "chance",
+        "effects": [
+          ["shuffle", ["var", "deck"]],
+          ["for", "s", ["seats"], [
+            ["move", ["var", "deck"], ["index", ["var", "hand"], ["local", "s"]], ["top", ["const", 1]]]
+          ]]
+        ],
+        "transitions": [{ "to": "Act" }]
+      },
+      {
+        "id": "Act",
+        "kind": "decision",
+        "doc": { "es": "Los asientos alternan: 0, 1, 0." },
+        "actor": ["mod", ["len", ["var", "moves"]], ["const", 2]],
+        "actions": [
+          {
+            "name": "check",
+            "requires": ["call", "opening"],
+            "effects": [["assign", ["var", "moves"], ["call", "record", ["enum", "Move", "Check"]]]]
+          },
+          {
+            "name": "bet",
+            "requires": ["call", "opening"],
+            "effects": [
+              ["assign", ["var", "moves"], ["call", "record", ["enum", "Move", "Bet"]]],
+              ["assign", ["index", ["var", "put"], ["actor"]], ["add", ["index", ["var", "put"], ["actor"]], ["const", 1]]]
+            ]
+          },
+          {
+            "name": "call",
+            "requires": ["call", "facing_bet"],
+            "effects": [
+              ["assign", ["var", "moves"], ["call", "record", ["enum", "Move", "Call"]]],
+              ["assign", ["index", ["var", "put"], ["actor"]], ["add", ["index", ["var", "put"], ["actor"]], ["const", 1]]]
+            ]
+          },
+          {
+            "name": "fold",
+            "requires": ["call", "facing_bet"],
+            "effects": [["assign", ["var", "moves"], ["call", "record", ["enum", "Move", "Fold"]]]]
+          }
+        ],
+        "transitions": [
+          { "to": "Folded", "when": ["eq", ["last", ["var", "moves"]], ["enum", "Move", "Fold"]] },
+          {
+            "to": "Showdown",
+            "when": ["or",
+                      ["eq", ["var", "moves"], ["list", ["enum", "Move", "Check"], ["enum", "Move", "Check"]]],
+                      ["eq", ["last", ["var", "moves"]], ["enum", "Move", "Call"]]]
+          },
+          { "to": "Act" }
+        ]
+      },
+      {
+        "id": "Folded",
+        "kind": "terminal",
+        "doc": { "es": "Gana quien no se retiró y cobra lo que puso el otro." },
+        "payoff": ["let", "folder", ["mod", ["sub", ["len", ["var", "moves"]], ["const", 1]], ["const", 2]],
+                    ["win_loss", ["other_seat", ["local", "folder"]],
+                      ["index", ["var", "put"], ["local", "folder"]],
+                      ["neg", ["index", ["var", "put"], ["local", "folder"]]]]]
+      },
+      {
+        "id": "Showdown",
+        "kind": "terminal",
+        "payoff": ["let", "w", ["argmax", "s", ["seats"], ["ord", ["only", ["index", ["var", "hand"], ["local", "s"]]]]],
+                    ["win_loss", ["local", "w"],
+                      ["index", ["var", "put"], ["other_seat", ["local", "w"]]],
+                      ["neg", ["index", ["var", "put"], ["other_seat", ["local", "w"]]]]]]
+      }
+    ]
+  }
+}

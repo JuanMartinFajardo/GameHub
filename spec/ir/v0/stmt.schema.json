@@ -1,0 +1,633 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "GENERADO desde ops.json por gamehub.ir.catalog. No editar a mano.",
+  "$id": "https://gamehub.invalid/spec/ir/v0/stmt.schema.json",
+  "title": "GameIR v0 — sentencia (catálogo 0.1.0)",
+  "type": "array",
+  "minItems": 1,
+  "prefixItems": [
+    {
+      "enum": [
+        "assign",
+        "emit",
+        "fail",
+        "flip",
+        "for",
+        "if",
+        "let",
+        "move",
+        "random_choice",
+        "reveal",
+        "reward",
+        "roll",
+        "sample",
+        "shuffle"
+      ]
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "assign"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/assign"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "emit"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/emit"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "fail"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/fail"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "flip"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/flip"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "for"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/for"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "if"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/if"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "let"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/let"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "move"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/move"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "random_choice"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/random_choice"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "reveal"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/reveal"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "reward"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/reward"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "roll"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/roll"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "sample"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/sample"
+      }
+    },
+    {
+      "if": {
+        "prefixItems": [
+          {
+            "const": "shuffle"
+          }
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/shuffle"
+      }
+    }
+  ],
+  "$defs": {
+    "assign": {
+      "description": "Asignación.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "assign"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "emit": {
+      "description": "Evento personalizado con campos y visibilidad (por defecto, todos).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "emit"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/ident"
+          },
+          "additionalProperties": {
+            "$ref": "expr.schema.json"
+          }
+        },
+        {
+          "$ref": "common.schema.json#/$defs/visibility"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 4
+    },
+    "fail": {
+      "description": "Error de regla: aborta la partida con un mensaje.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "fail"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/text"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "flip": {
+      "description": "Pone boca arriba (true) o boca abajo (false) los elementos seleccionados.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "flip"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "stmt.schema.json#/$defs/selector"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "for": {
+      "description": "Bucle sobre una colección finita.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "for"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/block"
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "if": {
+      "description": "Condicional con rama si_no opcional.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "if"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/block"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/block"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 4
+    },
+    "let": {
+      "description": "Variable local visible en el resto del bloque.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "let"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/ident"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "move": {
+      "description": "Mueve elementos seleccionados de una zona/bolsa a otra (por defecto, arriba).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "move"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "stmt.schema.json#/$defs/selector"
+        },
+        {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 5
+    },
+    "random_choice": {
+      "description": "Asigna un elemento uniforme de una colección no vacía.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "random_choice"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "reveal": {
+      "description": "Evento: muestra un valor a una lista de asientos; no modifica el estado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "reveal"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/text"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 4
+    },
+    "reward": {
+      "description": "Recompensa intermedia para RL: [\"reward\", asiento, cantidad].",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "reward"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "roll": {
+      "description": "Asigna un entero uniforme en 1..n.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "roll"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "sample": {
+      "description": "Asigna un valor según una lista de tuplas (valor, probabilidad) que suman 1.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "sample"
+        },
+        {
+          "$ref": "expr.schema.json"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "shuffle": {
+      "description": "Baraja una zona ordenada (uniforme).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "shuffle"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "selector": {
+      "type": "array",
+      "minItems": 1,
+      "prefixItems": [
+        {
+          "enum": [
+            "all",
+            "at",
+            "bottom",
+            "top",
+            "value",
+            "values"
+          ]
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "prefixItems": [
+              {
+                "const": "all"
+              }
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/sel_all"
+          }
+        },
+        {
+          "if": {
+            "prefixItems": [
+              {
+                "const": "at"
+              }
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/sel_at"
+          }
+        },
+        {
+          "if": {
+            "prefixItems": [
+              {
+                "const": "bottom"
+              }
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/sel_bottom"
+          }
+        },
+        {
+          "if": {
+            "prefixItems": [
+              {
+                "const": "top"
+              }
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/sel_top"
+          }
+        },
+        {
+          "if": {
+            "prefixItems": [
+              {
+                "const": "value"
+              }
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/sel_value"
+          }
+        },
+        {
+          "if": {
+            "prefixItems": [
+              {
+                "const": "values"
+              }
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/sel_values"
+          }
+        }
+      ]
+    },
+    "sel_all": {
+      "description": "Todos los elementos.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "all"
+        }
+      ],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "sel_at": {
+      "description": "El elemento en el índice dado (0 = arriba).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "at"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "sel_bottom": {
+      "description": "Los n elementos inferiores (zona ordenada).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "bottom"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "sel_top": {
+      "description": "Los n elementos superiores (zona ordenada).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "top"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "sel_value": {
+      "description": "Un elemento igual al valor dado.",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "value"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "sel_values": {
+      "description": "Un elemento por cada valor de la lista (multiconjunto).",
+      "type": "array",
+      "prefixItems": [
+        {
+          "const": "values"
+        },
+        {
+          "$ref": "expr.schema.json"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}

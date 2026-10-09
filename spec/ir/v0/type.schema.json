@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gamehub.invalid/spec/ir/v0/type.schema.json",
+  "title": "GameIR v0 — referencia de tipo",
+  "description": "Primitivos (Bool, Int, Real, Text, Seat, Cell), nombre de enum/struct declarado, o constructor.",
+  "oneOf": [
+    { "$ref": "common.schema.json#/$defs/ident" },
+    { "$ref": "#/$defs/unary", "prefixItems": [{ "enum": ["option", "list", "set", "per_player", "zone", "bag"] }] },
+    {
+      "type": "array",
+      "prefixItems": [{ "const": "map" }, { "$ref": "#" }, { "$ref": "#" }],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    {
+      "type": "array",
+      "prefixItems": [{ "const": "tuple" }, { "$ref": "#" }, { "$ref": "#" }],
+      "items": { "$ref": "#" },
+      "minItems": 3
+    },
+    {
+      "type": "array",
+      "prefixItems": [{ "const": "grid" }, { "$ref": "#/$defs/dim" }, { "$ref": "#/$defs/dim" }, { "$ref": "#" }],
+      "minItems": 4,
+      "maxItems": 4
+    }
+  ],
+  "$defs": {
+    "unary": {
+      "type": "array",
+      "prefixItems": [true, { "$ref": "#" }],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "dim": {
+      "oneOf": [
+        { "type": "integer", "minimum": 1 },
+        {
+          "type": "array",
+          "prefixItems": [{ "const": "param" }, { "$ref": "common.schema.json#/$defs/ident" }],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "ir_version": "0.1.0",
+  "game": { "id": "prisoners-dilemma", "version": "1.0.0" },
+  "meta": {
+    "title": { "es": "Dilema del prisionero", "en": "Prisoner's dilemma" },
+    "description": { "es": "Simultáneo, suma no nula. Único equilibrio de Nash: (Defect, Defect), dominado en Pareto por (Cooperate, Cooperate)." },
+    "license": "CC-BY-4.0",
+    "tags": ["classic", "simultaneous", "general-sum"]
+  },
+  "players": { "min": 2, "max": 2 },
+  "params": [
+    { "name": "T", "type": "Real", "default": ["const", 5], "doc": { "es": "Tentación" } },
+    { "name": "R", "type": "Real", "default": ["const", 3], "doc": { "es": "Recompensa por cooperar" } },
+    { "name": "P", "type": "Real", "default": ["const", 1], "doc": { "es": "Castigo por desertar ambos" } },
+    { "name": "S", "type": "Real", "default": ["const", 0], "doc": { "es": "Pago del primo" } }
+  ],
+  "constraints": [
+    {
+      "expr": ["and", ["gt", ["param", "T"], ["param", "R"]], ["gt", ["param", "R"], ["param", "P"]], ["gt", ["param", "P"], ["param", "S"]]],
+      "message": { "es": "Debe cumplirse T > R > P > S" }
+    },
+    {
+      "expr": ["gt", ["mul", ["const", 2], ["param", "R"]], ["add", ["param", "T"], ["param", "S"]]],
+      "message": { "es": "Debe cumplirse 2R > T + S (cooperar siempre supera a alternar)" }
+    }
+  ],
+  "types": [{ "kind": "enum", "name": "Choice", "values": ["Cooperate", "Defect"] }],
+  "state": [
+    { "name": "choice", "type": ["per_player", ["option", "Choice"]], "init": ["const", null], "visibility": "all" }
+  ],
+  "functions": [
+    {
+      "name": "pay",
+      "doc": { "es": "Pago de quien elige 'mine' contra 'theirs' (tabla del dilema)." },
+      "params": [["mine", "Choice"], ["theirs", "Choice"]],
+      "returns": "Real",
+      "body": ["case", [
+        [["and", ["eq", ["arg", "mine"], ["enum", "Choice", "Cooperate"]], ["eq", ["arg", "theirs"], ["enum", "Choice", "Cooperate"]]], ["param", "R"]],
+        [["and", ["eq", ["arg", "mine"], ["enum", "Choice", "Cooperate"]], ["eq", ["arg", "theirs"], ["enum", "Choice", "Defect"]]], ["param", "S"]],
+        [["and", ["eq", ["arg", "mine"], ["enum", "Choice", "Defect"]], ["eq", ["arg", "theirs"], ["enum", "Choice", "Cooperate"]]], ["param", "T"]]
+      ], ["param", "P"]]
+    }
+  ],
+  "flow": {
+    "start": "Choose",
+    "nodes": [
+      {
+        "id": "Choose",
+        "kind": "simultaneous",
+        "doc": { "es": "Las elecciones permanecen ocultas hasta que ambos han elegido." },
+        "actors": ["seats"],
+        "actions": [
+          {
+            "name": "choose",
+            "params": [{ "name": "c", "type": "Choice", "domain": ["enum_values", "Choice"] }],
+            "effects": [["assign", ["index", ["var", "choice"], ["actor"]], ["arg", "c"]]]
+          }
+        ],
+        "transitions": [{ "to": "End" }]
+      },
+      {
+        "id": "End",
+        "kind": "terminal",
+        "payoff": ["map", "s", ["seats"],
+                    ["call", "pay",
+                      ["unwrap", ["index", ["var", "choice"], ["local", "s"]]],
+                      ["unwrap", ["index", ["var", "choice"], ["other_seat", ["local", "s"]]]]]]
+      }
+    ]
+  }
+}

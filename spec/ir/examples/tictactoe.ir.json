@@ -1,0 +1,64 @@
+{
+  "ir_version": "0.1.0",
+  "game": { "id": "tictactoe", "version": "1.0.0" },
+  "meta": {
+    "title": { "es": "Tres en raya", "en": "Tic-tac-toe" },
+    "description": { "es": "Información perfecta, determinista, suma cero. Valor con juego perfecto: empate." },
+    "license": "CC-BY-4.0",
+    "tags": ["classic", "perfect-information", "deterministic", "zero-sum"]
+  },
+  "players": { "min": 2, "max": 2 },
+  "types": [{ "kind": "enum", "name": "Mark", "values": ["X", "O"] }],
+  "state": [
+    { "name": "board", "type": ["grid", 3, 3, ["option", "Mark"]], "init": ["const", null], "visibility": "all" },
+    { "name": "turn", "type": "Seat", "init": ["const", 0], "visibility": "all" }
+  ],
+  "functions": [
+    {
+      "name": "mark",
+      "params": [["p", "Seat"]],
+      "returns": "Mark",
+      "body": ["if", ["eq", ["arg", "p"], ["const", 0]], ["enum", "Mark", "X"], ["enum", "Mark", "O"]]
+    },
+    {
+      "name": "wins",
+      "params": [["m", "Mark"]],
+      "returns": "Bool",
+      "body": ["any", "line", ["lines", ["var", "board"], ["const", 3]],
+                ["all", "c", ["local", "line"],
+                  ["eq", ["index", ["var", "board"], ["local", "c"]], ["arg", "m"]]]]
+    },
+    {
+      "name": "full",
+      "params": [],
+      "returns": "Bool",
+      "body": ["all", "c", ["cells", ["var", "board"]],
+                ["not", ["is_none", ["index", ["var", "board"], ["local", "c"]]]]]
+    }
+  ],
+  "flow": {
+    "start": "Move",
+    "nodes": [
+      {
+        "id": "Move",
+        "kind": "decision",
+        "actor": ["var", "turn"],
+        "actions": [
+          {
+            "name": "place",
+            "params": [{ "name": "c", "type": "Cell", "domain": ["cells", ["var", "board"]] }],
+            "requires": ["is_none", ["index", ["var", "board"], ["arg", "c"]]],
+            "effects": [["assign", ["index", ["var", "board"], ["arg", "c"]], ["call", "mark", ["var", "turn"]]]]
+          }
+        ],
+        "transitions": [
+          { "to": "Win", "when": ["call", "wins", ["call", "mark", ["var", "turn"]]] },
+          { "to": "Draw", "when": ["call", "full"] },
+          { "to": "Move", "effects": [["assign", ["var", "turn"], ["next_seat", ["var", "turn"]]]] }
+        ]
+      },
+      { "id": "Win", "kind": "terminal", "payoff": ["win_loss", ["var", "turn"], ["const", 1], ["const", -1]] },
+      { "id": "Draw", "kind": "terminal", "payoff": ["fill", ["const", 0]] }
+    ]
+  }
+}

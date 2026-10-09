@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gamehub.invalid/spec/ir/v0/ir.schema.json",
+  "title": "GameIR v0 (núcleo / IR resuelta)",
+  "description": "Juego completo en la IR resuelta: sin azúcar sintáctico, listo para los motores.",
+  "type": "object",
+  "required": ["ir_version", "game", "players", "state", "flow"],
+  "additionalProperties": false,
+  "properties": {
+    "ir_version": { "type": "string", "pattern": "^0\\.1\\.[0-9]+$" },
+    "game": { "$ref": "#/$defs/gameId" },
+    "meta": { "$ref": "#/$defs/meta" },
+    "players": { "$ref": "#/$defs/players" },
+    "params": { "type": "array", "items": { "$ref": "#/$defs/param" } },
+    "constraints": { "type": "array", "items": { "$ref": "#/$defs/constraint" } },
+    "types": { "type": "array", "items": { "$ref": "#/$defs/typeDecl" } },
+    "state": { "type": "array", "items": { "$ref": "#/$defs/stateVar" } },
+    "functions": { "type": "array", "items": { "$ref": "#/$defs/function" } },
+    "flow": { "$ref": "#/$defs/flow" }
+  },
+  "$defs": {
+    "ident": { "$ref": "common.schema.json#/$defs/ident" },
+    "text": { "$ref": "common.schema.json#/$defs/text" },
+    "expr": { "$ref": "expr.schema.json" },
+    "type": { "$ref": "type.schema.json" },
+    "block": { "$ref": "common.schema.json#/$defs/block" },
+    "visibility": { "$ref": "common.schema.json#/$defs/visibility" },
+
+    "gameId": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/slug" },
+        "version": { "$ref": "common.schema.json#/$defs/semver" }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "$ref": "#/$defs/text" },
+        "description": { "$ref": "#/$defs/text" },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "license": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "players": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": "integer", "minimum": 1 },
+        "max": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "param": {
+      "type": "object",
+      "required": ["name", "type", "default"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "type": { "$ref": "#/$defs/type" },
+        "default": { "$ref": "#/$defs/expr" },
+        "doc": { "$ref": "#/$defs/text" }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["expr"],
+      "additionalProperties": false,
+      "properties": {
+        "expr": { "$ref": "#/$defs/expr" },
+        "message": { "$ref": "#/$defs/text" }
+      }
+    },
+    "typeDecl": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": { "kind": { "enum": ["enum", "struct"] } },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "enum" } } }, "then": { "$ref": "#/$defs/enumDecl" } },
+        { "if": { "properties": { "kind": { "const": "struct" } } }, "then": { "$ref": "#/$defs/structDecl" } }
+      ]
+    },
+    "enumDecl": {
+      "type": "object",
+      "required": ["kind", "name", "values"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "enum" },
+        "name": { "$ref": "#/$defs/ident" },
+        "values": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/ident" } },
+        "doc": { "$ref": "#/$defs/text" }
+      }
+    },
+    "structDecl": {
+      "type": "object",
+      "required": ["kind", "name", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "struct" },
+        "name": { "$ref": "#/$defs/ident" },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "type"],
+            "additionalProperties": false,
+            "properties": { "name": { "$ref": "#/$defs/ident" }, "type": { "$ref": "#/$defs/type" } }
+          }
+        },
+        "doc": { "$ref": "#/$defs/text" }
+      }
+    },
+    "stateVar": {
+      "type": "object",
+      "required": ["name", "type", "init"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "type": { "$ref": "#/$defs/type" },
+        "init": { "$ref": "#/$defs/expr" },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "size_visibility": { "$ref": "#/$defs/visibility" },
+        "doc": { "$ref": "#/$defs/text" }
+      }
+    },
+    "function": {
+      "type": "object",
+      "required": ["name", "params", "returns", "body"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "$ref": "#/$defs/ident" }, { "$ref": "#/$defs/type" }],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "returns": { "$ref": "#/$defs/type" },
+        "body": { "$ref": "#/$defs/expr" },
+        "doc": { "$ref": "#/$defs/text" }
+      }
+    },
+
+    "flow": {
+      "type": "object",
+      "required": ["start", "nodes"],
+      "additionalProperties": false,
+      "properties": {
+        "setup": { "$ref": "#/$defs/block" },
+        "start": { "$ref": "#/$defs/ident" },
+        "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "kind": { "enum": ["decision", "simultaneous", "window", "chance", "auto", "phase", "terminal"] }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "decision" } } }, "then": { "$ref": "#/$defs/decisionNode" } },
+        { "if": { "properties": { "kind": { "const": "simultaneous" } } }, "then": { "$ref": "#/$defs/simultaneousNode" } },
+        { "if": { "properties": { "kind": { "const": "window" } } }, "then": { "$ref": "#/$defs/windowNode" } },
+        { "if": { "properties": { "kind": { "const": "chance" } } }, "then": { "$ref": "#/$defs/chanceNode" } },
+        { "if": { "properties": { "kind": { "const": "auto" } } }, "then": { "$ref": "#/$defs/autoNode" } },
+        { "if": { "properties": { "kind": { "const": "phase" } } }, "then": { "$ref": "#/$defs/phaseNode" } },
+        { "if": { "properties": { "kind": { "const": "terminal" } } }, "then": { "$ref": "#/$defs/terminalNode" } }
+      ]
+    },
+    "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
+    "actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/action" } },
+
+    "decisionNode": {
+      "description": "Un único actor elige una acción legal; se aplica de inmediato.",
+      "type": "object",
+      "required": ["id", "kind", "actor", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "decision" },
+        "doc": { "$ref": "#/$defs/text" },
+        "actor": { "$ref": "#/$defs/expr" },
+        "actions": { "$ref": "#/$defs/actions" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "simultaneousNode": {
+      "description": "Cada actor envía una acción oculta; al completarse se aplican en orden de asiento y luego 'resolve'.",
+      "type": "object",
+      "required": ["id", "kind", "actors", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "simultaneous" },
+        "doc": { "$ref": "#/$defs/text" },
+        "actors": { "$ref": "#/$defs/expr" },
+        "actions": { "$ref": "#/$defs/actions" },
+        "resolve": { "$ref": "#/$defs/block" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "windowNode": {
+      "description": "Ventana de reacción: los elegibles pueden actuar o pasar (pasar es implícito). Se aplica como mucho una acción.",
+      "type": "object",
+      "required": ["id", "kind", "eligible", "mode", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "window" },
+        "doc": { "$ref": "#/$defs/text" },
+        "eligible": { "$ref": "#/$defs/expr" },
+        "mode": { "enum": ["priority", "collect", "race"] },
+        "order": { "$ref": "#/$defs/expr" },
+        "actions": { "$ref": "#/$defs/actions" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "chanceNode": {
+      "description": "Nodo de azar: único lugar (junto a flow.setup) donde se permiten sentencias aleatorias.",
+      "type": "object",
+      "required": ["id", "kind", "effects", "transitions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "chance" },
+        "doc": { "$ref": "#/$defs/text" },
+        "effects": { "$ref": "#/$defs/block" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "autoNode": {
+      "type": "object",
+      "required": ["id", "kind", "transitions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "auto" },
+        "doc": { "$ref": "#/$defs/text" },
+        "effects": { "$ref": "#/$defs/block" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "phaseNode": {
+      "description": "Nodo compuesto. Sus transiciones se evalúan cuando un hijo transita a '$exit'.",
+      "type": "object",
+      "required": ["id", "kind", "start", "nodes"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "phase" },
+        "doc": { "$ref": "#/$defs/text" },
+        "start": { "$ref": "#/$defs/ident" },
+        "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } },
+        "on_enter": { "$ref": "#/$defs/block" },
+        "on_exit": { "$ref": "#/$defs/block" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "terminalNode": {
+      "type": "object",
+      "required": ["id", "kind", "payoff"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/ident" },
+        "kind": { "const": "terminal" },
+        "doc": { "$ref": "#/$defs/text" },
+        "payoff": { "$ref": "#/$defs/expr" },
+        "rank": { "$ref": "#/$defs/expr" }
+      }
+    },
+
+    "action": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "doc": { "$ref": "#/$defs/text" },
+        "params": { "type": "array", "items": { "$ref": "#/$defs/actionParam" } },
+        "requires": { "$ref": "#/$defs/expr" },
+        "effects": { "$ref": "#/$defs/block" },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "transitions": { "$ref": "#/$defs/transitions" }
+      }
+    },
+    "actionParam": {
+      "description": "Parámetro con dominio finito. Su visibilidad aplica a los demás asientos: el actor siempre ve su propia acción.",
+      "type": "object",
+      "required": ["name", "type", "domain"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "type": { "$ref": "#/$defs/type" },
+        "domain": { "$ref": "#/$defs/expr" },
+        "visibility": { "$ref": "#/$defs/visibility" },
+        "size_visibility": { "$ref": "#/$defs/visibility" }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": ["to"],
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "description": "Id de nodo, o '$exit' para salir de la fase actual.",
+          "anyOf": [{ "$ref": "#/$defs/ident" }, { "const": "$exit" }]
+        },
+        "when": { "$ref": "#/$defs/expr" },
+        "effects": { "$ref": "#/$defs/block" },
+        "doc": { "$ref": "#/$defs/text" }
+      }
+    }
+  }
+}
