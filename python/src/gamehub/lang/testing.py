@@ -365,7 +365,11 @@ class _TestRun:
                 step.span,
                 "ningún resultado del azar cumple la condición",
                 code="E612",
-                note=f"hay {len(outcomes)} resultados posibles",
+                note=(
+                    "hay un único resultado posible"
+                    if len(outcomes) == 1
+                    else f"hay {len(outcomes)} resultados posibles"
+                ),
             )
         return _pick(matches, self.rng)
 

@@ -116,6 +116,7 @@ class Ctx:
     chance: bool = False
     test: bool = False
     params_upto: int | None = None  # en valores por defecto: solo los parámetros anteriores
+    module: bool = False  # en una función de módulo: no se ven el estado ni las opciones del juego
 
 
 @dataclass
@@ -154,6 +155,7 @@ class Checker:
         self.refs: dict[str, set[str]] = {"game": set()}
         self.calls: dict[str, set[str]] = {}
         self.actions: dict[str, list[ast.ActionDecl]] = {}
+        self.in_module = False
 
     # --- utilidades -----------------------------------------------------------------------------
 
@@ -186,14 +188,10 @@ class Checker:
         return ir
 
     def global_names(self) -> list[str]:
-        return [
-            *self.state,
-            *self.params,
-            *self.functions,
-            *self.types,
-            *self.enum_values,
-            *CONTEXT_VALUES,
-        ]
+        """Nombres que un local no puede ocultar. Dentro de una función de módulo, el estado y
+        las opciones del juego no existen, así que sus nombres quedan libres."""
+        game = [] if self.in_module else [*self.state, *self.params]
+        return [*game, *self.functions, *self.types, *self.enum_values, *CONTEXT_VALUES]
 
     # --- programa -------------------------------------------------------------------------------
 
@@ -652,12 +650,13 @@ class Checker:
     def check_functions(self) -> None:
         for name, info in self.functions.items():
             self.owner = name
+            self.in_module = info.external
             scope = Scope()
             for pname, pty in info.params:
                 self.bind(scope, pname, "arg", pty, info.decl.span)
             ctx = Ctx(f"la función {name}")
             if info.external:
-                ctx = replace(ctx, reads_state=False)
+                ctx = replace(ctx, reads_state=False, module=True)
             body = self.expect(
                 self.expr(info.decl.body, scope, ctx, info.returns),
                 info.returns,
@@ -674,6 +673,7 @@ class Checker:
                 out["doc"] = info.decl.doc.to_ir()
             info.ir = out
         self.owner = "game"
+        self.in_module = False
 
     def check_recursion(self) -> None:
         visiting: set[str] = set()
@@ -1466,6 +1466,14 @@ class Checker:
             return [binding.kind, name], binding.ty
         if ctx.test and name in ("payoff", "active"):
             return ["local", name], T.PAYOFF if name == "payoff" else T.list_(T.SEAT)
+        if ctx.module and (name in self.state or name in self.params):
+            what = "el estado" if name in self.state else "las opciones"
+            return self.error(
+                "E205",
+                f"una función de módulo no ve {what} del juego (`{name}`)",
+                e.span,
+                help="pásalo como argumento",
+            )
         if name in self.state:
             if not ctx.reads_state:
                 return self.error(

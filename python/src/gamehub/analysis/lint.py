@@ -14,7 +14,8 @@ una posición en el texto.
 - W404 bucle de nodos automáticos sin efectos: si se entra, no termina nunca.
 - W405 posible fuga de información: un dato oculto llega a estado o eventos visibles para todos,
   decide quién juega o qué nodo sigue, o las jugadas legales dependen de datos que el actor no
-  ve. Es un análisis de flujos explícitos e implícitos (`if`), sin modelar `reveal`.
+  ve. Es un análisis de flujos explícitos e implícitos (`if`); lo que un bloque revela a todos
+  (`reveal … to all`) deja de ser oculto en el resto del bloque.
 - W406 declaración sin usar.
 - W407 transición que nunca se toma: va detrás de una sin condición.
 """
@@ -485,20 +486,29 @@ class _Leaks:
         pc: set[str],
         hidden_args: dict[str, Any],
         where: Where,
+        revealed: frozenset[str] = frozenset(),
     ) -> None:
+        """Recorre sentencias buscando datos ocultos que acaben a la vista. Lo que el bloque
+        revela a todos (`reveal … to all`) deja de contar como oculto en lo que sigue."""
         scope = dict(locals_)
+        shown = set(revealed)
+
+        def hidden(e: Any, extra: set[str] = set()) -> set[str]:  # noqa: B006 (no se modifica)
+            return (self.reads(e, scope, hidden_args) | extra | pc) - shown
+
         for stmt in stmts:
             op = stmt[0]
             match op:
                 case "let":
-                    scope[stmt[1]] = self.reads(stmt[2], scope, hidden_args) | pc
+                    scope[stmt[1]] = hidden(stmt[2])
                 case "assign":
                     target, value = stmt[1], stmt[2]
                     root = _root(target)
                     if root is not None and not self.private(root):
-                        found = self.reads(value, scope, hidden_args) | pc
-                        for key in _lvalue_keys(target):
-                            found |= self.reads(key, scope, hidden_args)
+                        keys = set().union(
+                            *(self.reads(k, scope, hidden_args) for k in _lvalue_keys(target))
+                        )
+                        found = hidden(value, keys)
                         if found:
                             self.leak(
                                 f"`{root}` es visible para todos y recibe datos ocultos "
@@ -506,26 +516,29 @@ class _Leaks:
                                 where,
                             )
                 case "if":
-                    cond = self.reads(stmt[1], scope, hidden_args) | pc
-                    self.block(stmt[2], scope, cond, hidden_args, where)
+                    cond = hidden(stmt[1])
+                    inner = frozenset(shown)
+                    self.block(stmt[2], scope, cond, hidden_args, where, inner)
                     if len(stmt) > 3 and stmt[3] is not None:
-                        self.block(stmt[3], scope, cond, hidden_args, where)
+                        self.block(stmt[3], scope, cond, hidden_args, where, inner)
                 case "for":
-                    inner = dict(scope)
-                    inner[stmt[1]] = self.reads(stmt[2], scope, hidden_args) | pc
-                    self.block(stmt[3], inner, pc, hidden_args, where)
+                    loop = dict(scope)
+                    loop[stmt[1]] = hidden(stmt[2])
+                    self.block(stmt[3], loop, pc - shown, hidden_args, where, frozenset(shown))
                 case "emit":
                     visibility = stmt[3] if len(stmt) > 3 else None
                     if not _hidden(visibility):
-                        found = set(pc)
+                        found = set(pc) - shown
                         for field in stmt[2].values():
-                            found |= self.reads(field, scope, hidden_args)
+                            found |= hidden(field)
                         if found:
                             self.leak(
                                 f"el evento `{stmt[1]}` lo ven todos y lleva datos ocultos "
                                 f"({_names(found)})",
                                 where,
                             )
+                case "reveal" if stmt[2] == ["seats"]:
+                    shown |= self.reads(stmt[1], scope, hidden_args)
 
     def leak(self, message: str, where: Where) -> None:
         self.findings.append(

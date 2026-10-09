@@ -122,3 +122,21 @@ def test_module_functions_cannot_read_game_state(tmp_path: Path) -> None:
     (tmp_path / "bad.game").write_text("fn f() -> Int = turn\n", encoding="utf-8")
     result = compile_file(tmp_path / "bad.game")
     assert not result.ok
+
+
+def test_module_functions_have_their_own_scope(tmp_path: Path) -> None:
+    """Los parámetros de una función de módulo pueden llamarse como cosas del juego que la usa."""
+    (tmp_path / "lib.game").write_text(
+        "fn twice(score: Int) -> Int = 2 * score\n", encoding="utf-8"
+    )
+    game = tmp_path / "g.game"
+    game.write_text(
+        "import lib.{twice}\n\n" + GAME.format(state="score: Int = twice(2)"), encoding="utf-8"
+    )
+    assert compile_file(game).ok
+    (tmp_path / "peek.game").write_text("fn peek() -> Int = score\n", encoding="utf-8")
+    game.write_text(
+        "import peek.{peek}\n\n" + GAME.format(state="score: Int = peek()"), encoding="utf-8"
+    )
+    [error] = compile_file(game).diagnostics.errors
+    assert error.message == "una función de módulo no ve el estado del juego (`score`)"

@@ -153,6 +153,25 @@ def test_information_leaks() -> None:
     ]
 
 
+def test_revealing_to_everyone_is_not_a_leak() -> None:
+    state = "@visible(none)\n    secret: Int = 0\n    shown: Int = 0"
+    revealed = """    decision A {
+      actor: 0
+      action open() {
+        reveal secret to all
+        shown = secret
+      }
+      -> End
+    }"""
+    assert warnings(game(revealed, state)) == []
+    late = revealed.replace(
+        "reveal secret to all\n        shown = secret",
+        "shown = secret\n        reveal secret to all",
+    )
+    source = game(late, state)
+    assert warnings(source) == [("W405", line(source, "open"))]
+
+
 def test_who_plays_can_leak() -> None:
     state = "@visible(none)\n    secret: Int = 0"
     flow = """    decision A {

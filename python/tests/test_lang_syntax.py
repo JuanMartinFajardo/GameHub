@@ -218,6 +218,33 @@ def test_several_errors_are_reported_and_parsing_continues() -> None:
     assert names == ["PlayersDecl", "StateBlock", "FnDecl", "FlowBlock"]
 
 
+def test_recovery_respects_nested_brackets() -> None:
+    """Un error dentro de unas llaves anidadas no cierra el bloque que las contiene."""
+    source = """game G {
+  meta {
+    title: { es: "a" en: "b" }
+    tags: ["x"]
+  }
+  players 2
+  flow {
+    start -> E
+    terminal E { payoff: fill(0) }
+  }
+}
+"""
+    _, diagnostics = parse_text(source)
+    assert [d.message for d in diagnostics] == ["se esperaba ',', un salto de línea o '}'"]
+
+
+def test_texts_accept_newlines_between_languages() -> None:
+    file, diagnostics = parse_text(
+        'game G {\n  meta {\n    title: {\n      es: "Hola"\n      en: "Hello"\n    }\n  }\n}'
+    )
+    assert not diagnostics.items
+    meta = file.games[0].items[0]  # type: ignore[union-attr]
+    assert meta.entries[0].value.value == {"es": "Hola", "en": "Hello"}  # type: ignore[union-attr]
+
+
 def test_rustc_style_rendering() -> None:
     _, diagnostics = parse_text("game G {\n  players two\n}", "juego.game")
     text = render(diagnostics.items[0])

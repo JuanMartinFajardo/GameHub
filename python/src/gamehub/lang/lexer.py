@@ -147,6 +147,10 @@ class Token:
     span: Span
     value: Any = None
     leading: list[Comment] = field(default_factory=list)
+    #: Corchetes abiertos tras el token (un `{` y lo que contiene tienen uno más que lo de
+    #: fuera; su `}`, los mismos que fuera). La recuperación de errores la usa para no salirse
+    #: del bloque en el que está.
+    depth: int = 0
 
     def __repr__(self) -> str:
         return f"Token({self.kind!r}, {self.text!r})"
@@ -173,10 +177,13 @@ class _Lexer:
     def emit(self, kind: str, start: int, value: Any = None) -> None:
         """Añade un token. Los comentarios pendientes pasan al siguiente token que no sea un
         salto de línea."""
+        depth = len(self.brackets)
         if kind == "newline":
-            self.tokens.append(Token(kind, "\n", self.span(start), value))
+            self.tokens.append(Token(kind, "\n", self.span(start), value, depth=depth))
             return
-        token = Token(kind, self.text[start : self.pos], self.span(start), value, self.pending)
+        token = Token(
+            kind, self.text[start : self.pos], self.span(start), value, self.pending, depth
+        )
         self.pending = []
         self.tokens.append(token)
         self.last_line = self.source.location(max(start, self.pos - 1))[0]
@@ -244,10 +251,15 @@ class _Lexer:
         return self.tokens
 
     def bracket(self, punct: str) -> None:
+        """Pila de corchetes abiertos. Un cierre que no casa con el último abierto cierra
+        también los que quedaron sin cerrar dentro (un `(` olvidado no se come el resto)."""
         if punct in "([{":
             self.brackets.append(punct)
         elif punct in ")]}" and self.brackets:
-            self.brackets.pop()
+            opener = {")": "(", "]": "[", "}": "{"}[punct]
+            if opener in self.brackets:
+                while self.brackets.pop() != opener:
+                    pass
 
     def own_line(self, start: int) -> bool:
         if not self.tokens:

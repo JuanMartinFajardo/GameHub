@@ -204,17 +204,15 @@ class Parser:
         elif not self.at("}", "eof"):
             raise self.fail("se esperaba un salto de línea antes del siguiente elemento")
 
-    def synchronize(self) -> None:
-        depth = 0
+    def synchronize(self, depth: int) -> None:
+        """Tras un error en un elemento de un bloque cuyo contenido está a profundidad `depth`:
+        salta hasta el siguiente salto de línea de ese nivel (el próximo elemento) o hasta el
+        `}` que cierra el bloque, sin dejarse engañar por los corchetes de dentro."""
         while not self.at("eof"):
             tok = self.peek()
-            if tok.kind == "{":
-                depth += 1
-            elif tok.kind == "}":
-                if depth == 0:
-                    return
-                depth -= 1
-            elif tok.kind in ("newline", ";") and depth == 0:
+            if tok.kind == "}" and tok.depth < depth:
+                return
+            if tok.kind in ("newline", ";") and tok.depth <= depth:
                 self.skip_newlines()
                 return
             self.advance()
@@ -225,6 +223,7 @@ class Parser:
         """`{ elemento* }` con recuperación de errores. Devuelve los elementos y los
         comentarios que quedan antes del `}`."""
         self.expect("{", "'{'")
+        inner = self.tokens[self.pos - 1].depth
         items: list[ast.Item] = []
         while True:
             self.skip_newlines()
@@ -240,7 +239,7 @@ class Parser:
                     items.append(item)
                 self.end_item(commas)
             except ParseError:
-                self.synchronize()
+                self.synchronize(inner)
             if self.pos == start:
                 self.advance()
         # Los comentarios antes de '}' solo se reclaman si quien llama los guarda; si no, pasan
@@ -261,7 +260,7 @@ class Parser:
                 items.append(item)
                 self.end_item()
             except ParseError:
-                self.synchronize()
+                self.synchronize(0)
                 if self.at("}"):
                     self.advance()
             if self.pos == start:
@@ -349,11 +348,12 @@ class Parser:
                 self.expect(":", "':'")
                 value = self.expect("string", "un texto entre comillas")
                 entries[lang] = value.value
+                separated = self.eat(",") or self.at("newline")
                 self.skip_newlines()
-                if not self.eat(","):
-                    self.skip_newlines()
-                    self.expect("}", "',' o '}'")
+                if self.eat("}"):
                     break
+                if not separated:
+                    raise self.fail("se esperaba ',', un salto de línea o '}'")
             if not entries:
                 raise self.fail("un texto traducible necesita al menos un idioma")
             return ast.Text(entries, span=self.span_from(start))
