@@ -99,6 +99,35 @@ def _parser() -> argparse.ArgumentParser:
     check_game.add_argument("--format", choices=("text", "json"), default="text")
     check_game.set_defaults(handler=_check)
 
+    viz = commands.add_parser("viz", help="diagrama del flow de un juego (Mermaid o Graphviz)")
+    viz.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    viz.add_argument("--name", help="juego a dibujar si el archivo .game contiene varios")
+    viz.add_argument("--format", choices=("mermaid", "dot"), default="mermaid")
+    viz.add_argument(
+        "-o", "--output", type=Path, metavar="SALIDA", help="archivo (.md envuelve el Mermaid)"
+    )
+    viz.set_defaults(handler=_viz)
+
+    diff = commands.add_parser(
+        "diff", help="diferencias semánticas entre dos versiones de un juego"
+    )
+    diff.add_argument(
+        "versions",
+        nargs=2,
+        metavar=("A", "B"),
+        help="dos archivos (.game o .ir.json), o REV1..REV2 y un archivo del repositorio git",
+    )
+    diff.add_argument("--name", help="juego si los archivos .game contienen varios")
+    diff.add_argument("--format", choices=("text", "json"), default="text")
+    diff.set_defaults(handler=_diff)
+
+    rules = commands.add_parser("rules", help="reglamento del juego en Markdown, generado")
+    rules.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    rules.add_argument("--name", help="juego si el archivo .game contiene varios")
+    rules.add_argument("--lang", default="es", help="idioma de los textos (por defecto, es)")
+    rules.add_argument("-o", "--output", type=Path, metavar="SALIDA.md")
+    rules.set_defaults(handler=_rules)
+
     test = commands.add_parser("test", help="ejecuta los tests y los invariantes de archivos .game")
     test.add_argument(
         "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
@@ -377,6 +406,121 @@ def _check(args: argparse.Namespace) -> int:
     if args.format == "json":
         print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if failed else 0
+
+
+def _viz(args: argparse.Namespace) -> int:
+    from gamehub.render.viz import dot, mermaid
+
+    ir = _game_ir(args.game, args.name)
+    if ir is None:
+        return 1
+    text = mermaid(ir) if args.format == "mermaid" else dot(ir)
+    if args.output is not None and args.output.suffix == ".md" and args.format == "mermaid":
+        text = f"```mermaid\n{text}```\n"
+    _emit(text, args.output)
+    return 0
+
+
+def _diff(args: argparse.Namespace) -> int:
+    from gamehub.render.diff import diff, format_diff
+
+    first, second = args.versions
+    if ".." in first and not Path(first).exists():
+        old_rev, new_rev = first.split("..", 1)
+        path = Path(second)
+        old = _game_ir_at(path, old_rev or "HEAD", args.name)
+        new = _game_ir_at(path, new_rev, args.name) if new_rev else _game_ir(path, args.name)
+    else:
+        old, new = _game_ir(Path(first), args.name), _game_ir(Path(second), args.name)
+    if old is None or new is None:
+        return 1
+    result = diff(old, new)
+    if args.format == "json":
+        report = {
+            "same_rules": result.same_rules,
+            "old_hash": result.old_hash,
+            "new_hash": result.new_hash,
+            "changes": [c.to_json() for c in result.changes],
+        }
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        sys.stdout.write(format_diff(result))
+    return 0
+
+
+def _game_ir_at(path: Path, rev: str, name: str | None) -> dict[str, Any] | None:
+    """La IR de un archivo tal como estaba en una revisión de git."""
+    import subprocess
+
+    done = subprocess.run(
+        ["git", "-C", str(path.parent), "show", f"{rev}:./{path.name}"],
+        capture_output=True,
+        text=True,
+    )
+    if done.returncode != 0:
+        print(f"error: git show {rev}:{path}: {done.stderr.strip()}", file=sys.stderr)
+        return None
+    if path.suffix != ".game":
+        return json.loads(done.stdout)
+    from gamehub.lang.compiler import compile_source
+    from gamehub.lang.diagnostics import print_diagnostics
+    from gamehub.lang.source import Source
+
+    result = compile_source(Source(f"{path}@{rev}", done.stdout, path))
+    if not result.ok:
+        print_diagnostics(result.diagnostics.sorted())
+        return None
+    try:
+        return result.game(name).ir
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None
+
+
+def _rules(args: argparse.Namespace) -> int:
+    from gamehub.render.rules import rules
+
+    ir = _game_ir(args.game, args.name)
+    if ir is None:
+        return 1
+    _emit(rules(ir, args.lang), args.output)
+    return 0
+
+
+def _game_ir(path: Path, name: str | None) -> dict[str, Any] | None:
+    """La IR de un juego: compilando un .game (con sus diagnósticos si falla) o leyendo un
+    .ir.json válido."""
+    if path.suffix == ".game":
+        from gamehub.lang.compiler import compile_file
+        from gamehub.lang.diagnostics import print_diagnostics
+
+        result = compile_file(path)
+        if not result.ok:
+            print_diagnostics(result.diagnostics.sorted())
+            return None
+        try:
+            return result.game(name).ir
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return None
+    from gamehub.ir import check
+
+    with path.open(encoding="utf-8") as f:
+        ir = json.load(f)
+    problems = check(ir)
+    if problems:
+        for problem in problems:
+            print(f"✗ {problem}", file=sys.stderr)
+        return None
+    return ir
+
+
+def _emit(text: str, output: Path | None) -> None:
+    if output is None:
+        sys.stdout.write(text)
+    else:
+        output.write_text(text, encoding="utf-8")
+        print(f"escrito: {output}", file=sys.stderr)
 
 
 def _test(args: argparse.Namespace) -> int:

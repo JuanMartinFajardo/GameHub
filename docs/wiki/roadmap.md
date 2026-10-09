@@ -103,9 +103,9 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 - [x] Bloques `test` e `invariant`; `gamehub test` (invariantes también en partidas aleatorias)
 - [x] **stdlib v0**: `std.cards` (French52, Spanish40/48), `std.dice`, `std.grid`, `std.graph`
 - [x] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork` (y `gamehub fetch`)
-- [ ] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones
-- [ ] `gamehub viz`: diagrama de solo lectura (Mermaid / SVG con ELK) — primer "editor visual"
-- [ ] `gamehub rules`: **reglamento autogenerado** v0 (Markdown)
+- [x] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones
+- [x] `gamehub viz`: diagrama de solo lectura (Mermaid / Graphviz) — primer "editor visual"
+- [x] `gamehub rules`: **reglamento autogenerado** v0 (Markdown)
 - [ ] Extensión VS Code: resaltado (TextMate) + diagnósticos
 - [ ] Juegos en `.game`: los de F1 (incluido Mentiroso) + Conecta 4, familia 2×2, PD iterado, Leduc, Dudo
 

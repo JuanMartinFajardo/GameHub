@@ -62,6 +62,44 @@ def expression_text(ir: dict[str, Any], expr: Any) -> str:
     return render(Printer().expr(_Decompiler(ir).expr(expr)), 1_000_000)
 
 
+def type_text(ir: dict[str, Any], t: Any) -> str:
+    """Un tipo de la IR escrito en Nomos (`per_player Bag<Card>`)."""
+    return Printer().type(_Decompiler(ir).type(t))
+
+
+def function_text(ir: dict[str, Any], fn: dict[str, Any], width: int = 100) -> str:
+    """Una función de la IR escrita en Nomos, con su documentación."""
+    return render(Printer().item(_Decompiler(ir).function(fn)), width)
+
+
+def fragment_text(ir: dict[str, Any], kind: str, raw: dict[str, Any], width: int = 100) -> str:
+    """Un trozo de la IR escrito en Nomos sin su documentación: `kind` es "type", "function",
+    "action" o "transition" (para comparar versiones de un juego)."""
+    d = _Decompiler(ir)
+    item: ast.Item
+    match kind:
+        case "type":
+            item = d.type_decl(raw)
+        case "function":
+            item = d.function(raw)
+        case "action":
+            item = d.action(raw)
+        case "transition":
+            item = d.transition(raw)
+        case _:
+            raise ValueError(kind)
+    item.doc = None
+    return render(Printer().item_body(item), width)
+
+
+def statements_text(ir: dict[str, Any], block: list[Any], width: int = 100) -> str:
+    """Sentencias de la IR escritas en Nomos, una por línea (las compuestas, con su bloque)."""
+    printer = Printer()
+    return "\n".join(
+        render(printer.item_body(stmt), width) for stmt in _Decompiler(ir).stmts(block)
+    )
+
+
 class _Decompiler:
     def __init__(self, ir: dict[str, Any]) -> None:
         self.ir = ir

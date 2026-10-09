@@ -76,13 +76,20 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   hasta la meta), `fetch [--update]`, `clone` y `fork` (anota `forked_from` con el commit y deja
   el remoto original como `upstream`). Los seis juegos de `games/` ya son paquetes. Probado con
   repositorios git locales (sin red).
+- **`gamehub viz`** (Mermaid o Graphviz): cada nodo con su forma según el tipo, quién juega, sus
+  acciones y el pago; flechas con la acción y la condición en Nomos; las fases como subgrafos con
+  marcas de entrada y salida. Comprobado renderizando los diagramas con Mermaid en el navegador.
+- **`gamehub rules`**: reglamento en Markdown generado de la IR (clasificación, opciones,
+  componentes, qué hay en la mesa y quién lo ve, el diagrama, cada nodo con sus acciones,
+  condiciones y efectos en Nomos, definiciones), en el idioma pedido.
+- **`gamehub diff A B`** o **`gamehub diff REV1..REV2 archivo`**: diff semántico por elementos
+  (no por líneas), en texto o JSON, que dice si cambian las reglas o solo los textos.
 
-**Pendiente en F2**: `diff` semántico;
-`viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
+**Pendiente en F2**: extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
 documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
 empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
 
-**Progreso:** ≈ 22 % (F2 a medias).
+**Progreso:** ≈ 23 % (F2 casi terminada).
 
 ---
 
