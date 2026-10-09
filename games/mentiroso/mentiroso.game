@@ -1,0 +1,131 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Mentiroso (Bullshit): cartas boca abajo, declaraciones y una ventana de reacción.
+game Mentiroso {
+  meta {
+    version: "0.1.0"
+    title: { es: "Mentiroso", en: "Bullshit (Cheat)" }
+    description: { es: "Por turnos, cada jugador pone de 1 a 4 cartas boca abajo en el centro declarando que son del rango que toca (As, Dos, Tres… y vuelta a empezar). Cualquiera puede gritar ¡Mentiroso!: se levantan las cartas; si era mentira, quien jugó se lleva todo el montón; si era verdad, se lo lleva quien acusó. Gana quien se queda sin cartas sin ser pillado." }
+    license: "CC-BY-4.0"
+    tags: ["cards", "bluffing", "imperfect-information", "reaction-window"]
+  }
+  players 3..6
+
+  params {
+    /// Máximo de cartas por jugada
+    max_play: Int = 4
+    assert max_play >= 1, { es: "max_play debe ser al menos 1" }
+  }
+
+  enum Suit { Clubs, Diamonds, Hearts, Spades }
+  enum Rank { Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King }
+  struct Card { suit: Suit, rank: Rank }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<Card> = [Card { suit: s, rank: r } for s in Suit.values for r in Rank.values]
+    @visible(owner) @size_visible(all)
+    hand: per_player Bag<Card>
+    /// Montón central, boca abajo
+    @visible(none) @size_visible(all)
+    pile: Zone<Card>
+    turn: Seat = 0
+    /// Rango que toca declarar
+    rank: Rank = Ace
+    /// Quién hizo la última jugada
+    last_by: Seat = 0
+    /// Cuántas cartas se jugaron (se ven, aunque boca abajo)
+    last_count: Int = 0
+    winner: Seat = 0
+  }
+
+  fn next_rank(r: Rank) -> Rank = Rank.values[(ord(r) + 1) % len(Rank.values)]
+  /// Cartas de la última jugada: las de arriba del montón.
+  fn last_play() -> List<Card> = items(pile)[0:last_count]
+  fn truthful() -> Bool = all(c in last_play() : c.rank == rank)
+
+  flow {
+    start -> Deal
+
+    /// Se baraja y se reparte toda la baraja, una carta a cada jugador por turnos.
+    chance Deal {
+      shuffle deck
+      deal all from deck to each hand
+      -> Play
+    }
+
+    decision Play {
+      actor: turn
+      /// Poner cartas boca abajo declarando el rango que toca.
+      action play(
+        @visible(none) @size_visible(all) cards in subsets(items(hand[actor]), 1, max_play)
+      ) {
+        move cards from hand[actor] to pile
+        last_by = actor
+        last_count = len(cards)
+        emit claim { seat: actor, count: len(cards), rank: rank }
+      }
+      -> Challenge
+    }
+
+    /// Todos los demás deciden a la vez si acusan; si acusan varios, cuenta el primero en
+    /// sentido horario desde quien jugó.
+    window Challenge {
+      eligible: seats - [last_by]
+      mode: collect
+      order: seats_from(next(last_by)) - [last_by]
+      /// ¡Mentiroso!
+      action liar() {
+        reveal last_play() to all as { es: "Cartas levantadas" }
+        if truthful() {
+          move all from pile to hand[actor]
+        } else {
+          move all from pile to hand[last_by]
+        }
+      }
+      -> End when size(hand[last_by]) == 0 { winner = last_by }
+      -> Play {
+        turn = next(turn)
+        rank = next_rank(rank)
+      }
+    }
+
+    terminal End { payoff: [1 if s == winner else 0 for s in seats] }
+  }
+
+  test "el reparto da 18, 17 y 17 cartas con tres jugadores" {
+    players 3
+    seed 1
+    expect size(hand[0]) == 18 and size(hand[1]) == 17 and size(hand[2]) == 17
+  }
+
+  test "una acusación falsa se paga" {
+    players 3
+    seed 1
+    set hand[0] = [Card { suit: Clubs, rank: Ace }, Card { suit: Hearts, rank: Two }]
+    play play([Card { suit: Clubs, rank: Ace }])
+    play 1: liar(), 2: pass()
+    expect size(hand[1]) == 18 and size(pile) == 0
+    expect turn == 1 and rank == Two
+  }
+
+  test "una mentira pillada se paga" {
+    players 3
+    seed 1
+    set hand[0] = [Card { suit: Clubs, rank: Ace }, Card { suit: Hearts, rank: Two }]
+    play play([Card { suit: Hearts, rank: Two }])
+    play 1: pass(), 2: liar()
+    expect size(hand[0]) == 2 and size(pile) == 0
+  }
+
+  test "quien se queda sin cartas sin ser pillado gana" {
+    players 3
+    seed 1
+    set hand[0] = [Card { suit: Clubs, rank: Ace }]
+    play play([Card { suit: Clubs, rank: Ace }])
+    play 1: pass(), 2: pass()
+    expect at(End) and payoff == [1, 0, 0]
+  }
+
+  /// Las 52 cartas se conservan
+  invariant size(deck) + size(pile) + sum(s in seats : size(hand[s])) == 52
+}

@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Piedra, papel o tijera: simultáneo y de suma cero.
+game RockPaperScissors {
+  meta {
+    version: "1.0.0"
+    title: { es: "Piedra, papel o tijera", en: "Rock, paper, scissors" }
+    description: { es: "Simultáneo y de suma cero. Único equilibrio de Nash: mezclar (1/3, 1/3, 1/3); valor 0." }
+    license: "CC-BY-4.0"
+    tags: ["classic", "simultaneous", "zero-sum"]
+  }
+  players 2
+
+  enum Hand { Rock, Paper, Scissors }
+
+  state {
+    hand: per_player Hand? = none
+  }
+
+  /// a gana a b: cada mano gana a la anterior en el ciclo Rock → Paper → Scissors → Rock.
+  fn beats(a: Hand, b: Hand) -> Bool = (ord(a) - ord(b)) % 3 == 1
+
+  fn score(s: Seat) -> Int {
+    let mine = unwrap(hand[s])
+    let theirs = unwrap(hand[other(s)])
+    case {
+      beats(mine, theirs) => 1
+      beats(theirs, mine) => -1
+      else => 0
+    }
+  }
+
+  flow {
+    start -> Show
+
+    simultaneous Show {
+      actors: seats
+      action show(h: Hand) { hand[actor] = h }
+      -> End
+    }
+
+    terminal End { payoff: [score(s) for s in seats] }
+  }
+
+  test "el papel envuelve a la piedra" {
+    play 0: show(Paper), 1: show(Rock)
+    expect payoff == [1, -1]
+  }
+
+  test "empate" {
+    play 0: show(Scissors), 1: show(Scissors)
+    expect payoff == [0, 0]
+  }
+}

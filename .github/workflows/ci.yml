@@ -27,5 +27,7 @@ jobs:
         run: uv run gamehub ir schemas --check
       - name: Juegos de validación
         run: uv run gamehub ir check ../spec/ir/examples/*.ir.json
+      - name: Juegos en Nomos formateados
+        run: uv run gamehub fmt --check ../games
       - name: Tests
         run: uv run pytest

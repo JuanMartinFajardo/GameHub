@@ -75,6 +75,14 @@ def _parser() -> argparse.ArgumentParser:
     replay.add_argument("--quiet", action="store_true", help="solo verificar")
     replay.set_defaults(handler=_replay)
 
+    fmt = commands.add_parser("fmt", help="formatea archivos .game (formato canónico de Nomos)")
+    fmt.add_argument(
+        "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
+    )
+    fmt.add_argument("--check", action="store_true", help="no escribe; falla si alguno cambiaría")
+    fmt.add_argument("--diff", action="store_true", help="muestra las diferencias")
+    fmt.set_defaults(handler=_fmt)
+
     conformance = commands.add_parser("conformance", help="trazas doradas de spec/conformance")
     _check_or_write(conformance)
     conformance.set_defaults(handler=_conformance)
@@ -201,6 +209,62 @@ def _replay(args: argparse.Namespace) -> int:
     payoffs = ", ".join(str(p) for p in (final.payoffs or ()))
     print(f"✓ {args.file}: {len(data['steps'])} pasos verificados · pagos: {payoffs or '—'}")
     return 0
+
+
+# --- lenguaje ----------------------------------------------------------------------------------
+
+
+def _game_files(paths: list[Path]) -> list[Path]:
+    files: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            files.extend(sorted(path.rglob("*.game")))
+        else:
+            files.append(path)
+    return files
+
+
+def _fmt(args: argparse.Namespace) -> int:
+    import difflib
+
+    from gamehub.lang.diagnostics import CompileError, print_diagnostics
+    from gamehub.lang.printer import format_source
+    from gamehub.lang.source import Source
+
+    changed = failed = 0
+    for path in _game_files(args.files):
+        try:
+            source = Source.from_path(path)
+        except OSError as exc:
+            print(f"✗ {path}: no se puede leer: {exc}", file=sys.stderr)
+            failed += 1
+            continue
+        try:
+            formatted = format_source(source)
+        except CompileError as exc:
+            print_diagnostics(exc.diagnostics.sorted())
+            failed += 1
+            continue
+        if formatted == source.text:
+            continue
+        changed += 1
+        if args.diff:
+            sys.stdout.writelines(
+                difflib.unified_diff(
+                    source.text.splitlines(keepends=True),
+                    formatted.splitlines(keepends=True),
+                    f"{path} (original)",
+                    f"{path} (formateado)",
+                )
+            )
+        if args.check:
+            print(f"✗ {path}: sin formatear")
+        else:
+            path.write_text(formatted, encoding="utf-8")
+            print(f"formateado: {path}")
+    if failed:
+        return 1
+    return 1 if args.check and changed else 0
 
 
 def _conformance(args: argparse.Namespace) -> int:
