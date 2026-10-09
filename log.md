@@ -68,13 +68,21 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   añadirle tests. Probado: PD iterado (9/9 cooperando, media 3 y 4/3), al mejor de 3 (suma cero),
   variantes del tres en raya (inverso, con pase, 4×4).
 - En un `import`, `prisoners_dilemma` encuentra también `prisoners-dilemma.game`.
+- **Paquetes** (`gamehub.packages`): `game.toml` (nombre, versión, archivo principal, licencia,
+  autores, `forked_from`, `[dependencies]` por `path` o `git` + `rev`), `game.lock` con el commit
+  de cada dependencia git (también las transitivas) y caché en `~/.cache/gamehub/git`. Los
+  `import` buscan en `std`, después en las dependencias del paquete y después junto al archivo.
+  Comandos: `gamehub new` (paquete con un juego mínimo que compila y pasa su test: una carrera
+  hasta la meta), `fetch [--update]`, `clone` y `fork` (anota `forked_from` con el commit y deja
+  el remoto original como `upstream`). Los seis juegos de `games/` ya son paquetes. Probado con
+  repositorios git locales (sin red).
 
-**Pendiente en F2**: paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
+**Pendiente en F2**: `diff` semántico;
 `viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
 documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
 empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
 
-**Progreso:** ≈ 21 % (F2 a medias).
+**Progreso:** ≈ 22 % (F2 a medias).
 
 ---
 

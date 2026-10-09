@@ -102,7 +102,7 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 - [x] Módulos e `import`; `extends` / `override` / `remove` / `extend node` (mods); combinadores (`repeat`, `best_of`)
 - [x] Bloques `test` e `invariant`; `gamehub test` (invariantes también en partidas aleatorias)
 - [x] **stdlib v0**: `std.cards` (French52, Spanish40/48), `std.dice`, `std.grid`, `std.graph`
-- [ ] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork`
+- [x] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork` (y `gamehub fetch`)
 - [ ] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones
 - [ ] `gamehub viz`: diagrama de solo lectura (Mermaid / SVG con ELK) — primer "editor visual"
 - [ ] `gamehub rules`: **reglamento autogenerado** v0 (Markdown)

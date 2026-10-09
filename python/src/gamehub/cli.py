@@ -127,6 +127,27 @@ def _parser() -> argparse.ArgumentParser:
     )
     fmt.set_defaults(handler=_fmt)
 
+    new = commands.add_parser("new", help="crea un paquete de juego (game.toml y un .game mínimo)")
+    new.add_argument("name", metavar="NOMBRE", help="nombre del paquete: minúsculas y guiones")
+    new.add_argument("--dir", type=Path, help="directorio (por defecto, ./NOMBRE)")
+    new.add_argument("--author", action="append", default=[], help="autor (se puede repetir)")
+    new.set_defaults(handler=_new)
+
+    fetch = commands.add_parser("fetch", help="descarga las dependencias git y escribe game.lock")
+    fetch.add_argument("dir", nargs="?", type=Path, default=Path("."), metavar="DIR")
+    fetch.add_argument("--update", action="store_true", help="vuelve a resolver las versiones")
+    fetch.set_defaults(handler=_fetch)
+
+    clone = commands.add_parser("clone", help="clona un juego (repositorio git) y sus dependencias")
+    clone.add_argument("source", metavar="URL")
+    clone.add_argument("dir", nargs="?", type=Path, metavar="DIR")
+    clone.set_defaults(handler=_clone)
+
+    fork = commands.add_parser("fork", help="copia un juego para modificarlo, anotando su origen")
+    fork.add_argument("source", metavar="ORIGEN", help="URL git o directorio de un paquete")
+    fork.add_argument("dir", nargs="?", type=Path, metavar="DIR")
+    fork.set_defaults(handler=_fork)
+
     conformance = commands.add_parser("conformance", help="trazas doradas de spec/conformance")
     _check_or_write(conformance)
     conformance.set_defaults(handler=_conformance)
@@ -488,6 +509,69 @@ def _fmt(args: argparse.Namespace) -> int:
     if failed:
         return 1
     return 1 if (args.check or args.diff) and changed else 0
+
+
+# --- paquetes ------------------------------------------------------------------------------------
+
+
+def _new(args: argparse.Namespace) -> int:
+    from gamehub.packages import PackageError, new_package
+
+    root = args.dir or Path(args.name)
+    try:
+        manifest = new_package(root, args.name, authors=args.author)
+    except PackageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"✓ creado {root}/ con {manifest.entry_path.name} y game.toml")
+    print(f"  pruébalo: gamehub test {root}  ·  juégalo: gamehub play {manifest.entry_path}")
+    return 0
+
+
+def _fetch(args: argparse.Namespace) -> int:
+    from gamehub.packages import PackageError, fetch, load_manifest
+
+    try:
+        locked = fetch(load_manifest(args.dir), update=args.update)
+    except PackageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    for entry in sorted(locked.values(), key=lambda e: e.name):
+        print(f"✓ {entry.name} {entry.rev or 'HEAD'} → {entry.commit[:12]}")
+    print(f"game.lock: {len(locked)} dependencia{'s' if len(locked) != 1 else ''} git")
+    return 0
+
+
+def _clone(args: argparse.Namespace) -> int:
+    from gamehub.packages import PackageError, clone
+
+    root = args.dir or Path(_repo_name(args.source))
+    try:
+        manifest = clone(args.source, root)
+    except PackageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    what = f"el paquete {manifest.name}" if manifest else "el repositorio (sin game.toml)"
+    print(f"✓ clonado {what} en {root}/")
+    return 0
+
+
+def _fork(args: argparse.Namespace) -> int:
+    from gamehub.packages import PackageError, fork
+
+    root = args.dir or Path(_repo_name(args.source) + "-fork")
+    try:
+        manifest = fork(args.source, root)
+    except PackageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"✓ {manifest.name} copiado en {root}/ (forked_from = {manifest.forked_from})")
+    return 0
+
+
+def _repo_name(source: str) -> str:
+    name = source.rstrip("/").rsplit("/", 1)[-1].rsplit(":", 1)[-1]
+    return name.removesuffix(".git") or "juego"
 
 
 def _conformance(args: argparse.Namespace) -> int:

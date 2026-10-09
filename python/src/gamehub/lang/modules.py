@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Módulos de Nomos: `import a.b.{X, Y}` e `import a.b.*`.
 
-- Resolución de `a.b`: `std.…` es la biblioteca estándar (`stdlib/std/…`); el resto se busca
-  relativo al directorio del archivo que importa (`a/b.game`). Las dependencias de paquetes
-  (`game.toml`) se resolverán aquí también.
+- Resolución de `a.b`: `std.…` es la biblioteca estándar (`stdlib/std/…`); después, una
+  dependencia `a` del paquete del archivo (`game.toml`, ver `gamehub.packages`); si no, relativo
+  al directorio del archivo que importa (`a/b.game`).
 - Un módulo aporta sus declaraciones de primer nivel: `enum`, `struct`, `fn` y juegos (para
   `extends` y los combinadores). Sus funciones no leen el estado de ningún juego: son funciones
   puras de sus argumentos.
@@ -25,6 +25,15 @@ from gamehub.lang import ast
 from gamehub.lang.diagnostics import Diagnostics
 from gamehub.lang.parser import parse
 from gamehub.lang.source import Source, Span
+from gamehub.packages import (
+    MANIFEST,
+    Locked,
+    Manifest,
+    PackageError,
+    dependency_root,
+    load_lock,
+    load_manifest,
+)
 
 Decl = ast.EnumDecl | ast.StructDecl | ast.FnDecl | ast.GameDecl | ast.GameAlias
 STD = "std"
@@ -67,11 +76,22 @@ class Loader:
         self.diagnostics = diagnostics
         self.cache: dict[Path, Module] = {}
         self.loading: list[tuple[Path, str]] = []
+        self.manifests: dict[Path, Manifest | None] = {}
+        self.lock: dict[str, Locked] = {}
 
     def root_imports(self, file: ast.File, source: Source) -> list[Imported]:
-        """Los `import` del archivo que se compila (que cuenta para detectar ciclos)."""
+        """Los `import` del archivo que se compila (que cuenta para detectar ciclos). Su paquete
+        aporta el lock con el que se resuelven todas las dependencias git."""
         if source.path is None:
             return self.imports(file, source)
+        try:
+            manifest = self.manifest_for(source.path)
+            if manifest is not None:
+                self.lock = load_lock(manifest.root)
+        except PackageError as exc:
+            span = file.imports[0].span if file.imports else file.span
+            self.diagnostics.error("E507", str(exc), span)
+            return []
         self.loading.append((source.path.resolve(), source.path.stem))
         try:
             return self.imports(file, source)
@@ -118,19 +138,35 @@ class Loader:
 
     # --- carga ----------------------------------------------------------------------------------
 
+    def manifest_for(self, path: Path) -> Manifest | None:
+        """El manifiesto del paquete de un archivo (subiendo directorios), con caché."""
+        for directory in [path.resolve().parent, *path.resolve().parent.parents]:
+            if directory in self.manifests:
+                return self.manifests[directory]
+            if (directory / MANIFEST).is_file():
+                manifest = load_manifest(directory)
+                self.manifests[directory] = manifest
+                return manifest
+        return None
+
     def resolve(self, parts: list[str], source: Source) -> Path:
         """Archivo de un módulo. En un `import` cada parte es un identificador, así que
         `prisoners_dilemma` también encuentra `prisoners-dilemma.game` (el nombre habitual de
         los archivos de juego)."""
         if parts[0] == STD:
             return stdlib_dir().joinpath(*parts).with_suffix(".game")
+        if source.path is not None:
+            manifest = self.manifest_for(source.path)
+            dep = manifest.dependency(parts[0]) if manifest is not None else None
+            if manifest is not None and dep is not None:
+                root = dependency_root(manifest, dep, self.lock)
+                if len(parts) > 1:
+                    return _module_file(root, parts[1:])
+                if (root / MANIFEST).is_file():
+                    return load_manifest(root).entry_path
+                return root / f"{dep.name}.game"
         base = source.path.parent if source.path is not None else Path.cwd()
-        path = base.joinpath(*parts).with_suffix(".game")
-        if not path.is_file():
-            hyphenated = base.joinpath(*(p.replace("_", "-") for p in parts)).with_suffix(".game")
-            if hyphenated.is_file():
-                return hyphenated
-        return path
+        return _module_file(base, parts)
 
     def load(self, parts: list[str], source: Source, span: Span) -> Module | None:
         name = ".".join(parts)
@@ -138,6 +174,9 @@ class Loader:
             path = self.resolve(parts, source)
         except FileNotFoundError as exc:
             self.diagnostics.error("E503", f"no se puede cargar {name}: {exc}", span)
+            return None
+        except PackageError as exc:
+            self.diagnostics.error("E507", str(exc), span)
             return None
         if not path.is_file():
             where = "la biblioteca estándar" if parts[0] == STD else str(path.parent)
@@ -177,6 +216,15 @@ class Loader:
             self.loading.pop()
         self.cache[path] = module
         return module
+
+
+def _module_file(base: Path, parts: list[str]) -> Path:
+    path = base.joinpath(*parts).with_suffix(".game")
+    if not path.is_file():
+        hyphenated = base.joinpath(*(p.replace("_", "-") for p in parts)).with_suffix(".game")
+        if hyphenated.is_file():
+            return hyphenated
+    return path
 
 
 def _closure(module: Module, wanted: list[str]) -> list[Imported]:
