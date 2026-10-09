@@ -61,7 +61,9 @@ def test_nomos_games_match_the_hand_written_ir(path: Path) -> None:
 @pytest.mark.parametrize("path", GAMES, ids=lambda p: p.stem)
 def test_nomos_games_are_playable(path: Path) -> None:
     game_ = load_nomos(path)
-    games = 20 if path.stem == "mentiroso" else 300
+    # Mentiroso es lento en el motor de referencia (≈ 1 s por partida) y su IR es idéntica a la
+    # del ejemplo, que ya se juega en los tests del motor.
+    games = 3 if path.stem == "mentiroso" else 300
     report = fuzz(game_, games, seed=1, num_players=game_.players[0])
     assert not report.errors and report.completed == games
 

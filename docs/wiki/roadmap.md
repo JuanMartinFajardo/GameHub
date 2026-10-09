@@ -98,9 +98,9 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 - [x] Diagnósticos estilo `rustc` (línea, columna, subrayado, sugerencia)
 - [ ] `gamehub check`: tipos, nodos inalcanzables, transiciones no exhaustivas, bucles sin
       progreso, **fugas de información** (v1 sencilla), clasificación del juego
-- [ ] `gamehub fmt`: formateador canónico que conserva comentarios (round-trip probado)
+- [x] `gamehub fmt`: formateador canónico que conserva comentarios (round-trip probado)
 - [ ] Módulos e `import`; `extends` / `override` / `remove` (mods); combinadores (`repeat`, `best_of`)
-- [ ] Bloques `test` e `invariant`; `gamehub test`
+- [x] Bloques `test` e `invariant`; `gamehub test` (invariantes también en partidas aleatorias)
 - [ ] **stdlib v0**: `std.cards` (French52, Spanish40/48), `std.dice`, `std.grid`, `std.graph`
 - [ ] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork`
 - [ ] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones

@@ -99,6 +99,24 @@ def _parser() -> argparse.ArgumentParser:
     check_game.add_argument("--format", choices=("text", "json"), default="text")
     check_game.set_defaults(handler=_check)
 
+    test = commands.add_parser("test", help="ejecuta los tests y los invariantes de archivos .game")
+    test.add_argument(
+        "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
+    )
+    test.add_argument(
+        "--playouts",
+        type=int,
+        default=20,
+        metavar="N",
+        help="partidas aleatorias en las que comprobar los invariantes (por defecto, 20)",
+    )
+    test.add_argument("--seed", type=int, default=0, help="semilla de la primera partida aleatoria")
+    test.add_argument(
+        "-k", "--select", metavar="TEXTO", help="solo los tests cuyo nombre lo contiene"
+    )
+    test.add_argument("--format", choices=("text", "json"), default="text")
+    test.set_defaults(handler=_test)
+
     fmt = commands.add_parser("fmt", help="formatea archivos .game (formato canónico de Nomos)")
     fmt.add_argument(
         "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
@@ -329,6 +347,88 @@ def _check(args: argparse.Namespace) -> int:
     if args.format == "json":
         print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if failed else 0
+
+
+def _test(args: argparse.Namespace) -> int:
+    from gamehub.lang.compiler import compile_file
+    from gamehub.lang.diagnostics import render, use_color
+    from gamehub.lang.testing import GameTester
+
+    color = args.format == "text" and use_color(sys.stdout)
+    passed = failed = 0
+    report: list[dict[str, Any]] = []
+
+    def show(text: str = "") -> None:
+        if args.format == "text":
+            print(text)
+
+    for path in _game_files(args.files):
+        result = compile_file(path)
+        if not result.ok:
+            failed += 1
+            errors = result.diagnostics.sorted()
+            report.append({"file": str(path), "errors": [d.to_json() for d in errors]})
+            for d in errors:
+                show(render(d, color=color) + "\n")
+            show(f"✗ {path}: no compila")
+            continue
+        for name, compiled in result.games.items():
+            game_report = GameTester(compiled).run_all(args.playouts, args.seed, args.select)
+            entry: dict[str, Any] = {"file": str(path), "game": name, "tests": []}
+            report.append(entry)
+            show(f"{path} · {name}")
+            for t in game_report.tests:
+                entry["tests"].append(
+                    {"name": t.name, "ok": t.ok}
+                    | ({"failure": t.failure.to_json()} if t.failure else {})
+                )
+                passed += t.ok
+                failed += not t.ok
+                show(f"  {'✓' if t.ok else '✗'} {t.name}")
+                if t.failure is not None:
+                    show(_indent(render(t.failure, color=color), 4) + "\n")
+            playouts = game_report.playouts
+            if game_report.invariants:
+                entry["invariants"] = {
+                    "count": game_report.invariants,
+                    "playouts": playouts.playouts,
+                    "states": playouts.states,
+                    "ok": playouts.failure is None,
+                } | ({"failure": playouts.failure.to_json()} if playouts.failure else {})
+                count = game_report.invariants
+                what = f"{count} invariante{'s' if count != 1 else ''}"
+                if playouts.failure is None:
+                    if args.playouts:
+                        passed += 1
+                        show(
+                            f"  ✓ {what} en {playouts.playouts} partidas aleatorias "
+                            f"({playouts.states} estados)"
+                        )
+                else:
+                    failed += 1
+                    show(f"  ✗ {what} en partidas aleatorias")
+                    show(_indent(render(playouts.failure, color=color), 4) + "\n")
+            if not game_report.tests and not game_report.invariants:
+                show("  (sin tests ni invariantes)")
+    if args.format == "json":
+        summary = {"passed": passed, "failed": failed, "results": report}
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+    else:
+        total = passed + failed
+        print(
+            f"\n{total} {_plural(total, 'comprobación', 'comprobaciones')}: "
+            f"{passed} {_plural(passed, 'correcta', 'correctas')}, "
+            f"{failed} {_plural(failed, 'fallida', 'fallidas')}"
+        )
+    return 1 if failed else 0
+
+
+def _plural(n: int, one: str, many: str) -> str:
+    return one if n == 1 else many
+
+
+def _indent(text: str, n: int) -> str:
+    return "\n".join(" " * n + line if line else line for line in text.splitlines())
 
 
 def _fmt(args: argparse.Namespace) -> int:

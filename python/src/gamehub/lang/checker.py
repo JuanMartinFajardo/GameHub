@@ -2118,12 +2118,43 @@ class Checker:
         ctx = Ctx(f"el test {test.name!r}", test=True)
         const = Ctx("los parámetros de un test", reads_state=False)
         steps: list[TestStep] = []
+        configured: set[str] = set()
+        started = False
         for step in test.steps:
             out = TestStep(step.kind, step.span)
+            if step.kind in ("players", "params", "seed"):
+                if started:
+                    self.error(
+                        "E601",
+                        f"'{step.kind}' configura la partida: va al principio del test",
+                        step.span,
+                        help="pon players, params y seed antes del primer paso",
+                    )
+                elif step.kind in configured:
+                    self.error("E601", f"'{step.kind}' repetido en el test", step.span)
+                configured.add(step.kind)
+            else:
+                started = True
             match step.kind:
                 case "players" | "seed":
                     assert isinstance(step.value, ast.IntLit)
                     out.value = step.value.value
+                    players = self.model.players
+                    if (
+                        step.kind == "players"
+                        and players is not None
+                        and not players.min <= out.value <= players.max
+                    ):
+                        allowed = (
+                            str(players.min)
+                            if players.min == players.max
+                            else f"de {players.min} a {players.max}"
+                        )
+                        self.error(
+                            "E602",
+                            f"el juego admite {allowed} jugadores, no {out.value}",
+                            step.value.span,
+                        )
                 case "params":
                     for name, value in step.entries:
                         if name not in self.params:

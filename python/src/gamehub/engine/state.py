@@ -198,11 +198,22 @@ class State:
         return [v for v in values if next(_complete(adef, env, i + 1, {**chosen, p.name: v}), None)]
 
     def is_legal(self, seat_: int, action: Action) -> bool:
+        return self.illegal_reason(seat_, action) is None
+
+    def illegal_reason(self, seat_: int, action: Action) -> str | None:
+        """Por qué la acción no es legal (`None` si lo es)."""
         try:
             self._canonical(seat_, action)
-        except IllegalAction:
-            return False
-        return True
+        except IllegalAction as exc:
+            return str(exc)
+        return None
+
+    def evaluate(self, expr: Any, **locals_: Any) -> Any:
+        """Valor de una expresión de la IR en este estado, con vista omnisciente y los locales
+        dados. `expr` es la expresión en JSON o ya compilada (`game.exprs.compile`). Para tests,
+        invariantes y herramientas: no forma parte de las reglas."""
+        compiled = expr if callable(expr) else self.game.exprs.compile(expr)
+        return compiled(self._env(locals_=dict(locals_)))
 
     # --- transiciones ---------------------------------------------------------------------------
 
@@ -235,6 +246,16 @@ class State:
         replay_outcome(run, outcome)
         tx = holder[-1]
         return tx.commit(self, Step("chance", outcome=tuple(outcome), events=tuple(tx.ctx.events)))
+
+    def edited(self, stmts: list[Any], **locals_: Any) -> State:
+        """Copia del estado tras ejecutar sentencias de la IR fuera del flow (los `set` de los
+        tests de Nomos). No es un paso del juego: el nodo, los envíos pendientes y los pagos no
+        cambian, y el paso queda registrado como "edit"."""
+        runner = self.game.stmts.block(stmts)
+        tx = self._tx()
+        tx.payoffs = self.payoffs
+        runner(tx.env(locals_=dict(locals_)))
+        return tx.commit(self, Step("edit", events=tuple(tx.ctx.events)))
 
     # --- información ----------------------------------------------------------------------------
 

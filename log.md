@@ -27,14 +27,22 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   de los comentarios. Fallo latente corregido: el formateador podía partir tras `=`, `requires`,
   `when` o `clave:` y el parser no lo admitía. `fmt --diff` ya no escribe. Test de estrés: todos
   los juegos, formateados a anchos de 24 a 80 columnas, vuelven al mismo árbol sintáctico.
+- **`gamehub test`**: ejecuta los bloques `test` (azar resuelto con la semilla del test,
+  `chance where` condicionado a la probabilidad, `play` con asiento implícito si solo uno puede
+  actuar, `expect`, `expect legal/illegal`, `set`) y comprueba los invariantes en cada estado del
+  test y en partidas aleatorias (`--playouts`, 20 por defecto). Los fallos se explican al estilo
+  rustc con los valores en juego (`payoff == [1, -1]` es falso: `payoff` vale [2, -2]) y las
+  jugadas legales. Errores nuevos: E601/E602 (configuración del test) y E610–E614 (fallos).
+  Motor: `State.evaluate`, `State.edited` e `illegal_reason`. Los 19 tests y 4 invariantes de los
+  juegos pasan; en CI.
 
-**Pendiente en F2**: `gamehub test` (ejecutar bloques `test` e invariantes, ya compilados); análisis de `check` (alcanzabilidad, exhaustividad, bucles,
+**Pendiente en F2**: análisis de `check` (alcanzabilidad, exhaustividad, bucles,
 fugas, clasificación); `import` + stdlib v0; `extends`/`override`/`remove` y combinadores
 `repeat`/`best_of`; paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
 `viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
 documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki).
 
-**Progreso:** ≈ 17 % (F2 a medias).
+**Progreso:** ≈ 18 % (F2 a medias).
 
 ---
 

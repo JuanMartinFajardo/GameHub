@@ -15,7 +15,8 @@ from typing import Any
 
 from gamehub.lang import ast
 from gamehub.lang.checker import kebab
-from gamehub.lang.printer import decimal_text, format_file
+from gamehub.lang.layout import render
+from gamehub.lang.printer import Printer, decimal_text, format_file
 
 BINARY = {
     "sub": "-",
@@ -53,6 +54,12 @@ def decompile(ir: dict[str, Any], name: str | None = None) -> ast.File:
 
 def decompile_text(ir: dict[str, Any], name: str | None = None) -> str:
     return format_file(decompile(ir, name))
+
+
+def expression_text(ir: dict[str, Any], expr: Any) -> str:
+    """Una expresión de la IR del juego `ir`, escrita en Nomos y en una línea (mensajes de los
+    tests y herramientas)."""
+    return render(Printer().expr(_Decompiler(ir).expr(expr)), 1_000_000)
 
 
 class _Decompiler:
