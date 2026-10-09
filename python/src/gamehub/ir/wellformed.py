@@ -11,6 +11,7 @@ Suponen un documento que ya pasa el esquema. Comprueban:
 - sentencias aleatorias solo en `flow.setup` y en nodos `chance`; lvalues válidos
 - sin recursión entre funciones (las expresiones deben ser totales)
 - salidas: transiciones incondicionales al final, `$exit` solo dentro de fases, nodos con salida
+- nodos simultáneos sin transiciones por acción; `pass` reservado en ventanas
 """
 
 from __future__ import annotations
@@ -201,7 +202,15 @@ class _Checker:
                 self.actions(node["actions"], path, in_phase)
                 self.block(node.get("resolve", []), base.at("resolve"))
                 self.transitions(transitions, base.at("transitions"), in_phase)
-                self.require_exit(node, path)
+                for j, action in enumerate(node["actions"]):
+                    if action.get("transitions"):
+                        self.error(
+                            f"{path}/actions/{j}/transitions",
+                            "en un nodo simultáneo las acciones se resuelven juntas: "
+                            "las transiciones van en el nodo",
+                        )
+                if not transitions:
+                    self.error(path, "un nodo simultáneo necesita transiciones de nodo")
             case "window":
                 self.expr(node["eligible"], base.at("eligible"))
                 if "order" in node:
@@ -212,6 +221,12 @@ class _Checker:
                     self.error(
                         path, "una ventana necesita transiciones de nodo (todos pueden pasar)"
                     )
+                for j, action in enumerate(node["actions"]):
+                    if action["name"] == "pass":
+                        self.error(
+                            f"{path}/actions/{j}/name",
+                            "'pass' está reservado: en una ventana pasar es implícito",
+                        )
             case "chance" | "auto":
                 self.block(
                     node.get("effects", []), replace(base, chance=kind == "chance").at("effects")
