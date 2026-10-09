@@ -9,7 +9,7 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 **Respuestas recibidas**
 - Commits: uno por tarea. → Fase 0 en `main` (3 commits); Fase 1 en la rama `f1/motor-referencia`
-  (13 commits), pendiente de fusionar con el visto bueno del usuario (ADR-026).
+  (un commit por tarea), pendiente de fusionar con el visto bueno del usuario (ADR-026).
 - Arrancar la Fase 1: sí. Las ADR propuestas se consideran aceptadas (sin objeciones).
 
 **Qué se hizo**
