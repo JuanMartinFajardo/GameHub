@@ -397,8 +397,7 @@ def _snapshot_value(v: Any) -> Any:
 def _complete(adef: ActionDef, env: Env, i: int, args: dict[str, Any]) -> Iterator[Action]:
     """Enumera las acciones legales de `adef`: parámetros en orden, valores en orden de dominio."""
     if i == len(adef.params):
-        full = env.with_args(args)
-        if adef.requires is None or boolean(adef.requires(full), "requires"):
+        if adef.requires is None or boolean(adef.requires(env.with_args(args)), "requires"):
             yield Action(adef.name, tuple(args.items()))
         return
     p = adef.params[i]

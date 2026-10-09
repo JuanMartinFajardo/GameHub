@@ -79,9 +79,12 @@ def sub_multisets(values: Sequence[Any], lo: int, hi: int) -> tuple[tuple[Any, .
     """Sub-multiconjuntos distintos de tamaño lo..hi, en orden canónico: por tamaño y, dentro de
     cada tamaño, combinaciones lexicográficas sobre los elementos ordenados canónicamente."""
     ordered = sorted(values, key=sort_key)
+    # Sin elementos repetidos, las combinaciones ya son distintas: no hace falta deduplicar.
+    distinct = len(set(ordered)) == len(ordered)
     result: list[tuple[Any, ...]] = []
     for size in range(max(lo, 0), min(hi, len(ordered)) + 1):
-        result.extend(dict.fromkeys(combinations(ordered, size)))
+        combos = combinations(ordered, size)
+        result.extend(combos if distinct else dict.fromkeys(combos))
     return tuple(result)
 
 
