@@ -20,11 +20,18 @@ s = s.apply_action(0, Action.of("bet"))                    # devuelve un estado 
 s.view(1), s.events(1)                                     # lo que ve el asiento 1
 s.information_state(1)                                     # clave de su conjunto de información
 s.snapshot(), s.digest()                                   # configuración canónica y su huella
+s.illegal_reason(1, Action.of("call"))                     # por qué no es legal (o None)
+s.evaluate(["len", ["var", "moves"]])                      # una expresión de la IR (tests, herramientas)
+s.edited([["assign", ["var", "turn"], ["const", 1]]])      # copia editada fuera del flow (los `set` de los tests)
 ```
 
+`evaluate`, `edited` e `illegal_reason` (Fase 2) sirven a `gamehub test` y a las herramientas; no
+forman parte de las reglas ni de las trazas de conformidad. Un juego también se carga desde Nomos:
+`gamehub.lang.compiler.load_nomos(Path("games/nim/nim.game"))`.
+
 ```bash
-gamehub play  JUEGO.ir.json --seats human,random [--param k=v] [--save-replay x.ghr.json]
-gamehub fuzz  JUEGO.ir.json --games 100000 [--players n] [--failures DIR]
+gamehub play  JUEGO.game|JUEGO.ir.json --seats human,random [--param k=v] [--save-replay x.ghr.json]
+gamehub fuzz  JUEGO.game|JUEGO.ir.json --games 100000 [--players n] [--failures DIR]
 gamehub replay PARTIDA.ghr.json [--seat n]
 gamehub conformance --check | --write
 ```

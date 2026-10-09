@@ -1,7 +1,8 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 4 % (F0 completada).**
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 24 % (F0, F1 y F2 completadas;
+> F2 en su rama, pendiente de fusionar).**
 
 ## Resumen
 
@@ -111,6 +112,10 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 
 **Aceptación:** todos los juegos de la ola 1 en `.game` pasan sus tests; `fmt` idempotente;
 `texto → IR → texto` estable; el diagrama de `viz` coincide con el flow.
+Resultado: ✅ 16 juegos en `.game` (64 comprobaciones de `gamehub test` en verde, ningún aviso de
+`check`); `fmt` idempotente y estable a cualquier ancho; ida y vuelta exacta con el
+descompilador; `viz` con una caja por nodo y una flecha por transición (tests). Ver el
+[log](../../log.md) del 2026-10-09 (sesión 4).
 
 ## F3 — Servidor de partidas y protocolo (24 → 32 %) · L
 

@@ -49,9 +49,10 @@ flowchart TB
 
 ## 2. Estructura del monorepo (propuesta)
 
-> **Estado (2026-10-09):** existen `spec/` (IR v0, trazas de conformidad), `python/` (paquete
-> `gamehub`: validación, motor de referencia, builder y CLI) y `docs/`. El resto de directorios se
-> crea en la fase que los necesita.
+> **Estado (2026-10-09, Fase 2):** existen `spec/` (IR v0, trazas de conformidad), `python/`
+> (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor, presentaciones, paquetes y CLI),
+> `stdlib/` (biblioteca estándar de Nomos), `games/` (16 paquetes de juego), `editors/vscode/`
+> (extensión de VS Code) y `docs/`. El resto de directorios se crea en la fase que los necesita.
 
 ```
 GameHub/
@@ -59,17 +60,20 @@ GameHub/
 │   ├── ir/                # JSON Schema de la GameIR
 │   ├── protocol/          # JSON Schema de los mensajes del protocolo
 │   └── conformance/       # Trazas doradas que todo motor debe reproducir
-├── python/gamehub/        # Paquete Python (pip install gamehub)
-│   ├── lang/              # lexer/parser, AST, resolución, tipos, lowering, formateador, LSP
-│   ├── ir/                # modelos pydantic, validación, hash canónico, diff semántico
-│   ├── build/             # API Python builder → IR
+├── python/src/gamehub/    # Paquete Python (pip install gamehub)
+│   ├── lang/              # Nomos: lexer, parser, AST, tipos y traducción, módulos, mods,
+│   │                      #   combinadores, formateador, descompilador, ejecutor de tests
+│   ├── ir/                # esquema, catálogo de operadores, validación, hash canónico
+│   ├── build.py           # API Python builder → IR
 │   ├── engine/            # motor de referencia (intérprete de la IR)
-│   ├── analysis/          # clasificación, viabilidad, árbol, matriz, solvers, CGT
+│   ├── analysis/          # avisos estáticos y clasificación (F2); viabilidad, árbol, solvers…
+│   ├── render/            # diagrama del flow, reglamento y diff semántico (F2)
+│   ├── packages.py        # game.toml, game.lock, dependencias, new/clone/fork (F2)
 │   ├── agents/            # interfaz Agent, aleatorio, minimax, MCTS, heurísticas
 │   ├── server/            # salas, protocolo, LAN, relojes, persistencia
 │   ├── client/            # SDK cliente Python (humanos y bots)
 │   ├── interop/           # OpenSpiel, Gambit, PettingZoo, PGN…
-│   └── cli/               # gamehub new|check|fmt|test|play|host|join|analyze|studio…
+│   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|… (host, join, analyze, studio: después)
 ├── core/                  # C++20: VM, estado compacto, algoritmos, bindings, WASM
 ├── web/                   # Monorepo TypeScript (pnpm)
 │   ├── packages/protocol  # tipos generados desde spec/protocol
@@ -79,8 +83,9 @@ GameHub/
 │   ├── apps/studio        # editor visual
 │   ├── apps/play          # lobby + partida + replays
 │   └── apps/hub           # web del hub (más tarde)
-├── stdlib/                # Módulos .game: std.cards, std.dice, std.boards, std.tricktaking…
-├── games/                 # Catálogo oficial: un directorio por juego (game.toml, .game, tests, ui/)
+├── stdlib/std/            # Módulos .game: std.cards, std.dice, std.grid, std.graph (después: std.tricktaking…)
+├── games/                 # Catálogo oficial: un paquete por juego (game.toml, .game con sus tests, ui/)
+├── editors/vscode/nomos/  # Extensión de VS Code (resaltado, diagnósticos, formato)
 ├── docs/wiki/             # Esta wiki
 └── log.md
 ```

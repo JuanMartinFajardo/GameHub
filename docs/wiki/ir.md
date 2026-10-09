@@ -1,7 +1,8 @@
 # GameIR — representación intermedia canónica
 
 > Estado: **IR núcleo v0.1 especificada** (Fase 0, 2026-10-09) en [`spec/ir/v0`](../../spec/ir/v0),
-> con 4 juegos de validación y un validador (`gamehub ir check`). La IR de autor llega en la Fase 2.
+> con 4 juegos de validación y un validador (`gamehub ir check`). Desde la Fase 2, el compilador de
+> [Nomos](lenguaje-game.md) genera esta IR y el descompilador la vuelve a escribir en Nomos.
 
 ## 1. Por qué una IR
 
@@ -29,7 +30,7 @@ para poder calcular su hash).
 
 | Nivel | Quién lo produce | Contenido |
 |---|---|---|
-| **IR de autor** | Compilador/Studio, tras parsear | Estructura cercana al texto: `phase` con bucles, `per_player`, `deal`, tablas de pago, imports sin resolver. Sirve para el round-trip texto ↔ diagrama. |
+| **IR de autor** | Compilador/Studio, tras parsear | En la Fase 2 es el **AST de Nomos** más el modelo del juego (módulos, mods y combinadores sin resolver), con posiciones y comentarios; el round-trip texto ↔ IR lo garantiza el descompilador (ADR-029). El editor visual (F5) trabajará sobre él. |
 | **IR resuelta** | `gamehub check` (lowering) | Imports resueltos, tipos anotados, azúcar eliminado (bucles → nodos + contadores, `deal` → `move`s, `table` → `match`). Es lo que consumen los motores. Sobre ella se calcula el hash. |
 
 Conjunto de nodos de la IR resuelta (núcleo mínimo): `decision`, `simultaneous`, `window`,
@@ -134,5 +135,7 @@ uv run gamehub ir schemas --check                       # esquemas generados al 
    `flow.setup` y nodos `chance`; asignaciones solo sobre el estado; sin recursión; transiciones
    incondicionales al final; `$exit` solo en fases; nodos con salida.
 
-Pendiente para fases siguientes: comprobación de **tipos** (F2) y tiempo y plazos (`timeout`, v0.2).
+La comprobación de **tipos** la hace el compilador de Nomos (F2) antes de emitir la IR; los análisis
+estáticos (`gamehub check`, ADR-034) y la clasificación trabajan sobre la IR, así que valen para
+IR escrita a mano. Pendiente: tiempo y plazos (`timeout`, v0.2).
 La ejecución de la IR está descrita en el [motor de referencia](motor.md).

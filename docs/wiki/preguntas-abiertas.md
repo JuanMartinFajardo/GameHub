@@ -10,7 +10,8 @@
 | 7 | ¿Te parece bien TypeScript + React para la web? ¿Tienes experiencia con algún framework? | TS + React + React Flow + Monaco | F4–F5 |
 | 8 | ¿Quieres un SDK de **Godot** pronto para hacer UIs de juegos ahí? | Después de TS y Python (F6), salvo que te interese antes | F4–F6 |
 | 9 | Reglas concretas pendientes: **Solitario** (¿Klondike?), **Póker** (¿Hold'em No-Limit?), **Skat** (¿reglas ISkO?), **Parchís** (¿españolas? ¿parejas?), **Wizard** (¿Amigo estándar?) | Los supuestos del [catálogo](catalogo-de-juegos.md) | F6 |
-| 9b | Variantes de **Mentiroso**: ¿el rango sigue la secuencia As, Dos, Tres…, lo elige quien abre ronda o es libre en cada jugada? ¿Puede acusar cualquiera o solo el siguiente? ¿Quién juega tras una acusación? ¿Baraja francesa o española? | Secuencia As→K; acusa cualquiera; sigue el siguiente jugador; francesa de 52 (todas como parámetros) | F2 |
+| 9b | Variantes de **Mentiroso**: ¿el rango sigue la secuencia As, Dos, Tres…, lo elige quien abre ronda o es libre en cada jugada? ¿Puede acusar cualquiera o solo el siguiente? ¿Quién juega tras una acusación? ¿Baraja francesa o española? | Secuencia As→K; acusa cualquiera; sigue el siguiente jugador; francesa de 52. Con Nomos, cada variante es un `extends` de pocas líneas (la española, con `std.cards`) | Mentiroso (cuando quieras) |
+| 17 | ¿Apruebas las decisiones de la Fase 2 (**ADR-027 a 035**: parser a mano en vez de Lark, sin ocultar globales, tests fuera de la IR, módulos, mods y combinadores, paquetes, análisis sobre la IR, formato) y la fusión de la rama `f2/compilador-nomos` a `main`? | Aprobarlas y fusionar | F3 |
 | 10 | ¿Trabajas solo? ¿Cuántas horas por semana? ¿Fecha objetivo para el MVP? | Solo + IA; ritmo a definir | Orden y tamaño de fases |
 | 11 | ¿Juegos en tiempo real continuo (tipo arcade) o basta con discreto + nodos `race`? | Discreto + `race`; continuo fuera de alcance | Modelo |
 | 12 | Plataformas: ¿solo macOS o también Linux/Windows? | Desarrollo en macOS; CI en Linux; Windows desde F3 | F0, F8 |
@@ -32,3 +33,4 @@
 | 2026-10-09 | 3 | Política de commits | **Un commit por tarea.** La Fase 0 va a `main`; cada fase siguiente se trabaja en su rama (`f1/…`) y se fusiona con tu visto bueno. |
 | 2026-10-09 | 16 | ¿Aceptadas las ADR propuestas? | Sin objeciones: pediste arrancar la Fase 1 sobre ellas. Se consideran aceptadas (reversibles si cambias de idea). |
 | 2026-10-09 | — | ¿Arrancar la Fase 1? | Sí. |
+| 2026-10-09 | — | ¿Fusionar la Fase 1 y arrancar la Fase 2? | Sí: F1 fusionada a `main` y F2 en la rama `f2/compilador-nomos`. |

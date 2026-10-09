@@ -5,7 +5,7 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
-## 2026-10-09 — Sesión 4: Fase 2 en curso (compilador de Nomos)
+## 2026-10-09 — Sesión 4: Fase 2, el lenguaje Nomos y sus herramientas
 
 **Respuestas recibidas**: fusionar F1 a `main` (hecho, `bc6b203`) y arrancar F2 en la rama
 `f2/compilador-nomos`.
@@ -105,10 +105,35 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   de un texto ya no cierra el bloque y lo arrastra todo); los textos traducibles admiten saltos
   de línea entre idiomas.
 
-**Pendiente en F2**: documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
-empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
+- **Documentación**: `lenguaje-game.md` reescrita como referencia de Nomos v0.1 (léxico,
+  módulos y paquetes, tipos, visibilidad, expresiones, efectos y flow, tests, mods, herramientas,
+  traducción a la IR, diagnósticos, formato y diferencias con el RFC); ADR-027 a 035; estado,
+  arquitectura, IR, motor, glosario, catálogo y preguntas abiertas al día.
+- `spec/` y `stdlib/` viajan dentro de la rueda de Python: probado instalándola en un entorno
+  aislado, fuera del repositorio (Dudo, que importa `std.dice`, compila y pasa sus tests).
 
-**Progreso:** ≈ 24 % (F2 terminada a falta de la documentación).
+**Decisiones (propuestas, ADR-027 a 035)**: parser a mano en vez de Lark; ningún local oculta un
+global salvo en funciones de módulo; azúcar guiado por los tipos con traducción en una pasada;
+tests e invariantes fuera de la IR; módulos con poda y resolución std → dependencias →
+relativa; mods sobre el modelo y combinadores sobre la IR; paquetes con `game.toml` y `game.lock`;
+análisis estáticos sobre la IR; formato canónico al estilo Prettier.
+
+**Aceptación de la Fase 2** ✅
+- Los 16 juegos de la ola 1 están en `.game` y pasan sus tests: `gamehub test ../games` da 64
+  comprobaciones en verde (tests, invariantes y partidas aleatorias) y `gamehub check`, ningún
+  aviso. Los 6 de F1 compilan con el mismo hash de reglas que su IR escrita a mano.
+- `fmt` idempotente y estable a cualquier ancho (todos los juegos, de 24 a 100 columnas).
+- `texto → IR → texto` estable: ida y vuelta exacta con el descompilador.
+- `viz`: una caja por nodo y una flecha por transición en todos los juegos (test).
+- 500 tests de Python; `ruff`, `pyright`, `gamehub ir check` y las trazas de conformidad en verde.
+
+**Pendiente de ti**: revisar las ADR-027 a 035 y dar el visto bueno para fusionar
+`f2/compilador-nomos` a `main` (pregunta 17); variantes de Mentiroso (9b).
+
+**Siguientes pasos**: Fase 3, servidor de partidas (salas con código, protocolo WebSocket + JSON
+con JSON Schema, proyección por asiento, reconexión, LAN) para jugar en red desde la terminal.
+
+**Progreso:** ≈ 24 % (F0, F1 y F2 completas).
 
 ---
 
