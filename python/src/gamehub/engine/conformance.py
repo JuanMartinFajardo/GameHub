@@ -22,6 +22,8 @@ from gamehub.ir.spec import examples_dir
 CASES: list[tuple[str, int, tuple[int, ...]]] = [
     ("tictactoe", 2, (1, 2, 3)),
     ("prisoners-dilemma", 2, (1, 2)),
+    ("rock-paper-scissors", 2, (1, 2)),
+    ("nim", 2, (1, 2, 3)),
     ("kuhn-poker", 2, (1, 2, 3, 4)),
     ("mentiroso", 3, (1, 2)),
 ]

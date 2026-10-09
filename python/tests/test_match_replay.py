@@ -11,7 +11,14 @@ from gamehub.engine.match import FirstAgent, RandomAgent, fuzz, play_match
 from gamehub.engine.replay import ReplayMismatch, record, replay
 from gamehub.ir.spec import examples_dir
 
-GAMES = [("tictactoe", 2), ("prisoners-dilemma", 2), ("kuhn-poker", 2), ("mentiroso", 3)]
+GAMES = [
+    ("tictactoe", 2),
+    ("prisoners-dilemma", 2),
+    ("rock-paper-scissors", 2),
+    ("nim", 2),
+    ("kuhn-poker", 2),
+    ("mentiroso", 3),
+]
 
 
 def game(name: str) -> Game:
@@ -64,7 +71,7 @@ def test_conformance_traces_are_current_and_reproducible() -> None:
 
 
 def test_fuzz_small_games() -> None:
-    for name, n in GAMES[:3]:
+    for name, n in GAMES[:5]:
         report = fuzz(game(name), 200, seed=1, num_players=n)
         assert report.completed == 200 and report.errors == [] and report.truncated == 0
 
