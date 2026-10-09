@@ -66,24 +66,28 @@ flowchart LR
 
 **Objetivo:** ejecutar cualquier juego descrito en IR, de forma determinista, con vistas por jugador.
 
-- [ ] `gamehub.ir`: modelos pydantic, validación, carga, **hash canónico** (RFC 8785 + SHA-256)
-- [ ] Valores y tipos en tiempo de ejecución (enteros, racionales, enums, structs, colecciones,
-      zonas con identidad de componentes, rejillas, grafos)
-- [ ] Evaluador de expresiones puro (con límites de pasos)
-- [ ] Ejecutor de efectos (asignación, `move`, `reveal`, `emit`, `for`, `if`)
-- [ ] Intérprete del flow: `decision`, `simultaneous`, `window`, `chance`, `auto`, `phase`,
-      `terminal`; avance hasta quiescencia
-- [ ] Azar: RNG con semilla (PCG64, flujos separados), resultados enumerables o muestreables
-- [ ] Visibilidad: redacción de vistas (zonas ordenadas con huecos, bolsas con solo tamaño), eventos filtrados
-- [ ] API de motor completa ([arquitectura §3](arquitectura.md)) con estados inmutables
-- [ ] Acciones legales: enumeración + construcción progresiva
-- [ ] Formato de **replay** (`.ghr`: hash + params + semilla + acciones) y re-simulación
-- [ ] API Python *builder* mínima (para escribir juegos antes de tener parser)
-- [ ] CLI: `gamehub play <ir> --seats human,random` (hot-seat en terminal), `gamehub fuzz`, `gamehub replay`
-- [ ] Juegos ejecutables: las 4 IR de validación (tres en raya, dilema del prisionero, Kuhn, Mentiroso) + PPT y Nim
+- [x] `gamehub.ir`: validación (JSON Schema + buena formación, sin pydantic: ADR-023) y **hash
+      canónico** (JCS + SHA-256, insensible a valores por defecto: ADR-025)
+- [x] Valores y tipos en tiempo de ejecución (enteros, racionales exactos, enums, structs,
+      colecciones, zonas ordenadas y bolsas, rejillas) — *los grafos pasan a F6 (Parchís)*
+- [x] Evaluador de expresiones puro: los 87 operadores, compilados a funciones
+- [x] Ejecutor de efectos: las 14 sentencias, con eventos redactados por asiento
+- [x] Intérprete del flow: `decision`, `simultaneous`, `window` (priority/collect/race), `chance`,
+      `auto`, `phase` (`on_enter`/`on_exit`/`$exit`), `terminal`; avance hasta quiescencia sin recursión
+- [x] Azar: **PCG32** normativo (ADR-022), flujos separados, resultados enumerables (probabilidad
+      exacta) o muestreables
+- [x] Visibilidad: vistas redactadas, eventos filtrados y estados de información con recuerdo perfecto
+- [x] API de motor ([motor](motor.md)) con estados inmutables, historial, instantánea y huella
+- [x] Acciones legales: enumeración, forma canónica y construcción progresiva (`options`)
+- [x] **Replays** `.ghr.json` (sorteos explícitos + huella por paso) y re-simulación verificada
+- [x] API Python *builder* (`gamehub.build`), validada contra los JSON escritos a mano
+- [x] CLI: `gamehub play` (hot-seat y bots), `gamehub fuzz`, `gamehub replay`, `gamehub conformance`
+- [x] Juegos ejecutables: tres en raya, dilema del prisionero, Kuhn, Mentiroso, **piedra-papel-tijera
+      y Nim**; trazas doradas de conformidad para los 6
 
 **Aceptación:** 10⁵ playouts aleatorios por juego sin errores; replays idénticos bit a bit; tests
 de vistas demuestran que en Kuhn nadie ve la carta rival; partida completa jugable en terminal.
+Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 
 ## F2 — Lenguaje `.game`, toolchain, stdlib v0 y paquetes (13 → 24 %) · L–XL
 

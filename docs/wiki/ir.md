@@ -102,7 +102,7 @@ Extracto de [`tictactoe.ir.json`](../../spec/ir/examples/tictactoe.ir.json):
 
 | Hash | Sobre qué se calcula | Para qué sirve |
 |---|---|---|
-| **Hash de reglas** | IR resuelta en JSON canónico (RFC 8785), sin `meta` de presentación, comentarios ni layout | Identifica exactamente las reglas. Bots, replays, análisis y ratings lo referencian. |
+| **Hash de reglas** | IR resuelta en JSON canónico (RFC 8785), sin `meta`, `doc`, mensajes de restricciones ni valores por defecto explícitos ([ADR-025](decisiones.md)) | Identifica exactamente las reglas. Bots, replays, análisis y ratings lo referencian. Implementado: `gamehub.ir.hashing.rules_hash`. |
 | **Hash de interfaz** | Esquema de vistas + esquema de acciones + eventos | Compatibilidad de UIs y bots; **semver automático**: si cambia de forma incompatible, la versión debe subir de *major*. |
 
 Un cambio cosmético (renombrar un título, mover una caja del diagrama) no cambia el hash de reglas.
@@ -134,5 +134,5 @@ uv run gamehub ir schemas --check                       # esquemas generados al 
    `flow.setup` y nodos `chance`; asignaciones solo sobre el estado; sin recursión; transiciones
    incondicionales al final; `$exit` solo en fases; nodos con salida.
 
-Pendiente para fases siguientes: comprobación de **tipos** (F2), hash canónico y `$exit`/fases
-en ejecución (F1), tiempo y plazos (`timeout`, v0.2).
+Pendiente para fases siguientes: comprobación de **tipos** (F2) y tiempo y plazos (`timeout`, v0.2).
+La ejecución de la IR está descrita en el [motor de referencia](motor.md).

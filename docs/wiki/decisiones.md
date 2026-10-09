@@ -27,6 +27,11 @@
 | 019 | IR v0.1: visibilidad por predicados; zonas ordenadas vs. bolsas; sin identidades ocultas | Aceptada (2026-10-09, sin objeciones) |
 | 020 | Catálogo de operadores (`ops.json`) como fuente única; esquemas generados | Aceptada (2026-10-09, sin objeciones) |
 | 021 | La Fase 0 especifica solo la IR núcleo (resuelta); la IR de autor llega con el compilador (F2) | Aceptada (2026-10-09, sin objeciones) |
+| 022 | PCG32 (implementación de referencia en C) es el RNG normativo de todos los motores | Aceptada (2026-10-09, F1) |
+| 023 | Validación con JSON Schema + comprobador propio (sin pydantic); el motor compila la IR a funciones | Aceptada (2026-10-09, F1) |
+| 024 | `$exit`: primero `on_exit` de la fase y después sus transiciones | Aceptada (2026-10-09, F1) |
+| 025 | El hash de reglas ignora valores por defecto explícitos (listas vacías, visibilidad `all`) | Aceptada (2026-10-09, F1) |
+| 026 | Cada fase en su rama (`fN/…`); un commit por tarea; fusión a `main` con visto bueno | Aceptada (2026-10-09, usuario) |
 
 ---
 
@@ -142,3 +147,32 @@
   (con azúcar: bucles en fases, `deal`, tablas de pagos, `call` de sub-flows) depende de la
   sintaxis concreta y se especificará junto al compilador en la Fase 2.
 - **Consecuencias:** el motor de referencia (F1) puede empezar ya contra un contrato estable.
+
+### ADR-022 — PCG32 como RNG normativo
+- **Contexto:** "misma semilla ⇒ misma partida" debe valer entre motores (Python, C++, WASM). El
+  `random` de Python (Mersenne Twister con su propio sembrado) no es reproducible fuera de Python.
+- **Decisión:** PCG32 (XSH-RR 64/32) exactamente como `pcg32_srandom_r`, `pcg32_random_r` y
+  `pcg32_boundedrand_r` de la implementación de referencia en C; flujos por propósito; Fisher–Yates
+  desde el final; muestreo ponderado exacto con denominador común. Ver [motor §4](motor.md).
+- **Consecuencias:** trazas de conformidad comparables bit a bit; los replays guardan además los
+  sorteos, así que no dependen del RNG.
+
+### ADR-023 — Sin capa de modelos pydantic
+- **Decisión:** la IR se valida con el JSON Schema y el comprobador de buena formación; el motor la
+  compila directamente a funciones Python (closures).
+- **Alternativas:** modelos pydantic (duplicarían el esquema y añadirían una dependencia).
+- **Consecuencias:** una sola definición del formato (el esquema); los tipos estáticos de Python
+  llegan donde aportan (motor), no en el formato.
+
+### ADR-024 — Orden de `$exit`
+- **Decisión:** al salir de una fase con `$exit`, primero se ejecuta su `on_exit` y después se
+  evalúan sus transiciones.
+- **Motivo:** permite "al terminar la ronda, puntuar; si alguien llega a 500, fin; si no, otra
+  ronda" sin duplicar cálculos en las guardas.
+
+### ADR-025 — Hash insensible a valores por defecto
+- **Decisión:** antes de calcular el hash de reglas se eliminan las listas vacías y las
+  visibilidades `all` explícitas (además de `meta`, `doc` y mensajes de restricciones).
+- **Consecuencias:** dos IR con la misma semántica escritas de forma distinta (a mano, con el
+  builder, desde Nomos o desde Studio) tienen el mismo hash.
+

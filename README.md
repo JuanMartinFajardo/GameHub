@@ -11,9 +11,9 @@
    combinatoria, heurísticas, bots, arena y aprendizaje por refuerzo.
 5. **Colaborar**: publicar, clonar, bifurcar y proponer cambios de reglas con diffs semánticos.
 
-> Estado: **Fase 0 completada** (≈ 4 %). Ya existe la especificación formal de la IR
-> ([`spec/`](spec/README.md)) con cuatro juegos de validación y un validador en Python. Todavía
-> no se puede jugar: eso llega con el motor de la Fase 1.
+> Estado: **Fase 1 — motor de referencia** (≈ 13 % al cerrarla). Ya se puede jugar en la terminal
+> a los 6 juegos de validación (tres en raya, dilema del prisionero, piedra-papel-tijera, Nim, póker
+> de Kuhn y Mentiroso), contra otras personas en el mismo dispositivo o contra bots.
 
 ## Documentación
 
@@ -26,8 +26,11 @@
 ```bash
 cd python
 uv sync                                                  # entorno (Python 3.12+)
-uv run gamehub ir check ../spec/ir/examples/*.ir.json    # validar juegos en IR
-uv run pytest                                            # tests
+uv run gamehub play ../spec/ir/examples/mentiroso.ir.json --seats human,random,random
+uv run gamehub play ../spec/ir/examples/tictactoe.ir.json             # dos personas
+uv run gamehub fuzz ../spec/ir/examples/nim.ir.json --games 10000     # partidas aleatorias
+uv run gamehub ir check ../spec/ir/examples/*.ir.json                 # validar juegos en IR
+uv run pytest                                                         # tests
 ```
 
 Licencias: Apache-2.0 en general; ver [`LICENSING.md`](LICENSING.md).

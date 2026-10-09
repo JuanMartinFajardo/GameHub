@@ -22,6 +22,10 @@
 - `uv run pytest` · `uv run ruff check .` · `uv run ruff format .` · `uv run pyright`
 - `uv run gamehub ir check ../spec/ir/examples/*.ir.json` (validar IR)
 - `uv run gamehub ir schemas --write` tras tocar `spec/ir/v0/ops.json` (los esquemas expr/stmt se generan)
+- `uv run gamehub conformance --write` tras cambiar la semántica del motor o un ejemplo (y explicar
+  por qué en el commit: las trazas son el contrato con otros motores)
+- `uv run gamehub play|fuzz|replay …` (ver `docs/wiki/motor.md`)
+- Separadores de comentario `# --- Título ---…` de 100 columnas como máximo (ruff E501).
 
 ## Git (política acordada el 2026-10-09)
 - **Un commit por tarea terminada**, con mensaje en español y el trailer de coautoría.
