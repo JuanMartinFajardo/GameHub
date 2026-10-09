@@ -214,6 +214,13 @@ class Checker:
         ir = self.assemble(params_ir, constraints_ir, state_ir, flow_ir)
         return CompiledGame(m.name, ir, tests, invariants, m.decl.span)
 
+    def check_module(self) -> None:
+        """Comprueba un módulo sin juego: sus tipos y sus funciones."""
+        self.declare_types()
+        self.declare_functions()
+        self.check_functions()
+        self.check_recursion()
+
     def assemble(
         self,
         params_ir: list[dict[str, Any]],
@@ -1776,6 +1783,8 @@ class Checker:
         if kind == "grid":
             key = self.expect(self.expr(index, scope, ctx, T.CELL), T.CELL, index.span)
             return ["index", base_ir, key], base.inner
+        if kind == "Cell":  # una casilla es el par (fila, columna)
+            base, kind = T.tuple_(T.INT, T.INT), "tuple"
         if kind == "tuple":
             if not isinstance(index, ast.IntLit) or not 0 <= index.value < len(base.args):
                 return self.error(

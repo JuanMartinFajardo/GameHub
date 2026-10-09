@@ -16,6 +16,7 @@ from gamehub.lang import ast
 from gamehub.lang.checker import Checker
 from gamehub.lang.diagnostics import CompileError, Diagnostics
 from gamehub.lang.model import CompiledGame, External, GameModel
+from gamehub.lang.modules import Imported, Loader
 from gamehub.lang.parser import parse
 from gamehub.lang.source import Source, Span
 
@@ -59,10 +60,13 @@ def compile_source(source: Source) -> CompileResult:
     result = CompileResult(source, tree, diagnostics)
     if diagnostics.has_errors:
         return result
+    imported = Loader(diagnostics).root_imports(tree, source)
+    if diagnostics.has_errors:
+        return result
     models: dict[str, GameModel] = {}
     for item in tree.items:
         if isinstance(item, ast.GameDecl):
-            model = collect(tree, item, diagnostics)
+            model = collect(tree, item, diagnostics, imported)
             compiled = Checker(model, diagnostics).run()
             result.games[item.name] = compiled
             models[item.name] = model
@@ -70,6 +74,8 @@ def compile_source(source: Source) -> CompileResult:
             diagnostics.error(
                 "E501", "los combinadores de juegos aún no están disponibles", item.span
             )
+    if not tree.games:
+        check_module(tree, diagnostics, imported)
     if diagnostics.has_errors:
         return result
     for name, compiled in result.games.items():
@@ -183,11 +189,14 @@ def load_nomos(path: Path, game: str | None = None) -> Game:
 # --- Reunión de declaraciones -------------------------------------------------------------------
 
 
-def collect(tree: ast.File, game: ast.GameDecl, diagnostics: Diagnostics) -> GameModel:
+def collect(
+    tree: ast.File,
+    game: ast.GameDecl,
+    diagnostics: Diagnostics,
+    imported: list[Imported] | None = None,
+) -> GameModel:
     model = GameModel(name=game.name, decl=game)
-    for item in tree.items:
-        if isinstance(item, ast.EnumDecl | ast.StructDecl | ast.FnDecl):
-            model.externals.append(External(item, ""))
+    model.externals = externals(tree, game.items, diagnostics, imported or [])
     if game.extends is not None:
         diagnostics.error(
             "E501", "la herencia de juegos (extends) aún no está disponible", game.span
@@ -195,6 +204,39 @@ def collect(tree: ast.File, game: ast.GameDecl, diagnostics: Diagnostics) -> Gam
     for item in game.items:
         add_item(model, item, diagnostics)
     return model
+
+
+def externals(
+    tree: ast.File, local: list[ast.Item], diagnostics: Diagnostics, imported: list[Imported]
+) -> list[External]:
+    """Declaraciones de módulo de un juego: las de primer nivel del archivo y las importadas.
+    Una declaración del archivo o del juego no puede llamarse como una importada."""
+    out: list[External] = []
+    by_name = {item.name: item for item in imported}
+    for item in tree.items:
+        if isinstance(item, ast.EnumDecl | ast.StructDecl | ast.FnDecl):
+            out.append(External(item, ""))
+    for item in [*tree.items, *local]:
+        if isinstance(item, ast.EnumDecl | ast.StructDecl | ast.FnDecl) and item.name in by_name:
+            clash = by_name.pop(item.name)
+            diagnostics.error(
+                "E202",
+                f"`{item.name}` choca con el importado de {clash.module}",
+                item.span,
+                help="cambia el nombre o no lo importes",
+            )
+    out.extend(External(item.decl, item.module) for item in by_name.values())
+    return out
+
+
+def check_module(tree: ast.File, diagnostics: Diagnostics, imported: list[Imported]) -> None:
+    """Un archivo sin juegos es un módulo: se comprueban sus tipos y funciones."""
+    if not any(isinstance(i, ast.EnumDecl | ast.StructDecl | ast.FnDecl) for i in tree.items):
+        return
+    decl = ast.GameDecl(name="<módulo>")
+    model = GameModel(name="<módulo>", decl=decl)
+    model.externals = externals(tree, [], diagnostics, imported)
+    Checker(model, diagnostics).check_module()
 
 
 def add_item(model: GameModel, item: ast.Item, diagnostics: Diagnostics) -> None:

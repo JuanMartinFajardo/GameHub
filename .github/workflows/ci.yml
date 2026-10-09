@@ -27,10 +27,10 @@ jobs:
         run: uv run gamehub ir schemas --check
       - name: Juegos de validación
         run: uv run gamehub ir check ../spec/ir/examples/*.ir.json
-      - name: Juegos en Nomos formateados
-        run: uv run gamehub fmt --check ../games
-      - name: Juegos en Nomos compilan sin errores
-        run: uv run gamehub check ../games
+      - name: Juegos y biblioteca estándar en Nomos formateados
+        run: uv run gamehub fmt --check ../games ../stdlib
+      - name: Juegos y biblioteca estándar en Nomos compilan sin errores
+        run: uv run gamehub check ../games ../stdlib
       - name: Tests e invariantes de los juegos en Nomos
         run: uv run gamehub test ../games
       - name: Tests

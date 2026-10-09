@@ -348,6 +348,11 @@ def _check(args: argparse.Namespace) -> int:
             for name, game in result.games.items():
                 print(f"✓ {path}: {name} ({rules_hash(game.ir)[:19]}…){note}")
                 print(f"    {' · '.join(classify(game.ir).labels())}")
+            if not result.games:
+                count = len(result.file.declarations)
+                print(
+                    f"✓ {path}: módulo con {count} declaraci{'ones' if count != 1 else 'ón'}{note}"
+                )
     if args.format == "json":
         print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if failed else 0

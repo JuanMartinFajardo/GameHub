@@ -46,13 +46,24 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   información, simultaneidad, suma cero si se puede asegurar). Los avisos se sitúan en el texto
   con un mapa de fuentes. Los seis juegos no dan ningún aviso; el fregadero da los esperables.
   `gamehub test` juega siempre las partidas aleatorias e informa si los pagos suman constante.
+- **Módulos e `import`** (`import a.b.{X, Y}`, `import a.b.*`): `std.…` en la biblioteca
+  estándar y el resto relativo al archivo; importar un nombre trae lo que necesita, y solo llega
+  a la IR lo que el juego usa. Errores: módulo no encontrado (E503), nombre inexistente (E201,
+  con sugerencia), importación circular (E504), choques de nombres (E202). Un archivo sin
+  juegos es un módulo y `gamehub check` lo comprueba. Las casillas se pueden indexar (`c[0]`
+  fila, `c[1]` columna).
+- **Biblioteca estándar v0** (`stdlib/std/`): `std.cards` (baraja francesa de 52 y española de
+  40/48, `rank_value`, `is_red`…), `std.dice` (caras, recuentos con comodín, escaleras…),
+  `std.grid` (direcciones, rayos, distancias) y `std.graph` (grafos como listas de aristas,
+  ciclos, vecinos). Probada con tests escritos en Nomos (`tests/fixtures/stdlib.game`).
 
-**Pendiente en F2**: `import` + stdlib v0; `extends`/`override`/`remove` y combinadores
+**Pendiente en F2**: `extends`/`override`/`remove` y combinadores
 `repeat`/`best_of`; paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
 `viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
-documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki).
+documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki);
+empaquetar `spec/` y `stdlib/` en la rueda de Python (hoy se localizan subiendo directorios).
 
-**Progreso:** ≈ 19 % (F2 a medias).
+**Progreso:** ≈ 20 % (F2 a medias).
 
 ---
 

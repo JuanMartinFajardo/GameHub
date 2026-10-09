@@ -688,3 +688,8 @@ class File(Node):
     @property
     def games(self) -> list[GameDecl | GameAlias]:
         return [i for i in self.items if isinstance(i, GameDecl | GameAlias)]
+
+    @property
+    def declarations(self) -> list[EnumDecl | StructDecl | FnDecl]:
+        """Declaraciones de primer nivel (lo que el archivo ofrece como módulo)."""
+        return [i for i in self.items if isinstance(i, EnumDecl | StructDecl | FnDecl)]
