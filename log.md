@@ -5,6 +5,35 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-09 — Sesión 4: Fase 2 en curso (compilador de Nomos)
+
+**Respuestas recibidas**: fusionar F1 a `main` (hecho, `bc6b203`) y arrancar F2 en la rama
+`f2/compilador-nomos`.
+
+**Hecho (un commit por tarea)**
+- Parser de Nomos escrito a mano (descenso recursivo + precedencias) con recuperación de errores,
+  diagnósticos al estilo rustc y comentarios conservados como trivia.
+- Formateador canónico `gamehub fmt` (idempotente, conserva comentarios); en CI y pre-commit.
+- Comprobador de tipos y traducción a GameIR (`gamehub compile`, `gamehub check`); `play`, `fuzz`
+  y `replay` aceptan `.game`. **Los seis juegos de F1 escritos en Nomos (`games/`) compilan con el
+  mismo hash de reglas que su IR escrita a mano.**
+- Descompilador IR → Nomos (`gamehub decompile`): ida y vuelta exacta en los 6 ejemplos y en un
+  juego «fregadero» que usa todas las construcciones (`python/tests/fixtures/kitchen-sink.game`).
+- Corregido un fallo del validador de F1: `at(Nodo)` en la visibilidad del estado o en funciones
+  se daba por nodo desconocido.
+
+**Pendiente en F2**: formato «fill» para cadenas largas de operadores y línea en blanco tras un
+comentario de cabecera (el fregadero aún no pasa `fmt --check`); `gamehub test` (ejecutar bloques
+`test` e invariantes, ya compilados); análisis de `check` (alcanzabilidad, exhaustividad, bucles,
+fugas, clasificación); `import` + stdlib v0; `extends`/`override`/`remove` y combinadores
+`repeat`/`best_of`; paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
+`viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
+documentación (referencia del lenguaje en `lenguaje-game.md`, ADR del parser a mano, wiki).
+
+**Progreso:** ≈ 17 % (F2 a medias).
+
+---
+
 ## 2026-10-09 — Sesión 3: Fase 1, motor de referencia en Python
 
 **Respuestas recibidas**

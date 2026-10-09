@@ -82,6 +82,9 @@ class _Checker:
 
     def run(self) -> list[Problem]:
         doc = self.doc
+        # Los ids de nodo se reúnen antes que nada: `at(Nodo)` puede aparecer en la visibilidad
+        # del estado y en las funciones, que se revisan antes que el flow.
+        self.collect_nodes(doc["flow"]["nodes"], "flow/nodes")
         players = doc["players"]
         if players["min"] > players["max"]:
             self.error("players", "min no puede ser mayor que max")
@@ -170,7 +173,6 @@ class _Checker:
     # --- flow -----------------------------------------------------------------------------------
 
     def flow(self, flow: dict[str, Any]) -> None:
-        self.collect_nodes(flow["nodes"], "flow/nodes")
         if flow["start"] not in {n["id"] for n in flow["nodes"]}:
             self.error(
                 "flow/start", f"el nodo inicial no existe en el nivel superior: {flow['start']}"

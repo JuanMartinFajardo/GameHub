@@ -93,9 +93,9 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 
 **Objetivo:** diseñar juegos escribiendo texto, con errores claros y herramientas de verdad.
 
-- [ ] Gramática (Lark) y parser con posiciones; recuperación de errores
-- [ ] AST → resolución de nombres → **comprobador de tipos** → *lowering* → IR resuelta
-- [ ] Diagnósticos estilo `rustc` (línea, columna, subrayado, sugerencia)
+- [x] Gramática (escrito a mano, no Lark) y parser con posiciones; recuperación de errores
+- [x] AST → resolución de nombres → **comprobador de tipos** → *lowering* → IR resuelta
+- [x] Diagnósticos estilo `rustc` (línea, columna, subrayado, sugerencia)
 - [ ] `gamehub check`: tipos, nodos inalcanzables, transiciones no exhaustivas, bucles sin
       progreso, **fugas de información** (v1 sencilla), clasificación del juego
 - [ ] `gamehub fmt`: formateador canónico que conserva comentarios (round-trip probado)

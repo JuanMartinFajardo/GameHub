@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: Apache-2.0
+// Juego artificial que usa todas las construcciones de Nomos: lo usan los tests de ida y vuelta
+// (texto → IR → texto) y el fuzzer. No pretende ser divertido.
+
+enum Color { Red, Green, Blue }
+
+/// Un color más claro (Blue es el último).
+fn brighter(c: Color) -> Color = Color.values[min(ord(c) + 1, 2)]
+
+fn unused_helper() -> Int = 42
+
+game KitchenSink {
+  meta {
+    id: "kitchen-sink"
+    version: "0.1.0-dev"
+    title: { es: "Fregadero", en: "Kitchen sink" }
+    description: "Todas las construcciones del lenguaje."
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["test"]
+  }
+  players 2..3
+
+  params {
+    /// Número de rondas
+    rounds: Int = 2
+    ratio: Real = 0.5
+    third: Real = rat(1, 3)
+    labels: List<Text> = ["a", "b"]
+    size: Int = 3
+    assert rounds >= 1 and rounds <= 5, "entre 1 y 5 rondas"
+    assert ratio > 0 and third < 1 and size >= 2
+  }
+
+  enum Suit { Hearts, Spades }
+  @doc({ es: "Una carta", en: "A card" })
+  struct Card { suit: Suit, value: Int }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<Card> = [Card { suit: s, value: v } for s in Suit.values for v in 1..4]
+    @visible(owner) @size_visible(all)
+    hand: per_player Bag<Card>
+    @visible(viewer == owner or at(End))
+    secret: per_player Int = owner * 10
+    @visible(face_up)
+    table: Zone<Card>
+    board: Grid[size, size] of Color? = none
+    scores: per_player Real
+    round: Int = 1
+    picked: Set<Int>
+    tally: Map<Int, Int>
+    pair: (Int, Bool) = (0, false)
+    last: Card? = none
+    log: List<Int>
+    die: Int = 0
+    weather: Color = Red
+    leader: Seat = 0
+    note: Text = "nada"
+  }
+
+  /// Puntos: los acumulados más el valor de la mano, ponderado.
+  fn total(s: Seat) -> Real = scores[s] + sum(c in hand[s] : c.value) * ratio
+  fn label(n: Int) -> Text = labels[n % len(labels)]
+  fn classify(c: Card?) -> Int = match c {
+    none => 0
+    _ => 1
+  }
+  fn shape(x: Int, y: Int) -> Int = case {
+    x > y => 1
+    x < y => -1
+    else => 0
+  }
+  fn colors(a: Color, b: Color) -> Int = match (a, b) {
+    (Red, _) => 1
+    (_, Red) => 2
+    (Green, Green) => 3
+    (Green, Blue) => 4
+    (Blue, _) => 5
+  }
+  fn mixed(xs: List<Int>) -> List<Int> {
+    let doubled = [x * 2 for x in xs if x > 0]
+    let pairs = [(a, b) for a in xs for b in doubled if a < b]
+    let positive = [x for x in xs if x > 0 if x < 100]
+    doubled + [len(pairs), len(positive)] - [0]
+  }
+  fn arithmetic(a: Int, b: Int) -> Real = (a + b) * 2 - a div 2 + a % 3 - -b + abs(a - b) / 4 + 2.5
+  fn chains(a: Int, b: Int, c: Int) -> Int = a + b + c + (a + b) * c * 2 - (a - b - c) + max(a, b, c)
+  fn collections(xs: List<Int>) -> Int {
+    let s = union(set(1, 2), set(2, 3))
+    let i = intersection(s, set(2))
+    let d = difference(xs, [1])
+    let subs = subsets(xs, 1, 2)
+    let sorted = sort_by(x in xs : -x)
+    let firsts = [first(sorted), last(sorted), len(reverse(distinct(xs)))]
+    let flat = flat_map(x in xs : [x, x])
+    len(s) + len(i) + len(d) + len(subs) + sum(firsts) + count(x in flat : x > 1) +
+      (1 if any(x in xs : x == 3) and all(x in xs : x >= 0) else 0) + len(concat(xs, append(xs, 9))) +
+      len(slice(xs, 0, 1)) + len(xs[1:]) + len(xs[:2]) + min(xs) + max(x in xs : x * 2) +
+      argmin(x in xs : x) + len(1..<4) + len(range(0, 2))
+  }
+  fn geometry() -> Int =
+    len(neighbors(board, (1, 1))) + len(lines(board, 2)) + (1 if in_bounds(board, cell(0, 0)) else 0)
+  fn seat_stuff(s: Seat) -> List<Seat> = seats_from(prev(next(s)))
+  fn options(c: Card?) -> Bool = not is_none(c) and unwrap(c).value > 0 and 1 not in [2, 3]
+
+  flow {
+    start {
+      shuffle deck
+    } -> Deal
+
+    /// Se reparte y se sortea el tiempo.
+    chance Deal {
+      deal 2 from deck to each hand
+      move top 1 from deck to table
+      die = roll(6)
+      weather = random(Color.values)
+      let coin = 1
+      if coin == 1 {
+        note = label(die)
+      } else if coin == 2 {
+        note = "dos"
+      } else {
+        fail "imposible"
+      }
+      -> Weather
+    }
+
+    chance Weather {
+      weather = sample([(Red, 1 / 2), (Blue, 1 / 2)])
+      -> Round
+    }
+
+    phase Round {
+      start -> Bid
+
+      on_enter {
+        log += [round]
+      }
+
+      on_exit {
+        for s in seats {
+          scores[s] += 1
+        }
+      }
+
+      simultaneous Bid {
+        actors: seats
+        action bid(n in 0..<3) { secret[actor] = n }
+        action skip()
+        resolve {
+          leader = argmax(s in seats : secret[s])
+          @visible(owner) emit bids { leader: leader }
+        }
+        -> React
+      }
+
+      window React {
+        eligible: seats - [leader]
+        mode: priority
+        order: seats_from(next(leader))
+        /// Robar una carta al líder.
+        @visible(none)
+        action steal(@visible(none) c: Card in items(hand[leader])) requires size(hand[leader]) > 1 {
+          move c from hand[leader] to hand[actor]
+          reward 1 to actor
+          -> Play
+        }
+        -> Play
+      }
+
+      decision Play {
+        actor: leader
+        action place(c: Cell in cells(board)) requires is_none(board[c]) {
+          board[c] = brighter(weather)
+          tally[1] = 2
+          picked = union(picked, set(round))
+          pair = (round, true)
+        }
+        action discard(c: Card in items(hand[actor])) {
+          move c from hand[actor] to table at bottom
+          flip all of table face_up
+          last = top(table)
+          reveal c to actor as { es: "descarte", en: "discard" }
+          reveal secret to all
+        }
+        action wait(b: Bool) { die = die if b else 0 }
+        -> exit
+      }
+
+      -> End when round >= rounds
+      -> Round { round += 1 }
+    }
+
+    terminal End {
+      payoff: [total(s) for s in seats]
+      rank: [0 for s in seats]
+    }
+  }
+
+  test "se juega hasta el final" {
+    players 2
+    seed 4
+    expect at(Bid) and round == 1
+    play 0: skip(), 1: bid(2)
+    expect leader == 1
+  }
+
+  invariant round >= 1 and round <= rounds
+}

@@ -84,6 +84,12 @@ def _parser() -> argparse.ArgumentParser:
     compile_.add_argument("-o", "--output", type=Path, metavar="SALIDA.ir.json")
     compile_.set_defaults(handler=_compile)
 
+    decompile = commands.add_parser("decompile", help="convierte una GameIR (JSON) en texto Nomos")
+    decompile.add_argument("file", type=Path, metavar="ARCHIVO.ir.json")
+    decompile.add_argument("--name", help="nombre del juego (por defecto, a partir de su id)")
+    decompile.add_argument("-o", "--output", type=Path, metavar="SALIDA.game")
+    decompile.set_defaults(handler=_decompile)
+
     check_game = commands.add_parser(
         "check", help="comprueba archivos .game (sintaxis, nombres, tipos, flow)"
     )
@@ -268,6 +274,25 @@ def _compile(args: argparse.Namespace) -> int:
     from gamehub.ir.jsonfmt import dumps
 
     text = dumps(game.ir)
+    if args.output is None:
+        sys.stdout.write(text)
+    else:
+        args.output.write_text(text, encoding="utf-8")
+        print(f"✓ {args.output}", file=sys.stderr)
+    return 0
+
+
+def _decompile(args: argparse.Namespace) -> int:
+    from gamehub.ir import check_file
+    from gamehub.ir.spec import load_json
+    from gamehub.lang.decompile import decompile_text
+
+    problems = check_file(args.file)
+    if problems:
+        for problem in problems:
+            print(f"✗ {problem}", file=sys.stderr)
+        return 1
+    text = decompile_text(load_json(args.file), args.name)
     if args.output is None:
         sys.stdout.write(text)
     else:
