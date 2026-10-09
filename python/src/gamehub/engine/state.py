@@ -23,7 +23,7 @@ from gamehub.engine.events import Event
 from gamehub.engine.expr import boolean, iterate, num, seat
 from gamehub.engine.game import ActionDef, GameDef, NodeDef, TransitionDef
 from gamehub.engine.rng import Draws, Outcome, Pcg32, RngDraws, enumerate_outcomes, replay_outcome
-from gamehub.engine.values import HIDDEN, norm_num, to_json
+from gamehub.engine.values import HIDDEN, Zone, norm_num, to_json
 from gamehub.engine.visibility import redact
 from gamehub.ir.hashing import canonical_json
 
@@ -230,6 +230,44 @@ class State:
             view["payoffs"] = [to_json(p) for p in self.payoffs]
         return view
 
+    def snapshot(self) -> dict[str, Any]:
+        """Configuración completa en JSON canónico (incluye caras de las cartas y envíos
+        pendientes). Dos estados con la misma instantánea son el mismo estado."""
+        store = {var.name: _snapshot_value(self.store[var.index]) for var in self.game.vars}
+        snap: dict[str, Any] = {"node": self.node, "store": store}
+        if self.pending is not None:
+            snap["pending"] = {
+                "order": list(self.pending.order),
+                "submitted": [[s, a.to_json()] for s, a in self.pending.submitted],
+            }
+        if self.payoffs is not None:
+            snap["payoffs"] = [to_json(p) for p in self.payoffs]
+        return snap
+
+    def digest(self) -> str:
+        """Huella SHA-256 de la instantánea: sirve para comparar motores paso a paso."""
+        return hashlib.sha256(canonical_json(self.snapshot()).encode("utf-8")).hexdigest()
+
+    def decode_action(self, seat_: int, data: dict[str, Any]) -> Action:
+        """Acción desde JSON (`{"name": …, "args": {…}}`), con los tipos de sus parámetros."""
+        name = data.get("name")
+        node = self.game.nodes.get(self.node or "")
+        if node is None:
+            raise IllegalAction("no hay acciones en este estado")
+        if name == "pass" and node.kind == "window":
+            return PASS
+        adef = node.actions_by_name.get(name or "")
+        if adef is None:
+            raise IllegalAction(f"acción desconocida en {node.id}: {name}")
+        given = data.get("args", {})
+        try:
+            args = tuple(
+                (p.name, self.game.types.decode(given[p.name], p.type)) for p in adef.params
+            )
+        except (KeyError, ValueError) as exc:
+            raise IllegalAction(f"argumentos inválidos para {name}: {exc}") from None
+        return Action(adef.name, args)
+
     def events(self, seat_: int | None) -> list[dict[str, Any]]:
         """Eventos del último paso que ve el asiento (`None` = todos, sin redactar)."""
         return [e for e in (ev.for_seat(seat_) for ev in self.step.events) if e is not None]
@@ -314,6 +352,18 @@ class State:
         ):
             raise IllegalAction(f"{action.name}: no se cumple la condición de la acción")
         return Action(action.name, tuple(args.items()))
+
+
+def _snapshot_value(v: Any) -> Any:
+    if isinstance(v, Zone):
+        snap: dict[str, Any] = {"items": [to_json(i.value) for i in v.items]}
+        up = [i for i, item in enumerate(v.items) if item.face_up]
+        if up:
+            snap["face_up"] = up
+        return snap
+    if isinstance(v, tuple):
+        return [_snapshot_value(x) for x in v]
+    return to_json(v)
 
 
 def _complete(adef: ActionDef, env: Env, i: int, args: dict[str, Any]) -> Iterator[Action]:
