@@ -162,12 +162,16 @@ escritos a mano (`tests/test_build.py`).
 
 | Juego | Partidas aleatorias/s | Pasos medios |
 |---|---:|---:|
-| Tres en raya | ≈ 1 500 | 9 |
-| Póker de Kuhn | ≈ 4 700 | 3,3 |
-| Mentiroso (4 jugadores) | ≈ 1 | ≈ 690 |
+| Dilema del prisionero / PPT | ≈ 12 000 | 2 |
+| Póker de Kuhn | ≈ 4 600 | 3,3 |
+| Nim (3, 5, 7) | ≈ 2 800 | 6,7 |
+| Tres en raya | ≈ 1 600 | 7,6 |
+| Mentiroso (3 jugadores) | ≈ 0,9 (2,9 ms por paso) | ≈ 390 |
 
 El cuello de botella de Mentiroso es enumerar los subconjuntos de la mano (hasta 4 047 acciones
-por turno). El motor C++ (Fase 8) está pensado para multiplicar estas cifras.
+por turno) para que el agente aleatorio elija uniformemente. Un perfil mostró que la mitad del
+tiempo se iba en deduplicar subconjuntos que ya eran distintos; corregido (×1,8). El motor C++
+(Fase 8) está pensado para multiplicar estas cifras.
 
 ## 11. Limitaciones conocidas
 
