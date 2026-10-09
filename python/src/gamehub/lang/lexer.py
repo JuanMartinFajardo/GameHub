@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any
@@ -108,17 +109,22 @@ PUNCTUATION = (
 )
 
 _ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\", "0": "\0"}
+_BLANK_AFTER = re.compile(r"[ \t\r\f]*\n[ \t\r\f]*\n")
 
 
 @dataclass(frozen=True, slots=True)
 class Comment:
     """Comentario. `kind`: "line" (`//`), "block" (`/* */`) o "doc" (`///`). `own_line`: empieza
-    en una línea sin código delante (si no, es un comentario al final de una línea de código)."""
+    en una línea sin código delante (si no, es un comentario al final de una línea de código).
+    `blank_before`/`blank_after`: hay una línea en blanco justo antes/después (el formateador
+    las conserva)."""
 
     kind: str
     text: str
     span: Span
     own_line: bool
+    blank_before: bool = False
+    blank_after: bool = False
 
     @property
     def body(self) -> str:
@@ -258,7 +264,7 @@ class _Lexer:
         self.pos = len(self.text) if end < 0 else end
         raw = self.text[start : self.pos].rstrip()
         kind = "doc" if raw.startswith("///") and not raw.startswith("////") else "line"
-        self.pending.append(Comment(kind, raw, self.span(start), self.own_line(start)))
+        self.pending.append(self.comment(kind, raw, start))
 
     def block_comment(self) -> None:
         start = self.pos
@@ -268,8 +274,17 @@ class _Lexer:
             self.diagnostics.error("E102", "comentario /* sin cerrar", self.span(start, start + 2))
             return
         self.pos = end + 2
-        raw = self.text[start : self.pos]
-        self.pending.append(Comment("block", raw, self.span(start), self.own_line(start)))
+        self.pending.append(self.comment("block", self.text[start : self.pos], start))
+
+    def comment(self, kind: str, raw: str, start: int) -> Comment:
+        return Comment(
+            kind,
+            raw,
+            self.span(start),
+            self.own_line(start),
+            blank_before=_blank_before(self.text, start),
+            blank_after=_BLANK_AFTER.match(self.text, self.pos) is not None,
+        )
 
     def number(self) -> None:
         start = self.pos
@@ -348,3 +363,17 @@ class _Lexer:
             chars.append(ch)
             self.pos += 1
         self.emit("string", start, "".join(chars))
+
+
+def _blank_before(text: str, start: int) -> bool:
+    """¿Hay una línea en blanco justo antes de `start`?"""
+    newlines = 0
+    for i in range(start - 1, -1, -1):
+        ch = text[i]
+        if ch == "\n":
+            newlines += 1
+            if newlines == 2:
+                return True
+        elif ch not in " \t\r\f":
+            return False
+    return False

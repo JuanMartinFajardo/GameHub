@@ -561,7 +561,7 @@ class Parser:
                 self.expect(":", "':' y el tipo del parámetro")
                 type_ = self.type_expr()
                 self.expect("=", "'=' y el valor por defecto")
-                node = ast.ParamDecl(name=name, type=type_, default=self.expr())
+                node = ast.ParamDecl(name=name, type=type_, default=self.value())
             node.doc = doc
             return self.finish(node, start)
 
@@ -622,7 +622,7 @@ class Parser:
             self.expect(":", "':' y el tipo de la variable")
             node.type = self.type_expr()
             if self.eat("="):
-                node.init = self.expr()
+                node.init = self.value()
             return self.finish(node, start)
 
         items, end = self.block(var)
@@ -651,8 +651,7 @@ class Parser:
             body = self.let_block(allow_empty=True)
         else:
             self.expect("=", "'=' o '{' con el cuerpo de la función")
-            self.skip_newlines()
-            body = self.expr()
+            body = self.value()
         return ast.FnDecl(name=name, params=params, returns=returns, body=body)
 
     # --- tipos ----------------------------------------------------------------------------------
@@ -773,11 +772,11 @@ class Parser:
             self.advance()
             name = self.ident("el nombre de la variable").text
             self.expect("=", "'='")
-            return ast.LetMember(name=name, value=self.expr())
+            return ast.LetMember(name=name, value=self.value())
         if self.at("ident") and self.peek(1).kind == ":":
             key = self.advance().text
             self.advance()
-            return ast.Member(key=key, value=self.expr())
+            return ast.Member(key=key, value=self.value())
         if (
             self.at("ident")
             and self.peek(1).kind == "{"
@@ -825,7 +824,7 @@ class Parser:
                 break
         if self.eat("requires"):
             with self.struct_literals(False):
-                node.requires = self.expr()
+                node.requires = self.value()
         if self.at("{"):
             items, end = self.block(self.action_body_item)
             node.end_comments = self.claim(end)
@@ -885,7 +884,7 @@ class Parser:
         node = ast.Transition(target=target)
         if self.eat("when"):
             with self.struct_literals(False):
-                node.when = self.expr()
+                node.when = self.value()
         if self.at("{"):
             node.effects = self.stmt_block()
         return node
@@ -922,7 +921,7 @@ class Parser:
                 self.advance()
                 name = self.ident("el nombre de la variable").text
                 self.expect("=", "'='")
-                return ast.LetStmt(name, self.expr())
+                return ast.LetStmt(name, self.value())
             case "if":
                 return self.if_stmt()
             case "for":
@@ -1005,7 +1004,7 @@ class Parser:
                 help="una expresión suelta no tiene efecto",
             )
         op = self.advance().kind
-        return ast.Assign(target, op, self.expr())
+        return ast.Assign(target, op, self.value())
 
     def emit_stmt(
         self, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]
@@ -1176,6 +1175,12 @@ class Parser:
         while self.at("newline"):
             self.advance()
 
+    def value(self) -> ast.Expr:
+        """Expresión tras `=`, `requires`, `when` o la clave de un miembro (`payoff:`): puede
+        empezar en la línea siguiente, como la deja el formateador cuando no cabe."""
+        self.skip_newlines_inside()
+        return self.expr()
+
     def postfix(self) -> ast.Expr:
         start = self.pos
         expr = self.primary()
@@ -1325,7 +1330,7 @@ class Parser:
                 self.advance()
                 name = self.ident("el nombre de la variable").text
                 self.expect("=", "'='")
-                lets.append((name, self.expr()))
+                lets.append((name, self.value()))
             if not lets and not allow_empty:
                 raise self.fail(
                     "un bloque { … } en una expresión empieza con 'let'",
@@ -1449,7 +1454,7 @@ class Parser:
         if self.eat_word("set"):
             target = self.expr()
             self.expect("=", "'='")
-            return ast.TestStep(kind="set", target=target, value=self.expr())
+            return ast.TestStep(kind="set", target=target, value=self.value())
         raise self.fail(
             "se esperaba un paso de test: play, chance, expect, set, seed, players o params"
         )

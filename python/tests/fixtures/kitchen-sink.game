@@ -85,7 +85,8 @@ game KitchenSink {
     doubled + [len(pairs), len(positive)] - [0]
   }
   fn arithmetic(a: Int, b: Int) -> Real = (a + b) * 2 - a div 2 + a % 3 - -b + abs(a - b) / 4 + 2.5
-  fn chains(a: Int, b: Int, c: Int) -> Int = a + b + c + (a + b) * c * 2 - (a - b - c) + max(a, b, c)
+  fn chains(a: Int, b: Int, c: Int) -> Int =
+    a + b + c + (a + b) * c * 2 - (a - b - c) + max(a, b, c)
   fn collections(xs: List<Int>) -> Int {
     let s = union(set(1, 2), set(2, 3))
     let i = intersection(s, set(2))
@@ -95,12 +96,13 @@ game KitchenSink {
     let firsts = [first(sorted), last(sorted), len(reverse(distinct(xs)))]
     let flat = flat_map(x in xs : [x, x])
     len(s) + len(i) + len(d) + len(subs) + sum(firsts) + count(x in flat : x > 1) +
-      (1 if any(x in xs : x == 3) and all(x in xs : x >= 0) else 0) + len(concat(xs, append(xs, 9))) +
-      len(slice(xs, 0, 1)) + len(xs[1:]) + len(xs[:2]) + min(xs) + max(x in xs : x * 2) +
-      argmin(x in xs : x) + len(1..<4) + len(range(0, 2))
+      (1 if any(x in xs : x == 3) and all(x in xs : x >= 0) else 0) +
+      len(concat(xs, append(xs, 9))) + len(slice(xs, 0, 1)) + len(xs[1:]) + len(xs[:2]) + min(xs) +
+      max(x in xs : x * 2) + argmin(x in xs : x) + len(1..<4) + len(range(0, 2))
   }
   fn geometry() -> Int =
-    len(neighbors(board, (1, 1))) + len(lines(board, 2)) + (1 if in_bounds(board, cell(0, 0)) else 0)
+    len(neighbors(board, (1, 1))) + len(lines(board, 2)) +
+      (1 if in_bounds(board, cell(0, 0)) else 0)
   fn seat_stuff(s: Seat) -> List<Seat> = seats_from(prev(next(s)))
   fn options(c: Card?) -> Bool = not is_none(c) and unwrap(c).value > 0 and 1 not in [2, 3]
 
@@ -161,7 +163,8 @@ game KitchenSink {
         order: seats_from(next(leader))
         /// Robar una carta al líder.
         @visible(none)
-        action steal(@visible(none) c: Card in items(hand[leader])) requires size(hand[leader]) > 1 {
+        action steal(@visible(none) c: Card in items(hand[leader])) requires
+            size(hand[leader]) > 1 {
           move c from hand[leader] to hand[actor]
           reward 1 to actor
           -> Play

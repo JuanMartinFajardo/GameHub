@@ -104,7 +104,9 @@ def _parser() -> argparse.ArgumentParser:
         "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
     )
     fmt.add_argument("--check", action="store_true", help="no escribe; falla si alguno cambiaría")
-    fmt.add_argument("--diff", action="store_true", help="muestra las diferencias")
+    fmt.add_argument(
+        "--diff", action="store_true", help="muestra las diferencias sin escribir (como --check)"
+    )
     fmt.set_defaults(handler=_fmt)
 
     conformance = commands.add_parser("conformance", help="trazas doradas de spec/conformance")
@@ -364,12 +366,12 @@ def _fmt(args: argparse.Namespace) -> int:
             )
         if args.check:
             print(f"✗ {path}: sin formatear")
-        else:
+        elif not args.diff:
             path.write_text(formatted, encoding="utf-8")
             print(f"formateado: {path}")
     if failed:
         return 1
-    return 1 if args.check and changed else 0
+    return 1 if (args.check or args.diff) and changed else 0
 
 
 def _conformance(args: argparse.Namespace) -> int:

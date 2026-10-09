@@ -6,8 +6,11 @@ Reglas de formato: sangría de 2 espacios, ancho de 100 columnas, una declaraci�
 línea, como mucho una línea en blanco entre elementos (se conservan las del original), espacios
 alrededor de los operadores binarios. Un nodo con un único miembro, una acción con una sola
 sentencia simple y una transición con una sola sentencia simple se escriben en una línea si
-caben. Los comentarios se conservan; los que estaban en medio de una expresión pasan a la línea
-anterior al elemento que los contenía.
+caben. Si una expresión no cabe: tras `=` o `clave:` el valor pasa a la línea siguiente (o, si
+empieza por un corchete y tampoco cabe allí, se abre en la misma línea y se parte por dentro);
+una cadena aritmética reparte sus operandos rellenando líneas; una de `and`/`or`, uno por línea.
+Los comentarios se conservan, con las líneas en blanco que los separaban; los que estaban en
+medio de una expresión pasan a la línea anterior al elemento que los contenía.
 """
 
 from __future__ import annotations
@@ -22,8 +25,10 @@ from gamehub.lang.layout import (
     NIL,
     SOFTLINE,
     Doc,
+    Hang,
     IfBreak,
     concat,
+    fill,
     group,
     join,
     nest,
@@ -131,8 +136,12 @@ class Printer:
                 if item.trivia.blank_before or self._separate(f.items[i - 1], item):
                     parts.append(HARDLINE)
             parts.append(self.item(item))
-        for c in f.end_comments:
-            parts.extend([HARDLINE, text(c.text)])
+        for i, c in enumerate(f.end_comments):
+            if f.items or i:
+                parts.append(HARDLINE)
+                if c.blank_before:
+                    parts.append(HARDLINE)
+            parts.append(text(c.text))
         return concat(*parts)
 
     @staticmethod
@@ -145,7 +154,11 @@ class Printer:
 
     def item(self, item: ast.Item) -> Doc:
         parts: list[Doc | str] = []
-        for c in [*item.trivia.leading, *item.trivia.inner]:
+        for c in item.trivia.leading:
+            parts.extend([text(c.text), HARDLINE])
+            if c.blank_after:
+                parts.append(HARDLINE)
+        for c in item.trivia.inner:
             parts.extend([text(c.text), HARDLINE])
         if item.doc is not None:
             parts.extend([self.doc_comment(item.doc), HARDLINE])
@@ -180,6 +193,8 @@ class Printer:
         for i, c in enumerate(end_comments):
             if items or i:
                 body.append(HARDLINE)
+                if c.blank_before:
+                    body.append(HARDLINE)
             body.append(text(c.text))
         return concat(header, " {", nest(INDENT, HARDLINE, *body), HARDLINE, "}")
 
@@ -369,7 +384,8 @@ class Printer:
             ")",
         )
         if item.requires is not None:
-            header = group(header, " requires", nest(INDENT, LINE, self.cond(item.requires)))
+            requires = nest(2 * INDENT, LINE, self.bare_cond(item.requires))
+            header = group(header, " requires", requires)
         if item.visibility is not None:
             header = concat("@visible(", self.visibility(item.visibility), ")", HARDLINE, header)
         if item.effects is None:
@@ -398,7 +414,7 @@ class Printer:
     def i_Transition(self, item: ast.Transition) -> Doc:
         header: Doc = text(f"-> {item.target}")
         if item.when is not None:
-            header = group(header, " when", nest(INDENT, LINE, self.cond(item.when)))
+            header = group(header, " when", nest(2 * INDENT, LINE, self.bare_cond(item.when)))
         if item.effects is None:
             return header
         effects: list[ast.Item] = list(item.effects)
@@ -568,13 +584,21 @@ class Printer:
     # --- expresiones ----------------------------------------------------------------------------
 
     def rhs(self, prefix: Doc | str, value: ast.Expr) -> Doc:
-        """`prefijo valor`: el valor pasa a la línea siguiente si no cabe, salvo `case` y
-        `match`, que siempre empiezan en la misma línea."""
+        """`prefijo valor`: el valor pasa a la línea siguiente si no cabe; uno que empieza por un
+        corchete se queda en la misma línea si tampoco cabe en la siguiente, y `case` y `match`
+        siempre empiezan en la misma línea."""
         if isinstance(value, ast.CaseExpr | ast.MatchExpr):
             return concat(prefix, " ", self.expr(value))
-        return group(prefix, nest(INDENT, LINE, self.expr(value)))
+        prefix_doc = text(prefix) if isinstance(prefix, str) else prefix
+        return Hang(prefix_doc, self.expr(value), INDENT, hug=_bracketed(value))
 
     def cond(self, e: ast.Expr) -> Doc:
+        """Expresión seguida de un bloque `{ … }` en la misma línea (`if`, `for`, `match`): si se
+        parte, sus líneas de continuación llevan sangría doble para no confundirse con el
+        cuerpo."""
+        return nest(INDENT, self.bare_cond(e))
+
+    def bare_cond(self, e: ast.Expr) -> Doc:
         """Expresión seguida de `{`: un literal de struct suelto necesitaría paréntesis."""
         if _struct_outside_brackets(e):
             return concat("(", self.expr(e), ")")
@@ -608,15 +632,15 @@ class Printer:
                 return concat("-", self.expr(operand, P_UNARY)), P_UNARY
             case ast.Unary(op=_, operand=operand):
                 return concat("not ", self.expr(operand, P_NOT)), P_NOT
-            case ast.Binary(op=op, left=left, right=right):
-                prec = BINARY_PREC[op]
-                left_min = prec + 1 if prec == P_CMP else prec
+            case ast.Binary(op=op, left=left, right=right) if BINARY_PREC[op] == P_CMP:
                 doc = group(
-                    self.expr(left, left_min),
+                    self.expr(left, P_CMP + 1),
                     f" {op}",
-                    nest(INDENT, LINE, self.expr(right, prec + 1)),
+                    nest(INDENT, LINE, self.expr(right, P_CMP + 1)),
                 )
-                return doc, prec
+                return doc, P_CMP
+            case ast.Binary(op=op):
+                return self.chain(e, BINARY_PREC[op]), BINARY_PREC[op]
             case ast.RangeExpr(lo=lo, hi=hi, inclusive=inclusive):
                 op = ".." if inclusive else "..<"
                 return concat(self.expr(lo, P_ADD), op, self.expr(hi, P_ADD)), P_RANGE
@@ -690,6 +714,28 @@ class Printer:
                 )
         raise TypeError(f"no sé imprimir la expresión {type(e).__name__}")
 
+    def chain(self, e: ast.Binary, prec: int) -> Doc:
+        """Cadena de operadores de la misma precedencia, que asocian por la izquierda
+        (`a + b - c`, `p and q and r`). Si no cabe, con `and`/`or` va un operando por línea; con
+        operadores aritméticos, tantos por línea como quepan. Las líneas de continuación llevan
+        sangría y el operador queda al final de la línea anterior."""
+        rights: list[tuple[str, ast.Expr]] = []
+        node: ast.Expr = e
+        while isinstance(node, ast.Binary) and BINARY_PREC[node.op] == prec:
+            rights.append((node.op, node.right))
+            node = node.left
+        rights.reverse()
+        first = self.expr(node, prec)
+        if prec in (P_AND, P_OR):
+            rest = [concat(f" {op}", LINE, self.expr(r, prec + 1)) for op, r in rights]
+            return group(first, nest(INDENT, *rest))
+        # El primer operando no lleva la sangría de continuación (si se parte por dentro, sus
+        # líneas se alinean con él).
+        parts: list[Doc] = [nest(-INDENT, first)]
+        for op, r in rights:
+            parts.extend([concat(f" {op}", LINE), self.expr(r, prec + 1)])
+        return nest(INDENT, fill(parts))
+
     def call_doc(self, func: str, args: list[Doc]) -> Doc:
         if not args:
             return text(f"{func}()")
@@ -709,6 +755,18 @@ class Printer:
             return concat("(", join(", ", [self.pattern(x) for x in p.items]), ")")
         assert isinstance(p, ast.PValue)
         return self.expr(p.value, P_UNARY)
+
+
+def _bracketed(e: ast.Expr) -> bool:
+    """Expresión que empieza abriendo un corchete y se puede partir por dentro."""
+    match e:
+        case ast.Call(args=args):
+            return bool(args)
+        case ast.ListLit(items=items) | ast.TupleLit(items=items):
+            return bool(items)
+        case ast.Comprehension() | ast.StructLit() | ast.Aggregate() | ast.Paren() | ast.LetBlock():
+            return True
+    return False
 
 
 def _struct_outside_brackets(e: ast.Expr) -> bool:

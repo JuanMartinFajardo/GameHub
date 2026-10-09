@@ -21,10 +21,14 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
   juego «fregadero» que usa todas las construcciones (`python/tests/fixtures/kitchen-sink.game`).
 - Corregido un fallo del validador de F1: `at(Nodo)` en la visibilidad del estado o en funciones
   se daba por nodo desconocido.
+- Formateador, segunda vuelta: las cadenas aritméticas largas rellenan líneas y las de `and`/`or`
+  van una por línea; un valor que no cabe tras `=` pasa a la línea siguiente, o se abre junto al
+  `=` si empieza por un corchete y tampoco cabe allí; se conservan las líneas en blanco alrededor
+  de los comentarios. Fallo latente corregido: el formateador podía partir tras `=`, `requires`,
+  `when` o `clave:` y el parser no lo admitía. `fmt --diff` ya no escribe. Test de estrés: todos
+  los juegos, formateados a anchos de 24 a 80 columnas, vuelven al mismo árbol sintáctico.
 
-**Pendiente en F2**: formato «fill» para cadenas largas de operadores y línea en blanco tras un
-comentario de cabecera (el fregadero aún no pasa `fmt --check`); `gamehub test` (ejecutar bloques
-`test` e invariantes, ya compilados); análisis de `check` (alcanzabilidad, exhaustividad, bucles,
+**Pendiente en F2**: `gamehub test` (ejecutar bloques `test` e invariantes, ya compilados); análisis de `check` (alcanzabilidad, exhaustividad, bucles,
 fugas, clasificación); `import` + stdlib v0; `extends`/`override`/`remove` y combinadores
 `repeat`/`best_of`; paquetes (`game.toml`, `game.lock`, `new`, `clone`, `fork`); `diff` semántico;
 `viz`; `rules`; extensión VS Code; juegos nuevos (Conecta 4, familia 2×2, PD iterado, Leduc, Dudo);
