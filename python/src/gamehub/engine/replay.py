@@ -46,14 +46,7 @@ def record(state: State, seed: int | None = None, *, game: Game | None = None) -
     root = states[0]
     defn = root.game
     ir = game.ir if game is not None else defn.ir
-    steps: list[dict[str, Any]] = []
-    for st in states[1:]:
-        step = st.step
-        if step.kind == "chance":
-            steps.append({"chance": list(step.outcome or ())})
-        else:
-            assert step.action is not None
-            steps.append({"seat": step.seat, "action": step.action.to_json()})
+    steps = [step_json(st) for st in states[1:]]
     params = {k: to_json(v) for k, v in root.params.items() if k != "num_players"}
     data: dict[str, Any] = {
         "format": FORMAT,
@@ -72,6 +65,15 @@ def record(state: State, seed: int | None = None, *, game: Game | None = None) -
         assert state.payoffs is not None
         data["result"] = {"node": state.node, "payoffs": [to_json(p) for p in state.payoffs]}
     return data
+
+
+def step_json(state: State) -> dict[str, Any]:
+    """El paso que llevó a `state`, como aparece en `steps`."""
+    step = state.step
+    if step.kind == "chance":
+        return {"chance": list(step.outcome or ())}
+    assert step.action is not None
+    return {"seat": step.seat, "action": step.action.to_json()}
 
 
 def replay(

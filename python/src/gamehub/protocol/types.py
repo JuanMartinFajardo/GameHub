@@ -124,6 +124,11 @@ class ClockMatch(TypedDict):
 type OnTimeout = Literal["random", "pass", "bot", "forfeit"]
 
 
+# Qué ven los espectadores: lo público, o todo (como en una retransmisión de póquer; conviene con
+# retardo).
+type SpectatorView = Literal["public", "omniscient"]
+
+
 # Bots que ejecuta el propio servidor.
 type BotKind = Literal["random", "first"]
 
@@ -133,6 +138,7 @@ class RoomSettings(TypedDict):
     clock: Clock
     on_timeout: OnTimeout
     spectators: bool
+    spectator_view: SpectatorView
     spectator_delay: float
     bot_delay: float
     private: bool
@@ -144,6 +150,7 @@ class SettingsPatch(TypedDict):
     clock: NotRequired[Clock]
     on_timeout: NotRequired[OnTimeout]
     spectators: NotRequired[bool]
+    spectator_view: NotRequired[SpectatorView]
     spectator_delay: NotRequired[float]
     bot_delay: NotRequired[float]
     private: NotRequired[bool]
@@ -297,12 +304,19 @@ class Sender(TypedDict):
 
 class Hello(TypedDict):
     """Primer mensaje de cada conexión. Con `token`, retoma la sesión (reconexión): el servidor
-    reenvía la sala y las actualizaciones posteriores a `last_seq`."""
+    reenvía la sala y la partida; con `resume`, solo las actualizaciones que faltan."""
 
     client: ClientInfo
     token: NotRequired[str]
-    last_seq: NotRequired[int]
+    resume: NotRequired[Resume]
     legal_limit: NotRequired[int]
+
+
+class Resume(TypedDict):
+    """Última actualización recibida antes de perder la conexión."""
+
+    match: str
+    seq: int
 
 
 class Join(TypedDict):
@@ -464,6 +478,7 @@ class Error(TypedDict):
         "not_host",
         "invalid_token",
         "wrong_state",
+        "invalid_params",
         "rate_limited",
         "replaced",
         "internal",

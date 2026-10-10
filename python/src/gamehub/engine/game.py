@@ -353,6 +353,12 @@ class Game:
 
         return decode_action(self.defn, node, data)
 
+    def decode_arguments(self, node: str | None, name: str, args: Any) -> dict[str, Any]:
+        """Los primeros argumentos de una acción desde JSON (construcción progresiva)."""
+        from gamehub.engine.state import decode_arguments
+
+        return decode_arguments(self.defn, node, name, args, partial=True)
+
 
 def load_game(source: str | Path | dict[str, Any]) -> Game:
     """Carga un juego desde un archivo .ir.json o desde un documento ya leído."""

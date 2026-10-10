@@ -414,21 +414,34 @@ def decode_action(game: GameDef, node_id: str | None, data: dict[str, Any]) -> A
     parámetros. No comprueba la legalidad: eso lo hace `apply_action`."""
     name = data.get("name")
     node = game.nodes.get(node_id or "")
+    if node is not None and name == "pass" and node.kind == "window":
+        return PASS
+    args = decode_arguments(game, node_id, name, data.get("args", {}), partial=False)
+    return Action(str(name), tuple(args.items()))
+
+
+def decode_arguments(
+    game: GameDef, node_id: str | None, name: Any, given: Any, *, partial: bool
+) -> dict[str, Any]:
+    """Argumentos de la acción `name` desde JSON, en orden de declaración y con sus tipos. Con
+    `partial`, solo los primeros (para la construcción progresiva de `State.options`)."""
+    node = game.nodes.get(node_id or "")
     if node is None:
         raise IllegalAction("no hay acciones en este estado")
-    if name == "pass" and node.kind == "window":
-        return PASS
-    adef = node.actions_by_name.get(name or "") if isinstance(name, str) else None
+    adef = node.actions_by_name.get(name) if isinstance(name, str) else None
     if adef is None:
         raise IllegalAction(f"acción desconocida en {node.id}: {name}")
-    given = data.get("args", {})
     if not isinstance(given, dict):
         raise IllegalAction(f"argumentos inválidos para {name}: se esperaba un objeto")
+    params = adef.params[: len(given)] if partial else adef.params
+    if partial and [p.name for p in params] != list(given):
+        raise IllegalAction(
+            f"argumentos de {name}: se esperaban los primeros de {[p.name for p in adef.params]}"
+        )
     try:
-        args = tuple((p.name, game.types.decode(given[p.name], p.type)) for p in adef.params)
+        return {p.name: game.types.decode(given[p.name], p.type) for p in params}
     except (KeyError, ValueError, TypeError) as exc:
         raise IllegalAction(f"argumentos inválidos para {name}: {exc}") from None
-    return Action(adef.name, args)
 
 
 def competition_ranking(scores: tuple[Any, ...]) -> tuple[int, ...]:

@@ -141,7 +141,7 @@ el servidor, el simulador del Studio, el entrenador RL, los torneos).
 | Python | 3.12+, `uv`, `ruff`, `pyright`, `pytest`, `hypothesis` | Moderno y rápido de iterar | poetry |
 | Parser | **Lark** (v0) → **tree-sitter** (para editores) | Iteración rápida; luego multi-lenguaje | ANTLR, recursivo descendente a mano |
 | Contratos | JSON Schema → `pydantic` (Py) y tipos TS generados | Una sola definición | protobuf |
-| Servidor | FastAPI + uvicorn + WebSocket | Async, OpenAPI gratis | aiohttp |
+| Servidor | **Starlette + uvicorn + websockets** (F3, [ADR-036](decisiones.md)) | Async y ligero; contratos en JSON Schema | FastAPI, aiohttp |
 | Persistencia local | SQLite | Cero configuración | — |
 | C++ | C++20, CMake, **nanobind**, Catch2 | Velocidad + bindings ligeros | pybind11 |
 | Navegador | Emscripten (core C++ → WASM) | Mismo motor en todas partes | Pyodide (provisional) |

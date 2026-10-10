@@ -130,6 +130,10 @@
       "description": "Qué pasa al vencer un plazo: una jugada legal al azar, pasar (si se puede; si no, al azar), un bot juega por el asiento el resto de la partida, o el asiento abandona.",
       "enum": ["random", "pass", "bot", "forfeit"]
     },
+    "SpectatorView": {
+      "description": "Qué ven los espectadores: lo público, o todo (como en una retransmisión de póquer; conviene con retardo).",
+      "enum": ["public", "omniscient"]
+    },
     "BotKind": { "description": "Bots que ejecuta el propio servidor.", "enum": ["random", "first"] },
     "RoomSettings": {
       "type": "object",
@@ -138,6 +142,7 @@
         "clock",
         "on_timeout",
         "spectators",
+        "spectator_view",
         "spectator_delay",
         "bot_delay",
         "private"
@@ -148,6 +153,7 @@
         "clock": { "$ref": "#/$defs/Clock" },
         "on_timeout": { "$ref": "#/$defs/OnTimeout" },
         "spectators": { "type": "boolean" },
+        "spectator_view": { "$ref": "#/$defs/SpectatorView" },
         "spectator_delay": { "type": "number", "minimum": 0, "maximum": 3600 },
         "bot_delay": { "type": "number", "minimum": 0, "maximum": 60 },
         "private": { "type": "boolean" }
@@ -161,6 +167,7 @@
         "clock": { "$ref": "#/$defs/Clock" },
         "on_timeout": { "$ref": "#/$defs/OnTimeout" },
         "spectators": { "type": "boolean" },
+        "spectator_view": { "$ref": "#/$defs/SpectatorView" },
         "spectator_delay": { "type": "number", "minimum": 0, "maximum": 3600 },
         "bot_delay": { "type": "number", "minimum": 0, "maximum": 60 },
         "private": { "type": "boolean" }
@@ -380,20 +387,30 @@
     },
 
     "Hello": {
-      "description": "Primer mensaje de cada conexión. Con `token`, retoma la sesión (reconexión): el servidor reenvía la sala y las actualizaciones posteriores a `last_seq`.",
+      "description": "Primer mensaje de cada conexión. Con `token`, retoma la sesión (reconexión): el servidor reenvía la sala y la partida; con `resume`, solo las actualizaciones que faltan.",
       "type": "object",
       "required": ["client"],
       "additionalProperties": false,
       "properties": {
         "client": { "$ref": "#/$defs/ClientInfo" },
         "token": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "last_seq": { "type": "integer", "minimum": -1 },
+        "resume": { "$ref": "#/$defs/Resume" },
         "legal_limit": {
           "description": "Cuántas acciones legales enumerar como mucho en cada update (por defecto 256); por encima, construcción progresiva.",
           "type": "integer",
           "minimum": 0,
           "maximum": 20000
         }
+      }
+    },
+    "Resume": {
+      "description": "Última actualización recibida antes de perder la conexión.",
+      "type": "object",
+      "required": ["match", "seq"],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "type": "string" },
+        "seq": { "type": "integer", "minimum": 0 }
       }
     },
     "Join": {
@@ -616,6 +633,7 @@
             "not_host",
             "invalid_token",
             "wrong_state",
+            "invalid_params",
             "rate_limited",
             "replaced",
             "internal"
