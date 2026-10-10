@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Catálogo de juegos de un servidor: los que se pueden hospedar por su id.
 
-Se carga desde archivos `.game` (compilados), `.ir.json` o directorios (todos los `.game` de cada
-paquete y los `.ir.json` sueltos). Un `.game` con varios juegos aporta todos.
+Se carga desde archivos `.game` (compilados), `.ir.json` o directorios. De un paquete de juego
+(un directorio con `game.toml`) se carga su archivo principal; de otros directorios, los paquetes
+que contienen y los `.game` e `.ir.json` sueltos. Un `.game` con varios juegos aporta todos.
 """
 
 from __future__ import annotations
@@ -58,12 +59,20 @@ def game_info(game: Game) -> dict[str, Any]:
 def load_games(path: Path) -> list[Game]:
     """Los juegos de un archivo o directorio. `CatalogError` si alguno no compila."""
     if path.is_dir():
-        from gamehub.packages import find_files
+        from gamehub.packages import MANIFEST, SKIPPED_DIRS, PackageError, load_manifest
 
-        files = find_files(path, ".game") + find_files(path, ".ir.json")
+        if (path / MANIFEST).is_file():
+            # De un paquete, su juego principal (no los de sus tests o sus módulos).
+            try:
+                return load_games(load_manifest(path).entry_path)
+            except PackageError as exc:
+                raise CatalogError(f"{path}: {exc}") from None
         games: list[Game] = []
-        for file in files:
-            games += load_games(file)
+        for child in sorted(path.iterdir()):
+            if child.name in SKIPPED_DIRS or child.name.startswith("."):
+                continue
+            if child.is_dir() or child.suffix == ".game" or child.name.endswith(".ir.json"):
+                games += load_games(child)
         return games
     if path.name.endswith(".ir.json"):
         try:

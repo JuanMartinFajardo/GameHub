@@ -136,6 +136,25 @@ async function playThroughUi(
   return clicks;
 }
 
+/** Los paquetes del catálogo (games/): un juego por paquete. */
+const CATALOG = [
+  "battle-of-the-sexes",
+  "chicken",
+  "connect-four",
+  "dudo",
+  "iterated-pd",
+  "kuhn-poker",
+  "leduc-poker",
+  "matching-pennies",
+  "mentiroso",
+  "nim",
+  "prisoners-dilemma",
+  "rock-paper-scissors",
+  "stag-hunt",
+  "tictactoe",
+  "two-by-two",
+];
+
 let server: RunningServer;
 let games: GameInfo[] = [];
 
@@ -150,26 +169,10 @@ describe.skipIf(!serverAvailable)("todo el catálogo con la UI genérica", () =>
   });
 
   it("el servidor tiene los juegos del catálogo", () => {
-    expect(games.length).toBeGreaterThanOrEqual(16);
+    expect(games.map((g) => g.id).sort()).toEqual(CATALOG);
   });
 
-  it.each([
-    "battle-of-the-sexes",
-    "chicken",
-    "connect-four",
-    "dudo",
-    "iterated-pd",
-    "kuhn-poker",
-    "leduc-poker",
-    "matching-pennies",
-    "mentiroso",
-    "nim",
-    "prisoners-dilemma",
-    "rock-paper-scissors",
-    "stag-hunt",
-    "tictactoe",
-    "two-by-two",
-  ])(
+  it.each(CATALOG)(
     "%s se juega entero solo con la UI genérica",
     async (id) => {
       const info = games.find((g) => g.id === id);
