@@ -5,7 +5,7 @@
  * pulsando la interfaz.
  */
 
-import { createRoom, endpoints, saveSession } from "@gamehub/client";
+import { createRoom, endpoints, GameClient, saveSession } from "@gamehub/client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
@@ -75,5 +75,28 @@ describe.skipIf(!serverAvailable)("una sala con la app", () => {
     await screen.findByText("Resultado", undefined, { timeout: 10_000 });
     expect(screen.getByRole("button", { name: "Revancha" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Ver la partida" })).toBeTruthy();
+  }, 60_000);
+
+  it("se mira una partida de dos bots como espectador", async () => {
+    const created = await createRoom(server.url, { game: "tictactoe", name: "Anfitrión" });
+    // El anfitrión pone dos bots lentos: la partida empieza sola.
+    const host = new GameClient({ server: server.url, token: created.token, heartbeat: 0 });
+    await host.connect();
+    host.configure({ settings: { bot_delay: 0.2 } });
+    host.setSeat(0, "bot", { bot: "random" });
+    host.setSeat(1, "bot", { bot: "first" });
+    try {
+      localStorage.clear();
+      localStorage.setItem("gamehub:locale", "es");
+      history.pushState(null, "", `/r/${created.code}`);
+      render(<PlayApp server={server.url} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Mirar" }, { timeout: 10_000 }));
+      // Se ve la partida (sin poder jugar) y su final.
+      await screen.findByText(/Turno de Bot|Partida terminada/, undefined, { timeout: 20_000 });
+      expect(screen.queryAllByRole("button", { name: /^Casilla/ })).toHaveLength(0);
+      await screen.findByText("Resultado", undefined, { timeout: 30_000 });
+    } finally {
+      host.close();
+    }
   }, 60_000);
 });
