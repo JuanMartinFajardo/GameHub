@@ -7,6 +7,7 @@ state = game.new_state()
 state = state.apply_action(0, state.legal_actions(0)[4])
 """
 
+from gamehub.engine.env import PUBLIC
 from gamehub.engine.errors import (
     EngineError,
     IllegalAction,
@@ -20,6 +21,7 @@ from gamehub.engine.state import PASS, Action, State, Status, Step
 
 __all__ = [
     "PASS",
+    "PUBLIC",
     "Action",
     "EngineError",
     "Game",

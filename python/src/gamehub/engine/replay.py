@@ -9,11 +9,16 @@ Formato `gamehub-replay/0.1`:
       "num_players": 3, "params": {…}, "seed": 7,
       "steps": [{"chance": [sorteos…]}, {"seat": 0, "action": {"name": …, "args": {…}}}, …],
       "digests": ["…", …],          # huella del estado tras la preparación y tras cada paso
-      "result": {"node": "End", "payoffs": [1, 0, 0]}
+      "result": {"node": "End", "payoffs": [1, 0, 0], "ranking": [1, 2, 2]}
     }
 
 Los sorteos de azar se guardan explícitamente: un replay no depende del RNG, aunque `seed`
 permite comprobar además que el azar salió de PCG32 con esa semilla.
+
+Campos opcionales que añade el servidor de partidas (Fase 3): `players` (nombre y tipo de cada
+asiento), `fairness` (azar verificable, ver `gamehub.engine.fairness`) y, en `result`, `reason`
+(`terminal`, `forfeit` o `aborted`) y `forfeited` (asientos que abandonaron, en orden). Una partida
+que no llega a un nodo terminal no tiene `payoffs`.
 """
 
 from __future__ import annotations
@@ -24,6 +29,7 @@ from typing import Any
 
 from gamehub.engine.errors import EngineError
 from gamehub.engine.game import Game
+from gamehub.engine.rng import Pcg32
 from gamehub.engine.state import State
 from gamehub.engine.values import to_json
 
@@ -40,14 +46,7 @@ def record(state: State, seed: int | None = None, *, game: Game | None = None) -
     root = states[0]
     defn = root.game
     ir = game.ir if game is not None else defn.ir
-    steps: list[dict[str, Any]] = []
-    for st in states[1:]:
-        step = st.step
-        if step.kind == "chance":
-            steps.append({"chance": list(step.outcome or ())})
-        else:
-            assert step.action is not None
-            steps.append({"seat": step.seat, "action": step.action.to_json()})
+    steps = [step_json(st) for st in states[1:]]
     params = {k: to_json(v) for k, v in root.params.items() if k != "num_players"}
     data: dict[str, Any] = {
         "format": FORMAT,
@@ -68,8 +67,21 @@ def record(state: State, seed: int | None = None, *, game: Game | None = None) -
     return data
 
 
-def replay(game: Game, data: dict[str, Any], *, verify: bool = True) -> State:
-    """Re-simula un replay. Con `verify`, comprueba el hash de reglas y la huella de cada paso."""
+def step_json(state: State) -> dict[str, Any]:
+    """El paso que llevó a `state`, como aparece en `steps`."""
+    step = state.step
+    if step.kind == "chance":
+        return {"chance": list(step.outcome or ())}
+    assert step.action is not None
+    return {"seat": step.seat, "action": step.action.to_json()}
+
+
+def replay(
+    game: Game, data: dict[str, Any], *, verify: bool = True, rng: Pcg32 | None = None
+) -> State:
+    """Re-simula un replay. Con `verify`, comprueba el hash de reglas y la huella de cada paso.
+    Con `rng`, comprueba además que cada resultado de azar es el que sale de ese generador (azar
+    verificable): se muestrea en cada punto de azar, en orden, como hace quien juega la partida."""
     if data.get("format") != FORMAT:
         raise ReplayMismatch(f"formato desconocido: {data.get('format')!r}")
     if verify and data["game"]["rules_hash"] != game.rules_hash:
@@ -79,15 +91,21 @@ def replay(game: Game, data: dict[str, Any], *, verify: bool = True) -> State:
     _check(state, digests, 0)
     for i, step in enumerate(data["steps"], start=1):
         if "chance" in step:
-            state = state.apply_chance(tuple(step["chance"]))
+            outcome = tuple(step["chance"])
+            if rng is not None and state.sample_chance(rng) != outcome:
+                from gamehub.engine.fairness import FairnessError
+
+                raise FairnessError(f"el azar del paso {i} no es el que da la semilla")
+            state = state.apply_chance(outcome)
         else:
             seat = step["seat"]
             state = state.apply_action(seat, state.decode_action(seat, step["action"]))
         _check(state, digests, i)
-    if verify and "result" in data:
+    expected = (data.get("result") or {}).get("payoffs")
+    if verify and expected is not None:
         payoffs = [to_json(p) for p in state.payoffs] if state.payoffs is not None else None
-        if payoffs != data["result"]["payoffs"]:
-            raise ReplayMismatch(f"pagos distintos: {payoffs} ≠ {data['result']['payoffs']}")
+        if payoffs != expected:
+            raise ReplayMismatch(f"pagos distintos: {payoffs} ≠ {expected}")
     return state
 
 

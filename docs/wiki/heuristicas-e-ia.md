@@ -41,14 +41,20 @@ genéticos; la arena mide si un ajuste mejora de verdad (con SPRT).
 | Aprendido | PPO, DQN, AlphaZero, NFSP, Deep CFR | Fase 11 |
 | LLM | Lee las reglas autogeneradas y la observación en texto | Fase 11 |
 
-Interfaz común (Python; equivalentes en C++ y TS):
+Interfaz común (Python; equivalentes en C++ y TS), implementada en la Fase 3 y **la misma en
+proceso y por la red** ([ADR-043](decisiones.md)):
 
 ```python
 class Agent:
-    def reset(self, game_info, seat, params): ...
-    def observe(self, observation): ...                 # cada paso (públ. + privada)
-    def act(self, observation, legal, clock) -> Action: ...
+    def act(self, observation, legal) -> Action: ...    # obligatorio
+    def reset(self, observation): ...                   # opcional: al empezar cada partida
+    def observe(self, observation): ...                 # opcional: cuando no le toca
+    def end(self, result): ...                          # opcional: al terminar
 ```
+
+`observation` tiene `seat`, `view` y `events` (y, por la red, `clock` y `game`); `legal` son las
+acciones legales como `Action`. `gamehub bot run agente.py --room K7F-Q2P` juega con un archivo
+que define `make_agent(game, seat)`, una clase `Agent` o una función `act`.
 
 ## 3. Arena
 

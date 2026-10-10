@@ -325,27 +325,51 @@ def to_json(v: Any) -> Any:
     """Valor → JSON. Los valores en tiempo de ejecución se autodescriben, así que no hace falta
     el tipo: enums como su nombre, structs como objetos, listas/tuplas/casillas/per_player como
     arrays, conjuntos en orden canónico, mapas como pares, zonas como {size, items}, racionales no
-    enteros como "n/d"."""
-    if v is None or isinstance(v, bool | int | str):
+    enteros como "n/d".
+
+    Despacha por el tipo exacto (es el camino caliente al enumerar miles de acciones): comprobar
+    `isinstance(v, Fraction)` pasa por la maquinaria de las clases abstractas y es lento."""
+    kind = type(v)
+    if kind is int or kind is str or kind is bool or v is None:
         return v
-    if isinstance(v, Fraction):
-        v = norm_num(v)
-        return v if isinstance(v, int) else f"{v.numerator}/{v.denominator}"
-    if isinstance(v, EnumValue):
-        return v.name
-    if isinstance(v, StructValue):
-        return {k: to_json(x) for k, x in v.fields}
-    if isinstance(v, tuple):
-        return [to_json(x) for x in v]
-    if isinstance(v, SetValue):
-        return [to_json(x) for x in v.items]
-    if isinstance(v, MapValue):
-        return [[to_json(k), to_json(x)] for k, x in v.items]
-    if isinstance(v, Zone):
-        return {"size": len(v), "items": [to_json(i.value) for i in v.items]}
-    if isinstance(v, Grid):
-        return [[to_json(x) for x in row] for row in v.rows()]
-    raise TypeError(f"valor desconocido: {v!r}")
+    convert = _TO_JSON.get(kind)
+    if convert is None:
+        raise TypeError(f"valor desconocido: {v!r}")
+    return convert(v)
+
+
+def to_json_shared(v: Any, memo: dict[int, Any]) -> Any:
+    """Como `to_json`, pero reutiliza la conversión de cada objeto ya visto (por identidad) en
+    `memo`. Para listas grandes que comparten elementos (las acciones legales de Mentiroso son
+    miles de subconjuntos de las mismas cartas). El resultado comparte objetos JSON entre sí: solo
+    para serializarlo, no para modificarlo. `memo` debe vivir menos que los valores."""
+    kind = type(v)
+    if kind is int or kind is str or kind is bool or v is None:
+        return v
+    if kind is tuple:
+        return [to_json_shared(x, memo) for x in v]
+    key = id(v)
+    found = memo.get(key)
+    if found is None:
+        found = memo[key] = to_json(v)
+    return found
+
+
+def _fraction_json(v: Fraction) -> Any:
+    n = norm_num(v)
+    return n if isinstance(n, int) else f"{n.numerator}/{n.denominator}"
+
+
+_TO_JSON: dict[type, Any] = {
+    Fraction: _fraction_json,
+    EnumValue: lambda v: v.name,
+    StructValue: lambda v: {k: to_json(x) for k, x in v.fields},
+    tuple: lambda v: [to_json(x) for x in v],
+    SetValue: lambda v: [to_json(x) for x in v.items],
+    MapValue: lambda v: [[to_json(k), to_json(x)] for k, x in v.items],
+    Zone: lambda v: {"size": len(v), "items": [to_json(i.value) for i in v.items]},
+    Grid: lambda v: [[to_json(x) for x in row] for row in v.rows()],
+}
 
 
 def _as_list(j: Any) -> list[Any]:

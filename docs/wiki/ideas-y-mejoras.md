@@ -12,15 +12,15 @@
 | 4 | **Fugas de información sutiles** | Handles opacos, re-anonimizar al barajar, orden canónico, aviso si la legalidad depende de datos ocultos | [Modelo §3.4](modelo-formal.md) |
 | 5 | **Asiento ≠ participante** | Las reglas hablan de asientos; humanos/bots/espectadores los ocupan | [Protocolo §2](protocolo.md) |
 | 6 | **Simultaneidad real e interrupciones** | Nodos `simultaneous` y `window` (¡Mentiroso!, ¡UNO!, reclamar en Mahjong) | [Modelo §3.5](modelo-formal.md) |
-| 7 | **Tiempo** | Relojes, plazos, `on_timeout`; juegos de velocidad con marca de tiempo del servidor | [Protocolo §7](protocolo.md) |
+| 7 | **Tiempo** | Relojes, plazos, `on_timeout`; juegos de velocidad con marca de tiempo del servidor | [Protocolo §9](protocolo.md) |
 | 8 | **Parámetros y variantes** | `params` con validaciones; nº de jugadores como rango | [Lenguaje](lenguaje-game.md) |
 | 9 | **Reglas que dependen del historial** | Rasgos de historial declarados (triple repetición) manteniendo el estado markoviano | [Modelo §3.7](modelo-formal.md) |
 | 10 | **Reproducibilidad** | Determinismo total, semillas, replays, notación universal de posición | [Modelo §4](modelo-formal.md) |
-| 11 | **Acciones con varios parámetros** | Construcción progresiva (origen → destino → promoción) | [Protocolo §5](protocolo.md) |
+| 11 | **Acciones con varios parámetros** | Construcción progresiva (origen → destino → promoción) | [Protocolo §6](protocolo.md) |
 | 12 | **Terminación** | Detección estática de bucles sin progreso; `max_steps` | [Modelo §7](modelo-formal.md) |
 | 13 | **Tests de reglas** | Bloques `test`, invariantes, fuzzing, trazas doradas | [Arquitectura §5](arquitectura.md) |
 | 14 | **¿Qué versión de las reglas?** | Hash de reglas en todo artefacto (bot, replay, análisis, rating) | [IR §5](ir.md) |
-| 15 | **Meta-acciones de sala** | Deshacer, ofrecer tablas, pausar, abandonar: fuera de las reglas, en el protocolo | [Protocolo §4](protocolo.md) |
+| 15 | **Meta-acciones de sala** | Deshacer, ofrecer tablas, pausar, abandonar: fuera de las reglas, en el protocolo (abandonar, implementado en F3; el resto, pendiente) | [Protocolo §9](protocolo.md) |
 | 16 | **Seguridad** | Reglas = datos; plugins puros en sandbox; servidor autoritativo | [Arquitectura §6](arquitectura.md) |
 | 17 | **Propiedad intelectual** | Reglamentos y arte propios; cuidado con marcas | [Hub §10](hub.md) |
 

@@ -18,21 +18,26 @@ s.active_seats, s.legal_actions(0)                         # (0,), [check, bet]
 s.options(0), s.options(0, "bet", {})                      # construcción progresiva
 s = s.apply_action(0, Action.of("bet"))                    # devuelve un estado NUEVO
 s.view(1), s.events(1)                                     # lo que ve el asiento 1
+s.view(PUBLIC), s.events(PUBLIC)                           # lo que ve un espectador (F3)
 s.information_state(1)                                     # clave de su conjunto de información
 s.snapshot(), s.digest()                                   # configuración canónica y su huella
 s.illegal_reason(1, Action.of("call"))                     # por qué no es legal (o None)
 s.evaluate(["len", ["var", "moves"]])                      # una expresión de la IR (tests, herramientas)
 s.edited([["assign", ["var", "turn"], ["const", 1]]])      # copia editada fuera del flow (los `set` de los tests)
+s.iter_legal_actions(0)                                    # las acciones legales de una en una (F3)
+s.ranking()                                                # puesto de cada asiento al terminar (F3)
+game.decode_action(s.node, {"name": "bet", "args": {}})    # acción desde JSON sin el estado (F3)
 ```
 
 `evaluate`, `edited` e `illegal_reason` (Fase 2) sirven a `gamehub test` y a las herramientas; no
-forman parte de las reglas ni de las trazas de conformidad. Un juego también se carga desde Nomos:
+forman parte de las reglas ni de las trazas de conformidad. `PUBLIC`, `iter_legal_actions`,
+`ranking` y `Game.decode_action` (Fase 3) los usan el servidor de partidas y los clientes. Un juego también se carga desde Nomos:
 `gamehub.lang.compiler.load_nomos(Path("games/nim/nim.game"))`.
 
 ```bash
 gamehub play  JUEGO.game|JUEGO.ir.json --seats human,random [--param k=v] [--save-replay x.ghr.json]
 gamehub fuzz  JUEGO.game|JUEGO.ir.json --games 100000 [--players n] [--failures DIR]
-gamehub replay PARTIDA.ghr.json [--seat n]
+gamehub replay PARTIDA.ghr.json [--seat n]                 # también comprueba el azar verificable
 gamehub conformance --check | --write
 ```
 
@@ -75,7 +80,8 @@ depende del hash de Python.
 
 - **RNG:** PCG32 (XSH-RR 64/32), idéntico a `pcg32_srandom_r(seed, stream)` /
   `pcg32_random_r` / `pcg32_boundedrand_r` de la implementación de referencia en C (verificado con
-  su vector de prueba). Flujos: azar de la partida = 1; agente del asiento *s* = 1000 + *s*.
+  su vector de prueba). Flujos: azar de la partida = 1; decisiones del servidor de partidas (la
+  jugada aleatoria al vencer un plazo) = 2; agente del asiento *s* = 1000 + *s*.
 - **Sorteos por sentencia:** `roll(n)` → `uniform(n) + 1`; `random_choice(xs)` →
   `uniform(len(xs))` sobre el orden canónico; `shuffle` → Fisher–Yates desde el final
   (*i* = n−1 … 1, *j* = `uniform(i+1)`); `sample(dist)` → con denominador común *D* de las
@@ -146,6 +152,14 @@ depende del hash de Python.
 | `reward` | asiento y cantidad | todos |
 | `end` | pagos | todos |
 
+- **Observador público** (`PUBLIC`, Fase 3): lo que ve un espectador, que no ocupa ningún asiento.
+  Las políticas se evalúan con un `viewer` que no coincide con ningún `owner`: `owner` nunca le
+  deja ver, `all` sí, y un predicado que no se puede evaluar sin asiento (`team[viewer] == …`)
+  cuenta como falso. Así `@visible(viewer != owner)` (Hanabi) sí le muestra las cartas. De los
+  eventos ve los públicos, lo que se revela **a todos** los asientos, las acciones según su
+  visibilidad para quien no es el actor y los movimientos según la visibilidad de las zonas.
+- **Puesto final** (`ranking`): 1 = primero y los empates comparten puesto; sale del `rank` del
+  nodo terminal si lo declara y, si no, de los pagos (más pago, mejor puesto).
 - **Estado de información** (`information_state`): SHA-256 de la secuencia de (vista, eventos) de
   ese asiento en todos los estados desde el inicio: recuerdo perfecto. Dos historias son
   indistinguibles para un asiento si y solo si su clave coincide (verificado en Kuhn).
@@ -162,7 +176,15 @@ escritos a mano (`tests/test_build.py`).
   `pending` y `payoffs`. **Huella** (`digest`) = SHA-256 de la instantánea.
 - **Replay** `gamehub-replay/0.1` (`.ghr.json`): juego (id, versión, hash de reglas), jugadores,
   parámetros, semilla, pasos (`{"chance": [sorteos]}` o `{"seat", "action"}`), huella tras cada
-  paso y resultado. La re-simulación comprueba hash y huellas.
+  paso y resultado. La re-simulación comprueba hash y huellas. Campos opcionales del servidor de
+  partidas (F3): `players` (nombre y tipo de cada asiento), `fairness` (azar verificable) y, en
+  `result`, `ranking`, `reason` (`terminal`, `forfeit`, `aborted`) y `forfeited`; una partida que
+  no llega a un terminal no tiene `payoffs`.
+- **Azar verificable** (`gamehub.engine.fairness`, esquema `gamehub-fair/1`): el servidor publica
+  `SHA-256("gamehub-fair/1:commit:" + server_seed)` antes de la partida; la semilla de la partida
+  es SHA-256 del JSON canónico `{scheme, server_seed, client_seeds}` (primeros 8 bytes, 53 bits);
+  al terminar se revela `server_seed`. `gamehub replay` comprueba el compromiso, la semilla y que
+  cada resultado de azar sea el que da PCG32 con ella.
 - **Trazas de conformidad**: replays con semillas fijas en `spec/conformance/<juego>/`.
 
 ## 10. Rendimiento (Python, Apple Silicon)

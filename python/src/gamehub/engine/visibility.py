@@ -3,7 +3,9 @@
 
 Una política decide si el asiento `viewer` ve una ubicación. Atajos: `all`, `none`, `owner`
 (el observador es el dueño de la ubicación per_player); o un predicado con `viewer`, `owner` e
-`item_face_up` ligados. `viewer=None` es la vista omnisciente: lo ve todo.
+`item_face_up` ligados. `viewer=None` es la vista omnisciente: lo ve todo; `viewer=PUBLIC` es un
+espectador, que no ocupa ningún asiento: ve lo que la política permite a quien no es dueño de nada
+(un predicado que no se puede evaluar para él, como `team[viewer]`, cuenta como falso).
 
 Redacción de zonas (ADR-019):
 
@@ -17,7 +19,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from gamehub.engine.env import Env
+from gamehub.engine.env import PUBLIC, Env
+from gamehub.engine.errors import RuleError
 from gamehub.engine.expr import ExprCompiler, boolean
 from gamehub.engine.values import HIDDEN, Type, Zone, to_json
 
@@ -42,6 +45,11 @@ class Policy:
         if self.never:
             return False
         assert self.predicate is not None
+        if env.viewer == PUBLIC:
+            try:
+                return self.predicate(env)
+            except RuleError:
+                return False
         return self.predicate(env)
 
 

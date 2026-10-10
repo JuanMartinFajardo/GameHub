@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -185,7 +186,351 @@ def _parser() -> argparse.ArgumentParser:
     conformance = commands.add_parser("conformance", help="trazas doradas de spec/conformance")
     _check_or_write(conformance)
     conformance.set_defaults(handler=_conformance)
+
+    serve = commands.add_parser(
+        "serve", help="servidor de partidas (salas por WebSocket) para la LAN o internet"
+    )
+    serve.add_argument(
+        "games",
+        nargs="*",
+        type=Path,
+        metavar="JUEGO",
+        help="juegos que se pueden hospedar: .game, .ir.json o directorios (p. ej. games/)",
+    )
+    _server_options(serve)
+    serve.add_argument("--allow-upload", action="store_true", help="admitir salas con IR subida")
+    serve.set_defaults(handler=_serve)
+
+    host = commands.add_parser(
+        "host", help="abre una sala de un juego en la LAN y juega en ella desde la terminal"
+    )
+    host.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    host.add_argument("--name", help="juego a usar si el archivo .game contiene varios")
+    host.add_argument("--player", help="tu nombre en la sala (por defecto, tu usuario)")
+    host.add_argument("--players", type=int, help="nº de asientos (por defecto, el mínimo)")
+    host.add_argument(
+        "--param", action="append", default=[], metavar="NOMBRE=VALOR", help="opción del juego"
+    )
+    host.add_argument("--bots", type=int, default=0, help="bots del servidor en los últimos N")
+    host.add_argument(
+        "--clock", default="none", help="none, move:SEGUNDOS o match:SEGUNDOS+INCREMENTO"
+    )
+    host.add_argument(
+        "--on-timeout", choices=["random", "pass", "bot", "forfeit"], default="random"
+    )
+    host.add_argument("--omniscient", action="store_true", help="los espectadores lo ven todo")
+    host.add_argument("--delay", type=float, default=0, help="retardo de los espectadores (s)")
+    host.add_argument("--private", action="store_true", help="no listar la sala")
+    _server_options(host)
+    host.add_argument("--no-play", action="store_true", help="solo servir la sala, sin jugar")
+    host.add_argument("--no-mdns", action="store_true", help="no anunciarla en la LAN (mDNS)")
+    host.add_argument("--no-qr", action="store_true", help="no mostrar el código QR")
+    host.set_defaults(handler=_host)
+
+    join = commands.add_parser("join", help="entra en una sala para jugar desde la terminal")
+    join.add_argument("room", metavar="SALA", help="código (K7F-Q2P) o enlace de la sala")
+    join.add_argument("--server", help="servidor (por defecto, se busca en este equipo y la LAN)")
+    join.add_argument("--player", help="tu nombre en la sala (por defecto, tu usuario)")
+    join.add_argument("--seat", type=int, help="asiento que quieres (1, 2…)")
+    join.add_argument("--spectate", action="store_true", help="entrar como espectador")
+    join.set_defaults(handler=_join)
+
+    rooms = commands.add_parser("rooms", help="salas abiertas en los servidores de la LAN")
+    rooms.add_argument("--server", help="mirar solo este servidor")
+    rooms.add_argument("--timeout", type=float, default=2.0, help="segundos buscando (mDNS)")
+    rooms.set_defaults(handler=_rooms)
+
+    load = commands.add_parser("loadtest", help="prueba de carga del servidor de partidas")
+    load.add_argument("game", type=Path, nargs="?", metavar="JUEGO", help=".game o .ir.json")
+    load.add_argument("--server", help="servidor ya en marcha (por defecto, uno propio)")
+    load.add_argument("--game-id", help="id del juego en ese servidor")
+    load.add_argument("--rooms", type=int, default=100)
+    load.add_argument("--players", type=int, default=2)
+    load.add_argument("--matches", type=int, default=1, help="partidas seguidas por sala")
+    load.add_argument("--seed", type=int, default=0)
+    load.set_defaults(handler=_loadtest)
+
+    bot = commands.add_parser("bot", help="bots que juegan en salas de un servidor de partidas")
+    bot_commands = bot.add_subparsers(dest="bot_command", required=True)
+    bot_run = bot_commands.add_parser("run", help="un bot entra en una sala y juega")
+    bot_run.add_argument(
+        "agent", metavar="AGENTE", help="random, first o un archivo .py con el agente"
+    )
+    bot_run.add_argument(
+        "--room", required=True, metavar="SALA", help="código de sala (K7F-Q2P) o enlace"
+    )
+    bot_run.add_argument("--server", help="servidor si la sala va por código (por defecto, este)")
+    bot_run.add_argument("--name", help="nombre visible del bot")
+    bot_run.add_argument("--seat", type=int, help="asiento que ocupar (por defecto, el primero)")
+    bot_run.add_argument(
+        "--matches", type=int, default=1, help="partidas que jugar (0 = hasta que cierre la sala)"
+    )
+    bot_run.add_argument("--seed", type=int, help="semilla del agente (random)")
+    bot_run.set_defaults(handler=_bot_run)
+
+    protocol = commands.add_parser("protocol", help="protocolo de partidas (spec/protocol)")
+    protocol_commands = protocol.add_subparsers(dest="protocol_command", required=True)
+    types = protocol_commands.add_parser(
+        "types", help="tipos de Python generados desde spec/protocol/v1/protocol.schema.json"
+    )
+    _check_or_write(types)
+    types.set_defaults(handler=_protocol_types)
     return parser
+
+
+def _server_options(parser: argparse.ArgumentParser) -> None:
+    from gamehub.server import DEFAULT_PORT
+
+    parser.add_argument("--host", default="0.0.0.0", help="interfaz (por defecto, todas)")
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT, help=f"(por defecto {DEFAULT_PORT})"
+    )
+    parser.add_argument(
+        "--db",
+        help="base de datos SQLite de las partidas (por defecto ~/.local/share/gamehub/"
+        "server.sqlite3; ':memory:' para no guardar nada)",
+    )
+    parser.add_argument("--server-name", default="GameHub", help="nombre visible del servidor")
+
+
+def _store(db: str | None) -> Any:
+    from gamehub.server import default_db
+    from gamehub.server.store import MemoryStore, SqliteStore
+
+    if db == ":memory:":
+        return MemoryStore()
+    return SqliteStore(Path(db) if db else default_db())
+
+
+def _serve(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.server.catalog import Catalog, CatalogError
+    from gamehub.server.lan import base_url
+    from gamehub.server.rooms import Rooms
+    from gamehub.server.serve import running, until_stopped
+
+    try:
+        catalog = Catalog.load(args.games)
+    except CatalogError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    store = _store(args.db)
+    rooms = Rooms(catalog, store, allow_upload=args.allow_upload, name=args.server_name)
+
+    async def main() -> None:
+        async with running(rooms, args.host, args.port) as (_, server):
+            url = base_url(args.host, server.port)
+            print(f"Servidor de partidas en {url}", flush=True)
+            games = ", ".join(sorted(catalog.games)) or "ninguno"
+            print(f"  juegos: {games}" + (" · admite subir juegos" if args.allow_upload else ""))
+            where = getattr(store, "path", None)
+            print(f"  partidas guardadas en {where}" if where else "  partidas solo en memoria")
+            recovered = getattr(store, "recovered", 0)
+            if recovered:
+                print(f"  {recovered} partida(s) a medias de la última vez, cerradas como anuladas")
+            print("  Ctrl+C para parar", flush=True)
+            await until_stopped()
+        print("Servidor parado.")
+
+    try:
+        asyncio.run(main())
+    except OSError as exc:
+        print(f"error: no se puede abrir el servidor en el puerto {args.port}: {exc}")
+        return 1
+    finally:
+        store.close()
+    return 0
+
+
+def _say(text: str) -> None:
+    """Imprime y vacía la salida: los comandos de red escriben a la vez que esperan, y con la
+    salida redirigida (una tubería) el búfer retendría las líneas."""
+    print(text, flush=True)
+
+
+def _player_name(given: str | None) -> str:
+    if given:
+        return given
+    import getpass
+
+    with contextlib.suppress(Exception):
+        return getpass.getuser().capitalize()[:32]
+    return "Anónimo"
+
+
+def _clock(text: str) -> dict[str, Any]:
+    kind, _, rest = text.partition(":")
+    try:
+        if kind == "none" and not rest:
+            return {"kind": "none"}
+        if kind == "move":
+            return {"kind": "move", "seconds": float(rest)}
+        if kind == "match":
+            initial, _, increment = rest.partition("+")
+            return {"kind": "match", "initial": float(initial), "increment": float(increment or 0)}
+    except ValueError:
+        pass
+    raise SystemExit(f"reloj no válido: {text} (none, move:30 o match:300+5)")
+
+
+def _host(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.client import ClientError
+    from gamehub.client.play import host
+    from gamehub.client.terminal import stdin_lines
+
+    game = _load_game(args.game, args.name)
+    settings = {
+        "clock": _clock(args.clock),
+        "on_timeout": args.on_timeout,
+        "spectator_view": "omniscient" if args.omniscient else "public",
+        "spectator_delay": args.delay,
+        "private": args.private,
+    }
+    store = _store(args.db)
+
+    async def main() -> int:
+        return await host(
+            game,
+            player=_player_name(args.player),
+            lines=None if args.no_play else stdin_lines(),
+            out=_say,
+            store=store,
+            listen=args.host,
+            port=args.port,
+            players=args.players,
+            params=_params(args.param),
+            settings=settings,
+            bots=args.bots,
+            mdns=not args.no_mdns,
+            qr=not args.no_qr,
+        )
+
+    try:
+        return asyncio.run(main())
+    except ClientError as exc:
+        print(f"error: {exc.message}", file=sys.stderr)
+        return 1
+    except OSError as exc:
+        print(f"error: no se puede abrir el servidor en el puerto {args.port}: {exc}")
+        return 1
+    finally:
+        store.close()
+
+
+def _join(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.client import ClientError
+    from gamehub.client.play import join
+    from gamehub.client.terminal import stdin_lines
+
+    async def main() -> int:
+        return await join(
+            args.room,
+            server=args.server,
+            player=_player_name(args.player),
+            role="spectator" if args.spectate else "player",
+            seat=None if args.seat is None else args.seat - 1,
+            lines=stdin_lines(),
+            out=_say,
+        )
+
+    try:
+        return asyncio.run(main())
+    except ClientError as exc:
+        print(f"error: {exc.message}", file=sys.stderr)
+        return 1
+
+
+def _rooms(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.client.play import list_rooms
+
+    return asyncio.run(list_rooms(server=args.server, timeout=args.timeout, out=_say))
+
+
+def _loadtest(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.server.catalog import Catalog
+    from gamehub.server.loadtest import run_load
+    from gamehub.server.rooms import Limits, Rooms
+    from gamehub.server.run import ServerThread
+    from gamehub.server.store import MemoryStore
+
+    def load(url: str, game_id: str) -> int:
+        print(f"Prueba de carga: {args.rooms} salas de {game_id} con {args.players} bots cada una…")
+        report = asyncio.run(
+            run_load(
+                url,
+                game_id,
+                rooms=args.rooms,
+                players=args.players,
+                matches=args.matches,
+                seed=args.seed,
+            )
+        )
+        print(report.summary())
+        return 0 if not report.failures and report.matches == args.rooms * args.matches else 1
+
+    if args.server:
+        if not args.game_id:
+            raise SystemExit("con --server hace falta --game-id")
+        return load(args.server, args.game_id)
+    if args.game is None:
+        raise SystemExit("indica el juego (archivo .game o .ir.json) o --server y --game-id")
+    game = _load_game(args.game, None)
+    limits = Limits(max_rooms=max(1000, args.rooms), rate=1000, burst=1000)
+    rooms = Rooms(Catalog([game]), MemoryStore(), limits=limits)
+    with ServerThread(rooms) as server:
+        return load(server.url, game.id)
+
+
+def _bot_run(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.client import AgentLoadError, AgentRunner, Client, ClientError, load_agent
+    from gamehub.client.play import resolve
+    from gamehub.engine import Game
+
+    try:
+        factory = load_agent(args.agent, seed=args.seed)
+    except AgentLoadError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    name = args.name or f"Bot {Path(args.agent).stem}"
+    matches = args.matches or None
+
+    async def main() -> list[dict[str, Any]]:
+        server, code = await resolve(args.room, args.server, _say)
+        async with Client(server, name=name, kind="bot", legal_limit=20_000) as client:
+            joined = await client.join(code, seat=args.seat)
+            seat = joined["session"]["seat"]
+            _say(f"{name} en la sala {code} ({server}), asiento {seat}")
+            game = Game(await client.room_ir())
+            runner = AgentRunner(client, factory, game, matches=matches, log=_say)
+            return await runner.run()
+
+    try:
+        results = asyncio.run(main())
+    except ClientError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    for result in results:
+        payoffs = result["payoffs"]
+        shown = ", ".join(str(p) for p in payoffs) if payoffs is not None else "—"
+        _say(f"partida {result['match']['number']}: {result['reason']} · pagos: {shown}")
+    return 0
+
+
+def _protocol_types(args: argparse.Namespace) -> int:
+    from gamehub.protocol.codegen import sync_types
+
+    return sync_types(write=args.write)
 
 
 def _check_or_write(parser: argparse.ArgumentParser) -> None:
@@ -293,8 +638,14 @@ def _replay(args: argparse.Namespace) -> int:
     data = load(args.file)
     game_path = args.game or examples_dir() / f"{data['game']['id']}.ir.json"
     game = _load_game(game_path, None)
+    fair = data.get("fairness")
     try:
-        final = replay(game, data)
+        if isinstance(fair, dict) and "server_seed" in fair:
+            from gamehub.engine.fairness import verify
+
+            final = verify(game, data)
+        else:
+            final = replay(game, data)
     except EngineError as exc:
         print(f"✗ {args.file}: {exc}")
         return 1
@@ -306,6 +657,8 @@ def _replay(args: argparse.Namespace) -> int:
                 print(f"[{i}] " + " | ".join(shown))
     payoffs = ", ".join(str(p) for p in (final.payoffs or ()))
     print(f"✓ {args.file}: {len(data['steps'])} pasos verificados · pagos: {payoffs or '—'}")
+    if isinstance(fair, dict) and "server_seed" in fair:
+        print("✓ azar verificado: la semilla revelada cumple el compromiso y produce cada sorteo")
     return 0
 
 
@@ -323,9 +676,19 @@ def _game_files(paths: list[Path]) -> list[Path]:
 
 
 def _load_game(path: Path, name: str | None) -> Any:
-    """Un juego desde un archivo .game (compilándolo) o .ir.json."""
+    """Un juego desde un archivo .game (compilándolo), un .ir.json o un paquete (su archivo
+    principal, según `game.toml`)."""
     from gamehub.engine import load_game
 
+    if path.is_dir():
+        from gamehub.packages import MANIFEST, PackageError, load_manifest
+
+        if not (path / MANIFEST).is_file():
+            raise SystemExit(f"{path} no es un paquete de juego (falta {MANIFEST})")
+        try:
+            path = load_manifest(path).entry_path
+        except PackageError as exc:
+            raise SystemExit(str(exc)) from None
     if path.suffix == ".game":
         from gamehub.lang.compiler import load_nomos
 

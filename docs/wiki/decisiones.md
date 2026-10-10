@@ -41,6 +41,14 @@
 | 033 | Paquetes con `game.toml` y `game.lock` (commits de git), sin registro central | Aceptada (2026-10-10, usuario) |
 | 034 | Análisis estáticos sobre la IR, situados en el texto con un mapa de fuentes | Aceptada (2026-10-10, usuario) |
 | 035 | Formato canónico al estilo Prettier; el parser admite continuar tras `=`, `requires`, `when` | Aceptada (2026-10-10, usuario) |
+| 036 | Servidor de partidas sobre Starlette + uvicorn (sin FastAPI ni pydantic); contratos en JSON Schema | Aceptada (2026-10-10, usuario) |
+| 037 | Núcleo de salas puro (sin E/S ni reloj propio) y transporte fino | Aceptada (2026-10-10, usuario) |
+| 038 | Una actualización por entrada, `seq` sin huecos y rechazo por turno vigente | Aceptada (2026-10-10, usuario) |
+| 039 | Observador público en el motor: los espectadores no ocupan asiento | Aceptada (2026-10-10, usuario) |
+| 040 | Azar verificable `gamehub-fair/1`: compromiso, semillas de los jugadores y semilla de 53 bits | Aceptada (2026-10-10, usuario) |
+| 041 | Abandonar = último puesto y un bot juega por el asiento; la partida acaba si queda uno | Aceptada (2026-10-10, usuario) |
+| 042 | LAN: puerto 7420, enlace `/r/CÓDIGO` con QR, anuncio mDNS `_gamehub._tcp` y sesiones guardadas | Aceptada (2026-10-10, usuario) |
+| 043 | Bots en red con la misma interfaz `Agent` que en proceso | Aceptada (2026-10-10, usuario) |
 
 ---
 
@@ -260,3 +268,82 @@
   `when` y `clave:`, de modo que todo lo que escribe el formateador se vuelve a leer igual
   (probado formateando todos los juegos a anchos de 24 a 100 columnas).
 
+### ADR-036 — Servidor sobre Starlette + uvicorn
+- **Contexto:** el roadmap y la arquitectura proponían FastAPI. Su valor añadido es validar con
+  pydantic y documentar con OpenAPI, pero los contratos del proyecto ya son JSON Schema (ADR-009,
+  ADR-023) y casi todo el protocolo va por WebSocket, que OpenAPI no describe.
+- **Decisión:** Starlette (la base de FastAPI) sobre uvicorn, con `websockets` como implementación
+  y como cliente. Los mensajes se validan con el esquema `spec/protocol/v1` y los tipos de Python
+  (`TypedDict`) se generan de él.
+- **Alternativas:** FastAPI (duplicaría los contratos en modelos pydantic), aiohttp (servidor y
+  cliente en uno, menos extendido).
+- **Consecuencias:** tres dependencias ligeras; una sola definición de cada mensaje para Python,
+  TypeScript (F4) y la documentación. El hub (F10) puede usar FastAPI si lo necesita.
+
+### ADR-037 — Núcleo de salas puro
+- **Decisión:** `Room`/`Match` no abren conexiones ni leen la hora: cada operación recibe `now`,
+  deja los mensajes en un buzón de salida (con su instante de entrega, para el retardo de los
+  espectadores) e indica cuándo hay que volver a llamarla (`next_wakeup`: bots, plazos). La capa
+  de transporte solo valida, entrega y programa temporizadores; todo corre en el bucle de eventos,
+  sin cerrojos.
+- **Consecuencias:** toda la semántica (turnos, relojes, bots, espectadores, abandonos,
+  reconexión) se prueba sin red y con un reloj simulado; el mismo núcleo servirá al simulador
+  del Studio y a los torneos.
+
+### ADR-038 — Actualizaciones y turnos
+- **Decisión:** cada entrada (acción, bot o plazo vencido) produce **una** actualización con la
+  acción y el azar que la sigue; `seq` numera las actualizaciones sin huecos. Un `act` se rechaza
+  por `stale_seq` solo si su `seq` es anterior al comienzo del **turno vigente** del asiento: el
+  turno sigue mientras el asiento pueda actuar, no haya actuado y no se llegue a ningún nodo.
+- **Alternativas:** rechazar cualquier `act` con un `seq` que no sea el último (rechazos
+  espurios en nodos simultáneos y ventanas, donde los envíos de otros no cambian tu decisión).
+- **Consecuencias:** la protección contra jugadas decididas con un estado viejo no molesta en
+  los nodos simultáneos; los huecos en `seq` delatan mensajes perdidos.
+
+### ADR-039 — Observador público
+- **Decisión:** el motor ofrece la vista y los eventos de un espectador (`PUBLIC`), que no ocupa
+  ningún asiento: las políticas se evalúan con un `viewer` que no coincide con ningún `owner`, y un
+  predicado que no se puede evaluar sin asiento cuenta como falso. De los eventos ve lo público y
+  lo que se revela a todos los asientos.
+- **Alternativas:** la intersección de lo que ven todos los asientos (no es lo mismo: lo que cada
+  uno ve por separado no es público).
+- **Consecuencias:** espectadores sin trampas; `@visible(viewer != owner)` (Hanabi) se ve desde
+  fuera, como en la mesa. No cambia las trazas de conformidad.
+
+### ADR-040 — Azar verificable
+- **Decisión:** esquema `gamehub-fair/1`: compromiso SHA-256 de la semilla del servidor publicado
+  en el lobby; semillas opcionales de los jugadores al declararse listos; semilla de la partida =
+  SHA-256 del JSON canónico de todo, recortada a 53 bits (exacta en JSON y JavaScript); revelación
+  al terminar; el replay lleva todo para verificarlo. El azar del servidor que no es de las reglas
+  (jugada al vencer un plazo, bots del servidor) sale de otros flujos de PCG32 de la misma semilla.
+- **Consecuencias:** nadie (ni el servidor ni un jugador) puede elegir el azar; cualquiera
+  comprueba una partida con `gamehub replay`.
+
+### ADR-041 — Abandonos
+- **Decisión:** quien abandona (rendirse, salir en partida o plazo vencido con `forfeit`) queda el
+  último y un bot juega por su asiento hasta el final; si solo queda un asiento sin abandonar, la
+  partida termina sin pagos (`reason: forfeit`).
+- **Alternativas:** terminar siempre la partida (injusto con los demás en juegos de 3 o más);
+  pausarla (bloquea a todos).
+- **Consecuencias:** las partidas de varios jugadores sobreviven a que alguien se vaya; el puesto
+  final refleja el abandono.
+
+### ADR-042 — Jugar en la LAN
+- **Decisión:** `gamehub host` levanta el servidor en el puerto 7420 de todas las interfaces y
+  comparte la sala de tres formas: el código (6 caracteres), el enlace
+  `http://IP:7420/r/CÓDIGO` (página de la sala) y su QR en la terminal; además la anuncia por mDNS
+  (`_gamehub._tcp`, con `zeroconf`) para que `gamehub join CÓDIGO` la encuentre sin escribir IPs.
+  mDNS es opcional: si la red no lo permite, el enlace basta. El cliente guarda el token de cada
+  sala para volver a ella tras cerrar la terminal.
+- **Alternativas:** solo IP y puerto (incómodo); un servidor central (no hace falta en casa).
+- **Consecuencias:** dos dependencias pequeñas (`zeroconf`, `segno` para el QR). Las pruebas de
+  mDNS dependen de la red: se ejecutan con `GAMEHUB_LAN_TESTS=1`.
+
+### ADR-043 — Bots en red con la interfaz de siempre
+- **Decisión:** un bot remoto implementa el mismo `Agent` que en proceso (`act(observation,
+  legal)`), con una observación de los mismos nombres (`seat`, `view`, `events`, más `clock` y
+  `game`) y las acciones ya decodificadas con los tipos del juego (`Action`), perezosamente. El
+  SDK resuelve la red: reconexión, acciones progresivas, `act` en un hilo para no bloquear.
+- **Consecuencias:** el mismo agente juega en la arena, en `play_match` y contra personas por la
+  red sin cambiar una línea; `gamehub bot run` carga un archivo `.py` con `make_agent`, una clase
+  `Agent` o una función `act`.

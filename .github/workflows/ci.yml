@@ -25,6 +25,8 @@ jobs:
         run: uv run pyright
       - name: Esquemas generados al día
         run: uv run gamehub ir schemas --check
+      - name: Tipos del protocolo generados al día
+        run: uv run gamehub protocol types --check
       - name: Juegos de validación
         run: uv run gamehub ir check ../spec/ir/examples/*.ir.json
       - name: Juegos y biblioteca estándar en Nomos formateados

@@ -32,6 +32,7 @@ PCG_MULT = 6364136223846793005
 
 #: Flujos (secuencias independientes) de PCG32 por propósito.
 STREAM_CHANCE = 1
+STREAM_SERVER = 2  # decisiones del servidor de partidas (p. ej. jugada al vencer un plazo)
 STREAM_AGENT_BASE = 1000  # + asiento
 
 

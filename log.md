@@ -5,6 +5,76 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-10 — Fase 3 aprobada y fusionada
+
+- Apruebas las ADR-036 a 043 y la fusión: la rama `f3/servidor-partidas` se fusiona a `main` y la
+  Fase 4 (cliente web: SDK TypeScript, UI genérica, UI kit, app para jugar) arranca en la rama
+  `f4/cliente-web`.
+- Pregunta 18 movida a respondidas.
+- Progreso global: ≈ 32 %.
+
+---
+
+## 2026-10-10 — Sesión 5: Fase 3, el servidor de partidas y el juego en red
+
+**Respuestas recibidas**: aprobar las ADR-027 a 035, fusionar F2 a `main` (hecho, `a178967`) y
+arrancar F3 en la rama `f3/servidor-partidas`.
+
+**Hecho (un commit por tarea)**
+- **Motor**: vista y eventos de un **espectador** (`PUBLIC`, no ocupa asiento; un predicado que no
+  se puede evaluar sin asiento cuenta como falso), **puesto final** (`ranking`, del `rank` del
+  terminal o de los pagos), acciones legales perezosas y decodificación sin estado.
+  **Azar verificable** `gamehub-fair/1` (compromiso, semillas de los jugadores, semilla de 53
+  bits, revelación) y `gamehub replay` que lo comprueba. Las trazas de conformidad no cambian.
+- **Protocolo v1** en JSON Schema (`spec/protocol/v1`): 15 mensajes del cliente, 11 del servidor y
+  la API REST; tipos de Python generados (`gamehub protocol types`, en CI).
+- **Servidor de partidas** (Starlette + uvicorn + websockets, ADR-036): núcleo de salas **puro**,
+  sin red ni reloj propio (ADR-037), probado con un reloj simulado. Salas con código, asientos
+  `open/reserved/human/bot`, anfitrión, configuración; una actualización por entrada con `seq` sin
+  huecos y rechazo por **turno vigente** (sin rechazos espurios en nodos simultáneos, ADR-038);
+  acciones enumeradas o progresivas; reconexión con token y `resume`; espectadores con vista
+  pública u omnisciente y retardo; bots del servidor; relojes `move`/`match` con `on_timeout`;
+  **abandonos** (último puesto y un bot termina por el asiento, ADR-041); revancha; anulación si
+  las reglas fallan; límites (tasa, tamaños, salas, conexiones) y limpieza de salas vacías.
+- **Persistencia** en SQLite: cada paso al jugarse; tras una caída, las partidas a medias se
+  cierran como anuladas con su replay verificable. `gamehub serve`.
+- **SDK cliente de Python** (reconexión automática, peticiones con respuesta) y **bots en red con
+  la misma interfaz `Agent`** que en proceso (ADR-043); `gamehub bot run agente.py --room CÓDIGO`.
+- **Juego en la LAN** (ADR-042): `gamehub host juego` (código, enlace `/r/CÓDIGO`, QR en la
+  terminal, anuncio mDNS), `gamehub join CÓDIGO|enlace` (busca la sala en la LAN; guarda la
+  sesión para volver tras cerrar la terminal), `gamehub rooms`; cliente de terminal con lobby,
+  comandos (`/listo`, `/chat`, `/bot`…), menús de jugadas, relojes, resultado y revancha.
+- **Rendimiento**: perfilando Mentiroso por red, `to_json` despacha por tipo exacto y la
+  enumeración de acciones reutiliza la conversión de cada carta (servidor ×3,7) y el cliente
+  decodifica las acciones solo cuando el agente las mira: partida de 3 bots de 52 s a ~5 s.
+  **Prueba de carga** (`gamehub loadtest`): 100 salas simultáneas, Dudo a 4 (400 conexiones)
+  ≈ 890 jugadas/s y Nim ≈ 1 300/s, sin fallos.
+- **Aceptación** con procesos reales en la red local (`tests/test_acceptance_f3.py`,
+  `GAMEHUB_LAN_TESTS=1`): cuatro `gamehub join` como cuatro ordenadores juegan Dudo en una sala
+  de `gamehub host` (dos la encuentran por mDNS, dos por el enlace); a uno se le cae la terminal en
+  su turno y vuelve; en la revancha entra un bot por el código. Cinco de cinco.
+- **Fallos encontrados y corregidos**: los ids de mensaje del cliente se repetían entre procesos
+  y el servidor descartaba como reintentos las jugadas de quien retomaba la sesión desde otra
+  terminal (lo encontró la aceptación); al retomar sin nada pendiente no llegaba ninguna
+  actualización y el cliente no sabía que era su turno; un nombre largo dejaba sin respuesta el
+  `hello`; la salida de `gamehub host` a una tubería se quedaba en el búfer; los tests escribían
+  sesiones en `~/.local/share/gamehub` (ahora, un directorio temporal).
+- Docs: `protocolo.md` reescrita (v1 implementada, rendimiento), `motor.md`, `arquitectura.md`,
+  `heuristicas-e-ia.md` (interfaz `Agent`), glosario, ADR-036 a 043; 604 tests.
+
+**Decisiones** (propuestas): ADR-036 a 043.
+
+**Pendiente de ti**: revisar las ADR-036 a 043 y dar el visto bueno para fusionar
+`f3/servidor-partidas` a `main` (pregunta 18); preguntas nuevas 19 (`on_timeout` por juego) y 20
+(jugar por internet antes del hub).
+
+**Siguiente**: F4, el cliente web (SDK TypeScript con tipos generados del mismo esquema, UI
+genérica a partir de la IR, UI kit, lobby): el **MVP jugable**.
+
+**Progreso global**: ≈ 32 %.
+
+---
+
 ## 2026-10-10 — Fase 2 aprobada y fusionada
 
 - Apruebas las ADR-027 a 035 y la fusión: la rama `f2/compilador-nomos` se fusiona a `main` y la

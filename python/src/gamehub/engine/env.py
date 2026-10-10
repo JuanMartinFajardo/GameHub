@@ -11,6 +11,12 @@ if TYPE_CHECKING:
     from gamehub.engine.rng import Draws
 
 
+#: Observador público (un espectador): no ocupa ningún asiento. Como `viewer`, no coincide con
+#: ningún `owner`; un predicado de visibilidad que no se puede evaluar para él (por ejemplo, porque
+#: usa `viewer` como índice de un asiento) cuenta como falso: no ve ese dato.
+PUBLIC = -1
+
+
 class Ctx:
     """Compartido durante una evaluación: almacén de trabajo, parámetros, azar y eventos.
 
