@@ -7,6 +7,7 @@ y la app para jugar en el navegador.
 | Paquete | Qué es |
 |---|---|
 | [`@gamehub/protocol`](packages/protocol) | Tipos del protocolo v1 (generados desde [`spec/protocol`](../spec/protocol) con `gamehub protocol types --write`) y utilidades (códigos de sala) |
+| [`@gamehub/client`](packages/client) | SDK cliente: conexión WebSocket con reconexión y `resume`, estado de la sala y la partida (inmutable, apto para React), acciones legales y progresivas, sesiones guardadas, API REST |
 
 ## Requisitos
 
@@ -18,7 +19,8 @@ y la app para jugar en el navegador.
 ```bash
 cd web
 pnpm install          # dependencias (versiones exactas en pnpm-workspace.yaml)
-pnpm test             # tests de todos los paquetes (Vitest)
+pnpm test             # tests de todos los paquetes (Vitest); los de integración arrancan
+                      # `gamehub serve` con uv (GAMEHUB_SKIP_SERVER_TESTS=1 los salta)
 pnpm typecheck        # TypeScript estricto
 pnpm lint             # Biome: lint y formato (pnpm format para corregir)
 ```
