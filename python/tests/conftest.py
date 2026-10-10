@@ -6,6 +6,15 @@ from typing import Any
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _private_data_dir(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Los datos del usuario (sesiones del cliente, base de datos del servidor) de los tests van a
+    un directorio temporal, también en los subprocesos: nunca a ~/.local/share/gamehub."""
+    monkeypatch.setenv("GAMEHUB_DATA", str(tmp_path_factory.mktemp("gamehub-data")))
+
+
 @pytest.fixture
 def coin_game() -> dict[str, Any]:
     """Juego mínimo válido: adivinar una moneda. Los tests lo mutan para provocar errores."""
