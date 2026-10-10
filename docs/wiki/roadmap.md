@@ -1,8 +1,8 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 24 % (F0, F1 y F2 completadas y en
-> `main`; F3 en curso).**
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 32 % (F0, F1, F2 y F3 completadas;
+> F3 en su rama, pendiente de fusionar).**
 
 ## Resumen
 
@@ -121,20 +121,26 @@ descompilador; `viz` con una caja por nodo y una flecha por transición (tests).
 
 **Objetivo:** el juego como API: alguien hospeda, se genera un código, los demás se unen.
 
-- [ ] `spec/protocol/` v1 (JSON Schema) + tipos generados (Python)
-- [ ] Servidor FastAPI + WebSocket: salas, códigos, asientos (`open/human/bot/reserved`)
-- [ ] Proyección por asiento en cada `update`; validación de `act` con `seq`
-- [ ] Reconexión con token, espectadores (con retardo opcional), revancha
-- [ ] Relojes y plazos, `on_timeout`
-- [ ] Azar verificable (commit–reveal)
-- [ ] Persistencia de partidas y replays (SQLite)
-- [ ] LAN: `gamehub host`, código + URL + QR, descubrimiento mDNS; `gamehub join`
-- [ ] SDK cliente Python + interfaz `Agent`; `gamehub bot run agente.py --room CODE`
-- [ ] Cliente de terminal para jugar en red
-- [ ] Pruebas de carga (100 salas simultáneas) y límites básicos (tokens, tasa)
+- [x] `spec/protocol/` v1 (JSON Schema) + tipos generados (Python) — `gamehub protocol types`
+- [x] Servidor Starlette + WebSocket ([ADR-036](decisiones.md)): salas, códigos, asientos (`open/human/bot/reserved`), anfitrión
+- [x] Proyección por asiento en cada `update`; validación de `act` con `seq` (turno vigente)
+- [x] Reconexión con token y `resume`, espectadores (vista pública u omnisciente, con retardo opcional), revancha
+- [x] Relojes y plazos (`move`, `match`), `on_timeout` de la sala (el de cada juego, con la IR v0.2)
+- [x] Azar verificable (commit–reveal, `gamehub-fair/1`; `gamehub replay` lo comprueba)
+- [x] Persistencia de partidas y replays (SQLite; las partidas cortadas por una caída se recuperan)
+- [x] LAN: `gamehub host`, código + URL + QR, descubrimiento mDNS; `gamehub join`, `gamehub rooms`
+- [x] SDK cliente Python + interfaz `Agent`; `gamehub bot run agente.py --room CODE`
+- [x] Cliente de terminal para jugar en red
+- [x] Pruebas de carga (100 salas simultáneas, `gamehub loadtest`) y límites básicos (tokens, tasa, tamaños, salas, conexiones)
 
 **Aceptación:** 4 personas en 4 ordenadores de la misma LAN juegan Dudo desde la CLI; un bot
 se une a una sala por código; desconectar y reconectar no rompe la partida.
+Resultado: ✅ prueba con procesos reales (`tests/test_acceptance_f3.py`, `GAMEHUB_LAN_TESTS=1`):
+`gamehub host` de Dudo en la IP de la LAN y cuatro `gamehub join` con datos propios (dos
+encuentran la sala por mDNS, dos entran por el enlace); a uno se le cae la terminal en su turno y
+vuelve; la partida termina; en la revancha un bot entra por el código. Cinco de cinco. Carga:
+100 salas de Dudo a 4 (400 conexiones) ≈ 890 jugadas/s sin fallos. Ver el
+[log](../../log.md) del 2026-10-10.
 
 ## F4 — Cliente web: SDK TS, UI genérica y UI kit (32 → 41 %) · L — **MVP JUGABLE**
 

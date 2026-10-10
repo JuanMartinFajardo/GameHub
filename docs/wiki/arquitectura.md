@@ -49,8 +49,9 @@ flowchart TB
 
 ## 2. Estructura del monorepo (propuesta)
 
-> **Estado (2026-10-09, Fase 2):** existen `spec/` (IR v0, trazas de conformidad), `python/`
-> (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor, presentaciones, paquetes y CLI),
+> **Estado (2026-10-10, Fase 3):** existen `spec/` (IR v0, protocolo v1, trazas de conformidad),
+> `python/` (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor, presentaciones,
+> paquetes, protocolo, servidor de partidas, SDK cliente y CLI),
 > `stdlib/` (biblioteca estándar de Nomos), `games/` (15 paquetes con 16 juegos), `editors/vscode/`
 > (extensión de VS Code) y `docs/`. El resto de directorios se crea en la fase que los necesita.
 
@@ -70,10 +71,11 @@ GameHub/
 │   ├── render/            # diagrama del flow, reglamento y diff semántico (F2)
 │   ├── packages.py        # game.toml, game.lock, dependencias, new/clone/fork (F2)
 │   ├── agents/            # interfaz Agent, aleatorio, minimax, MCTS, heurísticas
-│   ├── server/            # salas, protocolo, LAN, relojes, persistencia
-│   ├── client/            # SDK cliente Python (humanos y bots)
+│   ├── protocol/          # protocolo v1: validación de mensajes y tipos generados (F3)
+│   ├── server/            # salas (núcleo puro), transporte Starlette, LAN/mDNS, SQLite (F3)
+│   ├── client/            # SDK cliente Python, bots en red, cliente de terminal (F3)
 │   ├── interop/           # OpenSpiel, Gambit, PettingZoo, PGN…
-│   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|… (host, join, analyze, studio: después)
+│   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|serve|host|join|rooms|bot|loadtest|…
 ├── core/                  # C++20: VM, estado compacto, algoritmos, bindings, WASM
 ├── web/                   # Monorepo TypeScript (pnpm)
 │   ├── packages/protocol  # tipos generados desde spec/protocol
