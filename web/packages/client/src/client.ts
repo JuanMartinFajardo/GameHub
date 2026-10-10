@@ -137,7 +137,7 @@ export class GameClient {
     this.roomCode = where.code;
     this.name = (options.name ?? "Anónimo").trim().slice(0, 32) || "Anónimo";
     this.kind = options.kind ?? "human";
-    this.legalLimit = options.legalLimit ?? 5000;
+    this.legalLimit = options.legalLimit ?? 500;
     this.reconnect = options.reconnect ?? true;
     this.options = {
       timeout: options.timeout ?? 10_000,

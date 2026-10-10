@@ -83,6 +83,21 @@ class Locked:
 # --- manifiesto ---------------------------------------------------------------------------------
 
 
+#: Directorios que no se recorren al buscar juegos: dependencias y salidas de las UIs web
+#: (`ui/node_modules`, `ui/dist`), cachés y carpetas ocultas (`.git`, `.venv`…).
+SKIPPED_DIRS = frozenset({"node_modules", "dist", "build", "__pycache__"})
+
+
+def find_files(root: Path, *suffixes: str) -> list[Path]:
+    """Los archivos bajo `root` que acaban en alguno de `suffixes` (ordenados), sin entrar en
+    `SKIPPED_DIRS` ni en carpetas ocultas."""
+    found: list[Path] = []
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in SKIPPED_DIRS and not d.startswith(".")]
+        found.extend(Path(folder) / f for f in files if f.endswith(suffixes))
+    return sorted(found)
+
+
 def load_manifest(root: Path) -> Manifest:
     path = root / MANIFEST
     try:

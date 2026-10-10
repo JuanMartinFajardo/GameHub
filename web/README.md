@@ -10,6 +10,8 @@ y la app para jugar en el navegador.
 | [`@gamehub/i18n`](packages/i18n) | Español e inglés: textos traducibles de la IR, catálogos de mensajes, idioma elegido |
 | [`@gamehub/ui-kit`](packages/ui-kit) | Componentes de React: rejilla, carta, mano, montón, mazo, dado, ficha, recorrido, grafo, marcador, reloj, barra de acciones; estilos con variables CSS (tema claro y oscuro) |
 | [`@gamehub/client`](packages/client) | SDK cliente: conexión WebSocket con reconexión y `resume`, estado de la sala y la partida (inmutable, apto para React), acciones legales y progresivas, sesiones guardadas, API REST |
+| [`@gamehub/react`](packages/react) | Hooks de React sobre el SDK: sala, partida, vista, acciones legales, jugar, IR de la sala |
+| [`@gamehub/auto-ui`](packages/auto-ui) | **UI genérica**: cualquier juego dibujado y jugable a partir de su IR (tipos, dominios de las acciones y pistas `ui`), con registro de eventos y resultado |
 
 ## Requisitos
 

@@ -18,7 +18,8 @@ export interface RunningServer {
   stop(): Promise<void>;
 }
 
-/** `gamehub serve` con los juegos indicados (directorios de `games/`), en un puerto libre. */
+/** `gamehub serve` con los juegos indicados (directorios de `games/`; `""` = todo el catálogo),
+ * en un puerto libre. */
 export function startServer(games: string[], extra: string[] = []): Promise<RunningServer> {
   const args = [
     "run",

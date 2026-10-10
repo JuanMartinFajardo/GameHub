@@ -1,0 +1,211 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Distribución de la UI genérica (usa las variables y piezas de @gamehub/ui-kit). */
+
+.gh-auto {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.gh-auto__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 14px;
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  box-shadow: var(--gh-shadow-sm);
+}
+
+.gh-auto__title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.gh-auto__title strong {
+  font-size: 1.05rem;
+}
+
+.gh-auto__status {
+  margin-left: auto;
+}
+
+.gh-auto__vars {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gh-auto__var-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-size: 0.9rem;
+}
+
+.gh-auto__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .gh-auto__main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gh-auto__table {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--gh-radius-lg);
+  background: var(--gh-surface-2);
+  border: 1px solid var(--gh-border);
+}
+
+.gh-auto__board {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.gh-auto__items {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 24px;
+}
+
+.gh-auto__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gh-auto__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+}
+
+.gh-auto__seats {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.gh-auto__seat {
+  transition:
+    border-color var(--gh-speed),
+    box-shadow var(--gh-speed);
+}
+
+.gh-auto__seat--active {
+  border-color: var(--gh-accent);
+  box-shadow:
+    0 0 0 1px var(--gh-accent),
+    var(--gh-shadow);
+}
+
+.gh-auto__seat .gh-panel__title {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.95rem;
+  color: var(--gh-text);
+  min-width: 0;
+}
+
+.gh-auto__seat-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  min-width: 0;
+}
+
+.gh-auto__seat-extra {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-auto__hint {
+  color: var(--gh-text-muted);
+}
+
+.gh-auto__log-list {
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 0.88rem;
+}
+
+.gh-auto__log-list li {
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--gh-border);
+}
+
+.gh-auto-hidden {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--gh-surface-3);
+  color: var(--gh-text-muted);
+  font-weight: 700;
+}
+
+.gh-auto-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.gh-auto-enum {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-auto-text {
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-auto-pick {
+  padding: 2px;
+  border: 2px solid var(--gh-target);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gh-auto-pick[aria-pressed="true"] {
+  border-color: var(--gh-accent);
+  background: var(--gh-accent-soft);
+}

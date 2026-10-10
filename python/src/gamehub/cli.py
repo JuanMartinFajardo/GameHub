@@ -666,10 +666,12 @@ def _replay(args: argparse.Namespace) -> int:
 
 
 def _game_files(paths: list[Path]) -> list[Path]:
+    from gamehub.packages import find_files
+
     files: list[Path] = []
     for path in paths:
         if path.is_dir():
-            files.extend(sorted(path.rglob("*.game")))
+            files.extend(find_files(path, ".game"))
         else:
             files.append(path)
     return files

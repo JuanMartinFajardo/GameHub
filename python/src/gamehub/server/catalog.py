@@ -58,7 +58,9 @@ def game_info(game: Game) -> dict[str, Any]:
 def load_games(path: Path) -> list[Game]:
     """Los juegos de un archivo o directorio. `CatalogError` si alguno no compila."""
     if path.is_dir():
-        files = sorted(path.rglob("*.game")) + sorted(path.rglob("*.ir.json"))
+        from gamehub.packages import find_files
+
+        files = find_files(path, ".game") + find_files(path, ".ir.json")
         games: list[Game] = []
         for file in files:
             games += load_games(file)
