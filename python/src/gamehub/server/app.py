@@ -19,21 +19,26 @@ import contextlib
 import html
 import json
 import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, Response
-from starlette.routing import Route, WebSocketRoute
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from starlette.routing import BaseRoute, Mount, Route, WebSocketRoute
+from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from gamehub import __version__
-from gamehub.engine import Game, RuleError
+from gamehub.engine import PUBLIC, Game, RuleError
+from gamehub.engine.replay import frames as replay_frames
 from gamehub.protocol import VERSION, ProtocolError, message, parse_client, problems
 from gamehub.server.codes import display
 from gamehub.server.room import Room, RoomError
 from gamehub.server.rooms import Rooms, TokenBucket
+from gamehub.server.webapp import APP_ROUTES
 
 #: Segundos para enviar `hello` tras conectar.
 HELLO_TIMEOUT = 10.0
@@ -91,9 +96,14 @@ class Connection:
 class GameServer:
     """El estado del servidor en marcha: salas, conexiones y temporizadores."""
 
-    def __init__(self, rooms: Rooms, *, public_url: str | None = None) -> None:
+    def __init__(
+        self, rooms: Rooms, *, public_url: str | None = None, web: Path | None = None
+    ) -> None:
         self.rooms = rooms
         self.public_url = public_url
+        #: La app web compilada que se sirve (None: páginas mínimas, sin app).
+        self.web = web
+        self._frames: OrderedDict[tuple[str, str], list[dict[str, Any]]] = OrderedDict()
         self.connections: dict[tuple[str, str], Connection] = {}
         self.open_connections = 0
         self.timers: dict[str, asyncio.TimerHandle] = {}
@@ -460,17 +470,90 @@ class GameServer:
             return _api_error(404, "unknown_room", "no hay ninguna partida terminada con ese id")
         return JSONResponse(data)
 
+    async def room_qr(self, request: Request) -> Response:
+        """El QR del enlace de la sala, en SVG (para la pantalla del lobby)."""
+        import segno
+
+        room = self.rooms.get(request.path_params["code"])
+        if room is None:
+            return _api_error(404, "unknown_room", "no existe esa sala")
+        url = self.url(request, f"/r/{room.code}")
+        svg = segno.make(url, error="m").svg_inline(scale=8, border=2, dark="#111827")
+        return Response(svg, media_type="image/svg+xml")
+
+    async def replay_frames(self, request: Request) -> Response:
+        """La partida paso a paso tal como la vio un asiento (`?seat=N`), un espectador
+        (`?seat=public`) o con todo a la vista (por defecto), con la IR para dibujarla."""
+        match_id = request.path_params["id"]
+        data = self.rooms.store.replay(match_id)
+        if data is None:
+            return _api_error(404, "unknown_room", "no hay ninguna partida terminada con ese id")
+        raw = request.query_params.get("seat", "all")
+        seat: int | None
+        if raw == "all":
+            seat = None
+        elif raw == "public":
+            seat = PUBLIC
+        elif raw.isdigit() and int(raw) < data["num_players"]:
+            seat = int(raw)
+        else:
+            return _api_error(400, "bad_message", "seat debe ser all, public o un asiento")
+        ir = self._replay_ir(data)
+        if ir is None:
+            return _api_error(404, "unknown_room", "el servidor ya no tiene las reglas del juego")
+        key = (match_id, raw)
+        frames = self._frames.get(key)
+        if frames is None:
+            frames = await asyncio.to_thread(replay_frames, Game(ir), data, seat)
+            self._frames[key] = frames
+            while len(self._frames) > 32:
+                self._frames.popitem(last=False)
+        body = {
+            "match": match_id,
+            "seat": raw,
+            "ir": ir,
+            "players": data.get("players", []),
+            "params": data.get("params", {}),
+            "result": data.get("result"),
+            "fairness": data.get("fairness"),
+            "frames": frames,
+        }
+        return JSONResponse(body)
+
+    def _replay_ir(self, data: dict[str, Any]) -> dict[str, Any] | None:
+        rules_hash = data["game"]["rules_hash"]
+        ir = self.rooms.store.game(rules_hash)
+        if ir is None:
+            game = self.rooms.catalog.get(data["game"]["id"])
+            if game is not None and game.rules_hash == rules_hash:
+                ir = game.ir
+        return ir
+
+    def app_page(self, request: Request) -> Response:
+        """El index.html de la app web (la app lee la ruta y decide qué enseñar)."""
+        assert self.web is not None
+        return FileResponse(self.web / "index.html", headers={"Cache-Control": "no-cache"})
+
     async def room_page(self, request: Request) -> Response:
         room = self.rooms.get(request.path_params["code"])
         if "application/json" in request.headers.get("accept", ""):
             if room is None:
                 return _api_error(404, "unknown_room", "no existe esa sala")
             return JSONResponse(room.info())
+        if self.web is not None:
+            return self.app_page(request)
         if room is None:
             return HTMLResponse(_page("Sala no encontrada", "<p>No existe esa sala.</p>"), 404)
         return HTMLResponse(_room_page(room, self.url(request, f"/r/{room.code}")))
 
+    async def app_route(self, request: Request) -> Response:
+        if self.web is None:
+            return HTMLResponse(_page("Sin app web", _NO_WEB), 404)
+        return self.app_page(request)
+
     async def index(self, request: Request) -> Response:
+        if self.web is not None:
+            return self.app_page(request)
         rows = "".join(
             f'<li><a href="/r/{r.code}">{display(r.code)}</a> · {html.escape(r.game.title)}'
             f" · {_status_text(r)}</li>"
@@ -486,19 +569,26 @@ class GameServer:
 
 
 def create_app(server: GameServer) -> Starlette:
-    routes = [
+    routes: list[BaseRoute] = [
         Route("/", server.index),
         Route("/api/v1/info", server.info),
         Route("/api/v1/rooms", server.list_rooms, methods=["GET"]),
         Route("/api/v1/rooms", server.create_room, methods=["POST"]),
         Route("/api/v1/rooms/{code}", server.room_info),
         Route("/api/v1/rooms/{code}/ir", server.room_ir),
+        Route("/api/v1/rooms/{code}/qr.svg", server.room_qr),
         Route("/api/v1/games/{id}", server.game_ir),
         Route("/api/v1/matches", server.matches),
         Route("/api/v1/replays/{id}", server.replay),
+        Route("/api/v1/replays/{id}/frames", server.replay_frames),
         Route("/r/{code}", server.room_page),
         WebSocketRoute("/ws", server.websocket),
     ]
+    own = ("/", "/r/{code}")
+    routes += [Route(path, server.app_route) for path in APP_ROUTES if path not in own]
+    if server.web is not None:
+        # Lo demás (scripts, estilos, iconos) son archivos de la app.
+        routes.append(Mount("/", app=StaticFiles(directory=server.web), name="web"))
     app = Starlette(routes=routes, lifespan=server.lifespan)
     app.state.server = server
     return app
@@ -543,6 +633,12 @@ h1 {{ margin-top: 0; }} code {{ font-size: 1.05em; }} .muted {{ color: var(--mut
 """
 
 
+_NO_WEB = (
+    "<p>Este servidor no tiene la app web compilada.</p>"
+    "<p>En el repositorio: <code>cd web &amp;&amp; pnpm install &amp;&amp; pnpm build</code>.</p>"
+)
+
+
 def _room_page(room: Room, url: str) -> str:
     seats = "".join(
         f"<li>Asiento {s['seat'] + 1}: {html.escape(s.get('name', 'libre'))}"
@@ -554,6 +650,6 @@ def _room_page(room: Room, url: str) -> str:
         f"<p>{html.escape(room.game.title)} · {_status_text(room)}</p><ul>{seats}</ul>"
         "<p>Para unirte desde la terminal:</p>"
         f"<pre><code>gamehub join {html.escape(url)}</code></pre>"
-        "<p class='muted'>El cliente web llega en la Fase 4.</p>"
+        "<p class='muted'>Para jugar en el navegador, compila la app web (pnpm -C web build).</p>"
     )
     return _page(f"Sala {display(room.code)}", body)

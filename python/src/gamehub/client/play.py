@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator, Callable
+from pathlib import Path
 from typing import Any
 
 from gamehub.client.connection import Client, ClientError, fetch_json, target
@@ -102,12 +103,15 @@ async def host(
     ready: asyncio.Event | None = None,
     info: dict[str, Any] | None = None,
     on_terminal: Callable[[Terminal], None] | None = None,
+    web: Path | None = None,
+    open_browser: bool = False,
 ) -> int:
     """Abre un servidor con una sala del juego y, si hay `lines`, juega en ella desde la
-    terminal; si no, la sirve hasta Ctrl+C. `ready` se activa (y `info` recibe la URL, el código
-    y el puerto) cuando la sala ya acepta jugadores."""
+    terminal; si no, la sirve hasta Ctrl+C. Con `web`, el enlace de la sala abre la app web
+    para jugar en el navegador. `ready` se activa (y `info` recibe la URL, el código y el
+    puerto) cuando la sala ya acepta jugadores."""
     rooms = Rooms(Catalog([game]), store, name=f"GameHub de {player}")
-    async with running(rooms, listen, port) as (game_server, server):
+    async with running(rooms, listen, port, web=web) as (game_server, server):
         now = asyncio.get_running_loop().time()
         room, token = rooms.create(
             game, now=now, players=players, params=params, settings=settings, host_name=player
@@ -120,7 +124,11 @@ async def host(
         game_server.flush(room)
         url = base_url(listen, server.port)
         link = f"{url}/r/{room.code}"
-        _banner(out, game, room.display_code, link, qr=qr)
+        _banner(out, game, room.display_code, link, qr=qr, web=web is not None)
+        if open_browser and web is not None:
+            import webbrowser
+
+            webbrowser.open(link)
         if info is not None:
             info.update(url=url, code=room.code, port=server.port, token=token)
         advertiser = Advertiser(rooms.name, server.port) if mdns else None
@@ -181,12 +189,14 @@ async def list_rooms(*, server: str | None = None, timeout: float = 2.0, out: Ou
     return 0
 
 
-def _banner(out: Out, game: Game, code: str, link: str, *, qr: bool) -> None:
+def _banner(out: Out, game: Game, code: str, link: str, *, qr: bool, web: bool = False) -> None:
     out(f"GameHub · {game.title}")
     out(f"  Sala:   {code}")
     out(f"  Enlace: {link}")
     if qr:
         out(qr_text(link).rstrip("\n"))
+    if web:
+        out("  Para jugar en el navegador (también en el móvil, con el QR): abre el enlace")
     out(f"  Para unirse desde otro equipo de esta red: gamehub join {code}")
     out(f"  (o con el enlace: gamehub join {link})")
 

@@ -8,6 +8,7 @@ import asyncio
 import contextlib
 import threading
 from collections.abc import Iterator
+from pathlib import Path
 
 import uvicorn
 from starlette.applications import Starlette
@@ -64,8 +65,10 @@ async def stop(server: Server, task: asyncio.Task[None]) -> None:
 class ServerThread:
     """Un servidor de partidas en un hilo propio, en 127.0.0.1 y un puerto libre."""
 
-    def __init__(self, rooms: Rooms, *, host: str = "127.0.0.1", port: int = 0) -> None:
-        self.game_server = GameServer(rooms)
+    def __init__(
+        self, rooms: Rooms, *, host: str = "127.0.0.1", port: int = 0, web: Path | None = None
+    ) -> None:
+        self.game_server = GameServer(rooms, web=web)
         self.server = Server(config(create_app(self.game_server), host, port))
         self.thread = threading.Thread(target=self.server.run, daemon=True)
         self.host = host

@@ -291,6 +291,10 @@ def _server_options(parser: argparse.ArgumentParser) -> None:
         "server.sqlite3; ':memory:' para no guardar nada)",
     )
     parser.add_argument("--server-name", default="GameHub", help="nombre visible del servidor")
+    parser.add_argument(
+        "--no-web", action="store_true", help="no servir la app web (jugar en el navegador)"
+    )
+    parser.add_argument("--open", action="store_true", help="abrir el navegador al arrancar")
 
 
 def _store(db: str | None) -> Any:
@@ -309,6 +313,7 @@ def _serve(args: argparse.Namespace) -> int:
     from gamehub.server.lan import base_url
     from gamehub.server.rooms import Rooms
     from gamehub.server.serve import running, until_stopped
+    from gamehub.server.webapp import web_dir
 
     try:
         catalog = Catalog.load(args.games)
@@ -317,11 +322,20 @@ def _serve(args: argparse.Namespace) -> int:
         return 2
     store = _store(args.db)
     rooms = Rooms(catalog, store, allow_upload=args.allow_upload, name=args.server_name)
+    web = None if args.no_web else web_dir()
 
     async def main() -> None:
-        async with running(rooms, args.host, args.port) as (_, server):
+        async with running(rooms, args.host, args.port, web=web) as (_, server):
             url = base_url(args.host, server.port)
             print(f"Servidor de partidas en {url}", flush=True)
+            if web is not None:
+                print(f"  app web: {url} (abre el enlace en un navegador)")
+                if args.open:
+                    import webbrowser
+
+                    webbrowser.open(url)
+            elif not args.no_web:
+                print("  sin app web: compílala con `pnpm -C web build` (ver web/README.md)")
             games = ", ".join(sorted(catalog.games)) or "ninguno"
             print(f"  juegos: {games}" + (" · admite subir juegos" if args.allow_upload else ""))
             where = getattr(store, "path", None)
@@ -380,6 +394,7 @@ def _host(args: argparse.Namespace) -> int:
     from gamehub.client import ClientError
     from gamehub.client.play import host
     from gamehub.client.terminal import stdin_lines
+    from gamehub.server.webapp import web_dir
 
     game = _load_game(args.game, args.name)
     settings = {
@@ -406,6 +421,8 @@ def _host(args: argparse.Namespace) -> int:
             bots=args.bots,
             mdns=not args.no_mdns,
             qr=not args.no_qr,
+            web=None if args.no_web else web_dir(),
+            open_browser=args.open,
         )
 
     try:

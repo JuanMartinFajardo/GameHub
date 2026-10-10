@@ -33,6 +33,7 @@ class MemoryStore:
     def __init__(self, limit: int = 1000) -> None:
         self.limit = limit
         self.replays: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self.games: dict[str, dict[str, Any]] = {}
 
     def match_started(self, room: Room, match: Match) -> None:
         pass
@@ -42,11 +43,16 @@ class MemoryStore:
 
     def match_ended(self, room: Room, match: Match) -> None:
         self.replays[match.id] = match.replay(room.match_players)
+        self.games[match.game.rules_hash] = match.game.ir
         while len(self.replays) > self.limit:
             self.replays.popitem(last=False)
 
     def replay(self, match_id: str) -> dict[str, Any] | None:
         return self.replays.get(match_id)
+
+    def game(self, rules_hash: str) -> dict[str, Any] | None:
+        """La IR de un juego del que hay partidas guardadas."""
+        return self.games.get(rules_hash)
 
     def matches(self, limit: int = 50) -> list[dict[str, Any]]:
         return [_summary(mid, data) for mid, data in reversed(self.replays.items())][:limit]
@@ -158,6 +164,11 @@ class SqliteStore:
         row = self.db.execute(
             "SELECT replay FROM matches WHERE id = ? AND replay IS NOT NULL", (match_id,)
         ).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def game(self, rules_hash: str) -> dict[str, Any] | None:
+        """La IR de un juego del que hay partidas guardadas."""
+        row = self.db.execute("SELECT ir FROM games WHERE rules_hash = ?", (rules_hash,)).fetchone()
         return json.loads(row[0]) if row else None
 
     def matches(self, limit: int = 50) -> list[dict[str, Any]]:
