@@ -30,39 +30,62 @@ class ConsoleIO:
     write: Callable[[str], None] = print
 
 
-def choose(legal: Sequence[Action], io: ConsoleIO) -> Action:
-    """Elección de una acción: por número, o filtrando con palabras cuando hay muchas."""
-    texts = [action_text(a).lower() for a in legal]
-    candidates = list(range(len(legal)))
-    while True:
-        if len(candidates) <= PAGE:
-            for i, idx in enumerate(candidates, start=1):
-                io.write(f"  {i:>3}. {action_text(legal[idx])}")
-            prompt = "Elige un número (o escribe palabras para filtrar, 'q' para salir): "
-        else:
-            io.write(f"  {len(candidates)} acciones posibles: escribe palabras para filtrar")
-            prompt = "Filtro (o 'q' para salir): "
-        try:
-            answer = io.read(prompt).strip()
-        except EOFError:
-            raise Quit from None
+class Chooser:
+    """Elección de una opción entre muchas, línea a línea: por número cuando caben en una página,
+    o filtrando con palabras. La comparten `gamehub play` y el cliente de red (`gamehub join`),
+    que recibe las líneas cuando llegan en vez de pedirlas."""
+
+    def __init__(self, options: Sequence[Any], label: Callable[[Any], str] = str) -> None:
+        self.options = list(options)
+        self.texts = [label(o) for o in self.options]
+        self.candidates = list(range(len(self.options)))
+
+    def menu(self) -> tuple[list[str], str]:
+        """Líneas que mostrar y el texto de la pregunta."""
+        if len(self.candidates) <= PAGE:
+            lines = [f"  {i:>3}. {self.texts[idx]}" for i, idx in enumerate(self.candidates, 1)]
+            return lines, "Elige un número (o escribe palabras para filtrar, 'q' para salir): "
+        lines = [f"  {len(self.candidates)} acciones posibles: escribe palabras para filtrar"]
+        return lines, "Filtro (o 'q' para salir): "
+
+    def feed(self, answer: str) -> tuple[Any, str | None]:
+        """Procesa una respuesta: devuelve `(opción elegida o None, aviso o None)`. Lanza `Quit`
+        si se pide salir."""
+        answer = answer.strip()
         if answer.lower() in ("q", "salir"):
             raise Quit
         if not answer:
-            candidates = list(range(len(legal)))
-            continue
-        if answer.isdigit() and len(candidates) <= PAGE:
+            self.candidates = list(range(len(self.options)))
+            return None, None
+        if answer.isdigit() and len(self.candidates) <= PAGE:
             i = int(answer) - 1
-            if 0 <= i < len(candidates):
-                return legal[candidates[i]]
-            io.write("  Número fuera de rango.")
-            continue
+            if 0 <= i < len(self.candidates):
+                return self.options[self.candidates[i]], None
+            return None, "  Número fuera de rango."
         words = answer.lower().split()
-        narrowed = [i for i in candidates if all(w in texts[i] for w in words)]
-        if narrowed:
-            candidates = narrowed
-        else:
-            io.write("  Ninguna acción coincide; se mantiene la lista anterior.")
+        narrowed = [i for i in self.candidates if all(w in self.texts[i].lower() for w in words)]
+        if not narrowed:
+            return None, "  Ninguna acción coincide; se mantiene la lista anterior."
+        self.candidates = narrowed
+        return None, None
+
+
+def choose(legal: Sequence[Action], io: ConsoleIO) -> Action:
+    """Elección de una acción: por número, o filtrando con palabras cuando hay muchas."""
+    chooser = Chooser(legal, action_text)
+    while True:
+        lines, prompt = chooser.menu()
+        for line in lines:
+            io.write(line)
+        try:
+            answer = io.read(prompt)
+        except EOFError:
+            raise Quit from None
+        chosen, notice = chooser.feed(answer)
+        if notice is not None:
+            io.write(notice)
+        if chosen is not None:
+            return chosen
 
 
 def make_agents(seats: Sequence[str], seed: int) -> dict[int, Agent]:

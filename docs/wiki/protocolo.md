@@ -211,9 +211,16 @@ el último paso, verificable igual que las demás.
 | Modo | Cómo |
 |---|---|
 | **Local / hot-seat** | `gamehub play` (terminal). En la Fase 4, el cliente web ejecutará el motor con los mismos mensajes en proceso. |
-| **LAN** | `gamehub host` → código + URL + QR (`http://192.168.1.20:7420/r/K7FQ2P`); descubrimiento mDNS `_gamehub._tcp`. |
-| **Online** | `gamehub serve` en una máquina accesible; *relay* para NAT más adelante. |
-| **Bots** | `gamehub bot run agente.py --room K7FQ2P`, o un bot del servidor en un asiento (`set_seat`). |
+| **LAN** | `gamehub host juego.game` abre un servidor (puerto 7420) con una sala, muestra el código, el enlace (`http://192.168.1.20:7420/r/K7FQ2P`) y su **QR**, la anuncia por **mDNS** (`_gamehub._tcp`) y deja jugar desde la misma terminal. En otro equipo: `gamehub join K7F-Q2P` (la busca en este equipo y en la LAN) o `gamehub join <enlace>`. `gamehub rooms` lista las salas de la LAN. |
+| **Online** | `gamehub serve juegos/` en una máquina accesible (la sala se crea con `POST /api/v1/rooms`); *relay* para NAT más adelante. |
+| **Bots** | `gamehub bot run agente.py --room K7FQ2P`, o un bot del servidor en un asiento (`/bot N` en la terminal, `set_seat` en el protocolo). |
+
+El cliente de terminal guarda el token de cada sala en `~/.local/share/gamehub/sessions.json`: si se
+cierra la terminal a mitad de partida, `gamehub join` con el mismo código vuelve al mismo asiento.
+Comandos dentro de la sala: `/listo`, `/chat`, `/sentar`, `/levantar`, `/estado`, `/sala`,
+`/rendirse`, `/salir` y, para el anfitrión, `/bot`, `/abrir`, `/reservar`, `/echar`, `/jugadores`,
+`/opcion` (`/ayuda` los explica). Las jugadas se eligen por número o filtrando con palabras; si
+hay demasiadas, paso a paso (acción, después cada parámetro).
 
 ## 14. SDKs y tipos generados
 

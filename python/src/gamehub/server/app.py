@@ -119,6 +119,20 @@ class GameServer:
             for handle in self.timers.values():
                 handle.cancel()
 
+    async def shutdown(self, grace: float = 1.0) -> None:
+        """Cierra todas las salas (los clientes reciben el fin) y espera un poco a que salgan
+        los mensajes antes de parar el servidor."""
+        now = self.now()
+        for room in list(self.rooms.rooms.values()):
+            room.close(now)
+            self.flush(room)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + grace
+        while loop.time() < deadline and any(
+            not c.queue.empty() for c in self.connections.values()
+        ):
+            await asyncio.sleep(0.02)
+
     async def _sweep_loop(self) -> None:
         while True:
             await asyncio.sleep(SWEEP_EVERY)

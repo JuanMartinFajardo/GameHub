@@ -9,9 +9,11 @@ authors = [{ name = "Juan Martin Fajardo" }]
 dependencies = [
   "jsonschema>=4.23",
   "referencing>=0.35",
+  "segno>=1.6",
   "starlette>=0.46",
   "uvicorn>=0.34",
   "websockets>=14",
+  "zeroconf>=0.136",
 ]
 
 [project.scripts]

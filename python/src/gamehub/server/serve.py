@@ -24,6 +24,7 @@ async def running(
     try:
         yield game_server, server
     finally:
+        await game_server.shutdown()
         await stop(server, task)
 
 

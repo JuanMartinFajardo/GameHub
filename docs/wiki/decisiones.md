@@ -47,6 +47,8 @@
 | 039 | Observador público en el motor: los espectadores no ocupan asiento | Propuesta (2026-10-10, F3) |
 | 040 | Azar verificable `gamehub-fair/1`: compromiso, semillas de los jugadores y semilla de 53 bits | Propuesta (2026-10-10, F3) |
 | 041 | Abandonar = último puesto y un bot juega por el asiento; la partida acaba si queda uno | Propuesta (2026-10-10, F3) |
+| 042 | LAN: puerto 7420, enlace `/r/CÓDIGO` con QR, anuncio mDNS `_gamehub._tcp` y sesiones guardadas | Propuesta (2026-10-10, F3) |
+| 043 | Bots en red con la misma interfaz `Agent` que en proceso | Propuesta (2026-10-10, F3) |
 
 ---
 
@@ -325,3 +327,23 @@
   pausarla (bloquea a todos).
 - **Consecuencias:** las partidas de varios jugadores sobreviven a que alguien se vaya; el puesto
   final refleja el abandono.
+
+### ADR-042 — Jugar en la LAN
+- **Decisión:** `gamehub host` levanta el servidor en el puerto 7420 de todas las interfaces y
+  comparte la sala de tres formas: el código (6 caracteres), el enlace
+  `http://IP:7420/r/CÓDIGO` (página de la sala) y su QR en la terminal; además la anuncia por mDNS
+  (`_gamehub._tcp`, con `zeroconf`) para que `gamehub join CÓDIGO` la encuentre sin escribir IPs.
+  mDNS es opcional: si la red no lo permite, el enlace basta. El cliente guarda el token de cada
+  sala para volver a ella tras cerrar la terminal.
+- **Alternativas:** solo IP y puerto (incómodo); un servidor central (no hace falta en casa).
+- **Consecuencias:** dos dependencias pequeñas (`zeroconf`, `segno` para el QR). Las pruebas de
+  mDNS dependen de la red: se ejecutan con `GAMEHUB_LAN_TESTS=1`.
+
+### ADR-043 — Bots en red con la interfaz de siempre
+- **Decisión:** un bot remoto implementa el mismo `Agent` que en proceso (`act(observation,
+  legal)`), con una observación de los mismos nombres (`seat`, `view`, `events`, más `clock` y
+  `game`) y las acciones ya decodificadas con los tipos del juego (`Action`), perezosamente. El
+  SDK resuelve la red: reconexión, acciones progresivas, `act` en un hilo para no bloquear.
+- **Consecuencias:** el mismo agente juega en la arena, en `play_match` y contra personas por la
+  red sin cambiar una línea; `gamehub bot run` carga un archivo `.py` con `make_agent`, una clase
+  `Agent` o una función `act`.
