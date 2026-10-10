@@ -5,6 +5,85 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-11 — Sesión 6: Fase 4, jugar en el navegador
+
+**Respuestas recibidas**: aprobar las ADR-036 a 043, fusionar F3 a `main` (hecho, `0607c1b`) y
+arrancar F4 en la rama `f4/cliente-web`.
+
+**Hecho (un commit por tarea)**
+- **Monorepo de JavaScript** (ADR-044): workspace de pnpm en la raíz con `web/packages/*`,
+  `web/apps/*` y `games/*/ui` (empezó dentro de `web/`; se movió a la raíz porque pnpm no lo
+  encontraba al trabajar dentro de una UI de `games/`). Node 22, TypeScript 7 estricto, React 19,
+  Vite 8, Biome y Vitest, con versiones exactas en un catálogo; trabajo nuevo en el CI.
+- **`@gamehub/protocol`**: los tipos de TypeScript salen del mismo generador que los de Python
+  (`gamehub protocol types` escribe y comprueba los dos, ADR-045). En el esquema, `Number`,
+  `Event` y `Error` pasan a `ExactNumber`, `GameEvent` y `ErrorInfo` (la red no cambia).
+- **`@gamehub/client`**, el SDK de TypeScript: conexión con reconexión y `resume`, latido, ids
+  únicos, resync si falta una actualización, fin si otra pestaña toma la sesión; estado inmutable
+  con un reductor puro; acciones enumeradas y progresivas; sesiones en localStorage; API REST.
+  Probado contra el servidor de Python de verdad (dos clientes, una caída y un espectador).
+- **Sección `ui { … }` de Nomos** (ADR-047): pistas de presentación con destino (variables,
+  opciones, tipos, acciones y sus parámetros, nodos, asientos) y un catálogo cerrado (cómo y dónde
+  dibujar, nombres traducidos, símbolos, colores, cartas, cómo elegir un argumento), comprobadas
+  (E701–E704), con formato, descompilador y mezcla en variantes. En la IR, una clave `ui`
+  opcional que no cuenta para el hash: las trazas de conformidad no cambian.
+- **`@gamehub/ui-kit`** (rejilla accesible, cartas en SVG con palos franceses y españoles, mano en
+  abanico, montón, mazo, dados, fichas, recorrido, grafo, jugador, marcador, reloj, barra de
+  acciones; variables CSS con tema claro y oscuro) e **`@gamehub/i18n`** (es/en).
+- **`@gamehub/auto-ui`, la UI genérica** (ADR-048): el aspecto de cada variable sale de su tipo y
+  sus pistas; cómo se elige cada argumento, de su dominio (`cells(G)` → casillas,
+  `subsets(items(Z))` → marcar cartas) o de una pista; un constructor de acciones con los valores
+  que dan las acciones legales, calculados una vez por actualización. Registro de eventos en
+  frases y resultado. Y **`@gamehub/react`** (hooks sobre el SDK).
+- **El servidor sirve la app** (ADR-046): `gamehub serve`/`host` (`--open`, `--no-web`); el enlace y
+  el QR de cada sala abren la app; QR en SVG y replays estado a estado (`/frames?seat=`). La rueda
+  de Python lleva la app compilada (probado instalándola en un entorno limpio).
+- **La app para jugar** (`@gamehub/shell` y `web/apps/play`): inicio (código, crear sala, salas
+  abiertas, partidas recientes), crear sala (opciones del juego, reloj, espectadores, bots), sala
+  (jugador o espectador, sesión guardada al recargar, lobby con código, enlace y QR, asientos,
+  bots, configuración, listo, chat, revancha), partida con la UI genérica o una propia, replays
+  paso a paso desde cualquier perspectiva, **partidas en un mismo dispositivo** con pantalla de
+  privacidad (ADR-049) y galería del kit en `/kit`. Español e inglés, tema claro u oscuro, móvil.
+- **Pistas `ui` en los 15 paquetes del catálogo** (nombres en es/en, símbolos, colores, cartas,
+  dados, la columna de Conecta 4…).
+- **UIs propias** (ADR-050): `gamehub sdk ts` (tipos de un juego, con formato de Biome y
+  `--check`) y `gamehub ui new` (plantilla que funciona a la primera: tipos, tablero inicial,
+  test, servidor de desarrollo con la app solo para ese juego). Con ella, las UIs del **tres en
+  raya** (marcas dibujadas, línea ganadora), **Conecta 4** (fichas que caen, columna resaltada) y
+  **Dudo** (apuesta en el tapete, historia de la ronda, cubiletes, última dudada, selector de
+  apuesta con dados); la app las registra sola.
+- **Aceptación**: los 15 juegos del catálogo se juegan enteros contra el servidor solo pulsando
+  la UI genérica (test de integración, al azar con semilla); **Ana en la app contra Luis con
+  `gamehub join` en una terminal de verdad**, hasta el final; sala con la app contra un bot y
+  modo espectador. Revisado a mano en el navegador integrado, también a tamaño de móvil.
+- **Fallos encontrados y corregidos**: el QR salía roto (`svg_inline` no lleva `xmlns` y un
+  `<img>` no lo dibuja); los jugadores de los replays venían por posición y no por asiento; el
+  registro ponía dobles paréntesis y lo revelado antes que la jugada; Mentiroso tardaba 170 s en
+  el test de aceptación (el constructor recalculaba miles de subconjuntos en cada pulsación: ahora
+  35 s); el catálogo del servidor incluía el juego de tests del PD iterado (ahora, de cada
+  paquete, su archivo principal); en jsdom, el WebSocket del navegador simulado (undici) choca con
+  su clase `Event`: los tests usan `ws`.
+- Docs: página nueva del [cliente web](docs/wiki/cliente-web.md), lenguaje §12 (`ui`), IR,
+  protocolo, arquitectura, glosario, ideas, READMEs (el de la raíz seguía en la Fase 1); ADR-044
+  a 051. Tests: 673 de Python y 85 de la parte web (con los de las UIs propias).
+
+**Decisiones** (propuestas): ADR-044 a 051.
+
+**Limitaciones**: sin motor en el navegador, el modo local necesita el servidor que sirve la app
+(hasta el WASM de F8); no hay animaciones; lo de «una UI propia en menos de una hora» se apoya en
+la plantilla y en las tres UIs de ejemplo, no en una medición con otra persona; Windows sigue sin
+probar.
+
+**Pendiente de ti**: revisar las ADR-044 a 051 y dar el visto bueno para fusionar
+`f4/cliente-web` a `main` (pregunta 21).
+
+**Siguiente**: F5, el Studio: editor visual bidireccional (diagrama ↔ texto) con simulador, el
+**MVP de diseño**.
+
+**Progreso global**: ≈ 41 %.
+
+---
+
 ## 2026-10-10 — Fase 3 aprobada y fusionada
 
 - Apruebas las ADR-036 a 043 y la fusión: la rama `f3/servidor-partidas` se fusiona a `main` y la

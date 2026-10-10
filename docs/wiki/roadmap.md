@@ -1,8 +1,8 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 32 % (F0, F1, F2 y F3 completadas y
-> en `main`; F4 en curso).**
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 41 % (F0 a F4 completadas; F4 en
+> su rama, pendiente de fusionar).**
 
 ## Resumen
 
@@ -146,21 +146,27 @@ vuelve; la partida termina; en la revancha un bot entra por el código. Cinco de
 
 **Objetivo:** jugar a cualquier juego en el navegador y poder construir UIs propias fácilmente.
 
-- [ ] Monorepo `web/` (pnpm, Vite, TypeScript, React)
-- [ ] `@gamehub/protocol` (tipos generados) y `@gamehub/client` (WS, reconexión, store, acciones progresivas)
-- [ ] `@gamehub/auto-ui`: **UI genérica** a partir de la IR (zonas, tableros, contadores,
-      acciones como botones/formularios, registro de eventos)
-- [ ] `@gamehub/ui-kit`: Rejilla, Carta, Mano (abanico), Pila, Mazo, Dado, Ficha, Recorrido/Grafo,
-      Marcador, Reloj, Barra de acciones
-- [ ] Sección `ui { … }` del `.game` (pistas de renderizado) interpretada por auto-ui
-- [ ] App `play`: crear/unirse con código, elegir asiento, añadir bots, partida, espectador, replays
-- [ ] Modo local hot-seat
-- [ ] Generador `gamehub ui new --template react` + `gamehub sdk ts <juego>` (tipos por juego)
-- [ ] UIs propias de ejemplo: tres en raya, Conecta 4, Dudo
-- [ ] i18n es/en; diseño responsive (móvil)
+- [x] Monorepo de JavaScript (pnpm en la raíz: `web/` y `games/*/ui`; Vite, TypeScript 7, React 19, Biome, Vitest) — [ADR-044](decisiones.md)
+- [x] `@gamehub/protocol` (tipos generados con el mismo generador que los de Python) y `@gamehub/client` (WS, reconexión con `resume`, estado inmutable, acciones progresivas, sesiones, REST)
+- [x] `@gamehub/auto-ui`: **UI genérica** a partir de la IR (zonas, tableros, contadores, cartas,
+      dados, acciones como pulsaciones, botones o formularios, registro de eventos, resultado)
+- [x] `@gamehub/ui-kit`: Rejilla, Carta, Mano (abanico), Pila, Mazo, Dado, Ficha, Recorrido/Grafo,
+      Marcador, Reloj, Barra de acciones (más insignia de jugador, contador, fichas de apuesta)
+- [x] Sección `ui { … }` del `.game` (pistas de renderizado) interpretada por auto-ui — en los 15 paquetes del catálogo
+- [x] App `play`: crear/unirse con código, enlace o QR, elegir asiento, añadir bots, partida, espectador, revancha, replays paso a paso
+- [x] Modo local hot-seat (con pantalla de privacidad si hay información oculta)
+- [x] Generador `gamehub ui new --template react` + `gamehub sdk ts <juego>` (tipos por juego)
+- [x] UIs propias de ejemplo: tres en raya, Conecta 4, Dudo
+- [x] i18n es/en; diseño responsive (móvil)
 
 **Aceptación:** todos los juegos del catálogo se juegan en el navegador con la UI genérica; una UI
 propia nueva se crea en < 1 hora con la plantilla; partida online entre navegador y CLI.
+Resultado: ✅ los 15 juegos del catálogo se juegan enteros contra el servidor solo pulsando la UI
+genérica (test de integración, al azar con semilla); la plantilla funciona a la primera (tipos,
+test, lint y servidor de desarrollo) y con ella se hicieron las UIs del tres en raya, Conecta 4 y
+Dudo (de 150 a 270 líneas cada una); Ana en la app contra Luis con `gamehub join` en una terminal
+de verdad, hasta el final (test de aceptación). Revisado en el navegador, también a tamaño de
+móvil. Ver el [log](../../log.md) del 2026-10-11 y el [cliente web](cliente-web.md).
 
 ## F5 — Studio: editor visual bidireccional (41 → 51 %) · XL — **MVP DE DISEÑO**
 

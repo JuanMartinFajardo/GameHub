@@ -11,8 +11,8 @@
   mismo protocolo. Un bot *es* un cliente.
 - **Transporte:** WebSocket + JSON (una conexión por cliente, en `/ws`) y una API REST pequeña
   para crear y consultar salas. Servidor: Starlette sobre uvicorn ([ADR-036](decisiones.md)).
-- **Tipado:** todos los mensajes tienen JSON Schema; los tipos de Python (`TypedDict`) se generan
-  (`gamehub protocol types --write`) y los de TypeScript se generarán en la Fase 4.
+- **Tipado:** todos los mensajes tienen JSON Schema; los tipos de Python (`TypedDict`) y los de
+  TypeScript (`@gamehub/protocol`) se generan del esquema (`gamehub protocol types --write`).
 - **Versionado:** `v: 1` en cada mensaje; el juego se identifica por su *hash de reglas*.
 - **Núcleo puro:** la lógica de salas no abre conexiones ni lee la hora; se prueba entera con un
   reloj simulado ([ADR-037](decisiones.md)).
@@ -51,7 +51,9 @@ stateDiagram-v2
 | `GET` | `/api/v1/games/{id}` | IR de un juego del catálogo |
 | `GET` | `/api/v1/matches` | Últimas partidas terminadas (resumen) |
 | `GET` | `/api/v1/replays/{id}` | Replay de una partida **terminada** (revela la semilla del servidor) |
-| `GET` | `/r/{code}` | Página de la sala (enlace y QR de la LAN); con `Accept: application/json`, el `Room` |
+| `GET` | `/api/v1/replays/{id}/frames?seat=all\|public\|N` | La partida estado a estado (vista y eventos) como la vio un asiento, un espectador o con todo a la vista, con la IR (para ver replays en una interfaz) |
+| `GET` | `/api/v1/rooms/{code}/qr.svg` | El QR del enlace de la sala, en SVG |
+| `GET` | `/r/{code}` | La app web en esa sala (o una página mínima si no está compilada); con `Accept: application/json`, el `Room` |
 
 Errores: `{"error": {"code", "message"}}` con el estado HTTP correspondiente (400, 403, 404,
 413, 503).
@@ -230,7 +232,7 @@ miles de acciones legales por turno, es el caso caro (una partida de 3 bots por 
 
 | Modo | Cómo |
 |---|---|
-| **Local / hot-seat** | `gamehub play` (terminal). En la Fase 4, el cliente web ejecutará el motor con los mismos mensajes en proceso. |
+| **Local / hot-seat** | `gamehub play` (terminal) o, en la app web, «En este dispositivo»: una sala en el servidor que sirve la app con una conexión por asiento en la misma pestaña, tapando la pantalla entre turnos si hay información oculta ([ADR-049](decisiones.md)). Sin servidor, cuando llegue el motor en WASM (F8). |
 | **LAN** | `gamehub host juego.game` abre un servidor (puerto 7420) con una sala, muestra el código, el enlace (`http://192.168.1.20:7420/r/K7FQ2P`) y su **QR**, la anuncia por **mDNS** (`_gamehub._tcp`) y deja jugar desde la misma terminal. En otro equipo: `gamehub join K7F-Q2P` (la busca en este equipo y en la LAN) o `gamehub join <enlace>`. `gamehub rooms` lista las salas de la LAN. |
 | **Online** | `gamehub serve juegos/` en una máquina accesible (la sala se crea con `POST /api/v1/rooms`); *relay* para NAT más adelante. |
 | **Bots** | `gamehub bot run agente.py --room K7FQ2P`, o un bot del servidor en un asiento (`/bot N` en la terminal, `set_seat` en el protocolo). |
@@ -244,7 +246,9 @@ hay demasiadas, paso a paso (acción, después cada parámetro).
 
 ## 14. SDKs y tipos generados
 
-- SDK de cliente: **Python** (Fase 3) y **TypeScript** (Fase 4); Godot (GDScript) y C# (Unity)
-  después.
-- `gamehub sdk ts <juego>` generará **tipos específicos del juego** (vista, acciones, eventos): una
-  UI propia tendrá autocompletado y errores de compilación si las reglas cambian (Fase 4).
+- SDK de cliente: **Python** (Fase 3) y **TypeScript** (`@gamehub/client`, Fase 4, con hooks de
+  React en `@gamehub/react`); Godot (GDScript) y C# (Unity) después.
+- Los tipos de los mensajes de los dos SDK salen del mismo esquema con `gamehub protocol types`.
+- `gamehub sdk ts <juego>` genera los **tipos de un juego** (estado tal como se ve, acciones,
+  opciones, nodos): una UI propia tiene autocompletado y errores de compilación si las reglas
+  cambian. Ver el [cliente web](cliente-web.md).

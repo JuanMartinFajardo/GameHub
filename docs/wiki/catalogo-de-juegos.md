@@ -22,6 +22,10 @@ Leyenda: **Az** = azar · **Oc** = información oculta · **Si** = simultaneidad
 | Dudo / *Liar's dice* | 2–4 | ✓ | ✓ | | Dados ocultos, pujas crecientes, desafío; usa `std.dice` |
 | **Mentiroso** (*Bullshit*) | 3–6 | ✓ | ✓ | ✓ | Bolsas, parámetros de acción ocultos (`subsets`), **ventana de reacción** "¡Mentiroso!", `reveal`. Adelantado desde la ola 2: ya está en IR |
 
+Desde la Fase 4 todos se juegan en el navegador con la [UI genérica](cliente-web.md) (cada paquete
+lleva sus pistas `ui { … }`), y el tres en raya, Conecta 4 y Dudo tienen además **UI propia**
+(`games/<juego>/ui`).
+
 ## Ola 2 — Los juegos que pediste (Fase 6)
 
 | Juego | Jug. | Az | Oc | Si | Qué pone a prueba |

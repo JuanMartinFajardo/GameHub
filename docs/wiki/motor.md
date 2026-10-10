@@ -179,7 +179,9 @@ escritos a mano (`tests/test_build.py`).
   paso y resultado. La re-simulación comprueba hash y huellas. Campos opcionales del servidor de
   partidas (F3): `players` (nombre y tipo de cada asiento), `fairness` (azar verificable) y, en
   `result`, `ranking`, `reason` (`terminal`, `forfeit`, `aborted`) y `forfeited`; una partida que
-  no llega a un terminal no tiene `payoffs`.
+  no llega a un terminal no tiene `payoffs`. `replay.frames(juego, datos, asiento)` da cada
+  estado de la partida con su vista y los eventos que llevaron a él tal como los vio un asiento,
+  un espectador o con todo a la vista (el visor de replays de la app web, F4).
 - **Azar verificable** (`gamehub.engine.fairness`, esquema `gamehub-fair/1`): el servidor publica
   `SHA-256("gamehub-fair/1:commit:" + server_seed)` antes de la partida; la semilla de la partida
   es SHA-256 del JSON canónico `{scheme, server_seed, client_seeds}` (primeros 8 bytes, 53 bits);

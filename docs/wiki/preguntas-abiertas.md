@@ -5,11 +5,12 @@
 
 | # | Pregunta | Recomendación por defecto | Afecta a |
 |---|---|---|---|
+| 21 | ¿Apruebas las decisiones de la Fase 4 (**ADR-044 a 051**: workspace de pnpm en la raíz con TypeScript 7, React 19, Vite y Biome; tipos del protocolo generados una vez; el servidor sirve la app; pistas `ui { … }` fuera del hash; UI genérica guiada por tipos y dominios; partidas locales contra el servidor; UIs propias en `games/<juego>/ui`; sin librerías de estado ni de idiomas) y la fusión de la rama `f4/cliente-web` a `main`? | Aprobarlas y fusionar | F5 |
 | 19 | ¿Cuándo añadimos el **`on_timeout` de cada juego** (IR v0.2: la jugada por defecto al vencer el plazo, p. ej. «pasar» o «perder la partida» en ajedrez)? Hoy lo decide la sala (`random`, `pass`, `bot`, `forfeit`). | Cuando lo pida un juego del catálogo (ajedrez o Skat, F6) | F6 |
 | 20 | ¿Necesitas jugar **por internet** (fuera de la LAN) antes del hub? | Hasta F10, `gamehub serve` en una máquina accesible o un túnel tipo Tailscale; relay propio con el hub (F10) | F4, F10 |
 | 3b | ¿Habrá repo remoto en GitHub (u otro host)? | Cuando quieras; el CI ya está preparado | Todo |
 | 6 | ¿Quién usará el editor visual? ¿Debe poder diseñar un juego alguien que no programa (bloques tipo Scratch para las condiciones)? | Fase 5: expresiones escritas en los nodos con autocompletado; bloques visuales como mejora posterior | F5 |
-| 7 | ¿Te parece bien TypeScript + React para la web? ¿Tienes experiencia con algún framework? | TS + React + React Flow + Monaco | F4–F5 |
+| 7 | ¿Te parece bien TypeScript + React para la web? ¿Tienes experiencia con algún framework? | TS + React + React Flow + Monaco (la Fase 4 ya usa TS + React, ADR-044) | F5 |
 | 8 | ¿Quieres un SDK de **Godot** pronto para hacer UIs de juegos ahí? | Después de TS y Python (F6), salvo que te interese antes | F4–F6 |
 | 9 | Reglas concretas pendientes: **Solitario** (¿Klondike?), **Póker** (¿Hold'em No-Limit?), **Skat** (¿reglas ISkO?), **Parchís** (¿españolas? ¿parejas?), **Wizard** (¿Amigo estándar?) | Los supuestos del [catálogo](catalogo-de-juegos.md) | F6 |
 | 9b | Variantes de **Mentiroso**: ¿el rango sigue la secuencia As, Dos, Tres…, lo elige quien abre ronda o es libre en cada jugada? ¿Puede acusar cualquiera o solo el siguiente? ¿Quién juega tras una acusación? ¿Baraja francesa o española? | Secuencia As→K; acusa cualquiera; sigue el siguiente jugador; francesa de 52. Con Nomos, cada variante es un `extends` de pocas líneas (la española, con `std.cards`) | Mentiroso (cuando quieras) |

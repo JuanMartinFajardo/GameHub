@@ -20,8 +20,10 @@
 | Configuración | configuration | Estado completo del motor: valores + nodos activos + envíos pendientes + historial + relojes. |
 | Conjunto de información | information set | Historias que un jugador no puede distinguir (mismo estado de información). |
 | Construcción progresiva | progressive action building | Elegir los parámetros de una acción uno a uno, consultando los legales en cada paso. |
+| Constructor de acciones | action builder | Parte de la UI genérica que compone una acción argumento a argumento con los valores que permiten las acciones legales (enumeradas o con `query_actions`). |
 | Diagnóstico | diagnostic | Error o aviso del compilador con código, posición, explicación y ayuda (al estilo de rustc). |
 | Efecto | effect | Sentencia que modifica el estado (`assign`, `move`, `reveal`…). Solo en bloques de efectos. |
+| En este dispositivo | hot-seat | Varias personas jugando por turnos en la misma pantalla; en la app web, con una conexión por asiento y la pantalla tapada entre turnos si hay información oculta. |
 | Espectador | spectator | Participante sin asiento: ve la vista pública (u omnisciente, si la sala lo permite), con retardo opcional. |
 | Estado de información | information state | Secuencia de observaciones y acciones propias de un jugador. |
 | Evento | event | Registro de algo que ocurrió (movimiento, revelación…), con su visibilidad. |
@@ -46,6 +48,7 @@
 | Paquete | package | Directorio de un juego con su `game.toml` (nombre, versión, dependencias). |
 | Participante | participant | Persona o bot en una sala: jugador (sentado) o espectador. |
 | Partida | match | Ejecución concreta de un juego: parámetros + semilla + acciones. |
+| Pistas de presentación | UI hints | La sección `ui { … }` de un juego: cómo dibujar sus variables, nombres traducidos, símbolos, colores, cartas, cómo elegir argumentos. No son reglas: no cuentan para el hash. |
 | Plazo / reloj | deadline / clock | Tiempo para decidir: fijo por turno (`move`) o un tiempo total por asiento con incremento (`match`); al vencer se aplica `on_timeout`. |
 | Punto de decisión | decision point | Configuración en la que uno o más asientos deben actuar. |
 | Replay | replay | Tupla (hash de reglas, parámetros, semilla, acciones) que reproduce una partida exacta. |
@@ -57,6 +60,8 @@
 | Traza de conformidad | conformance trace | Replay con semilla fija que todo motor debe reproducir bit a bit (`spec/conformance`). |
 | Turno vigente | current turn | Desde la actualización en que un asiento puede actuar hasta que actúa o se llega a otro nodo; un `act` decidido antes se rechaza (`stale_seq`). |
 | Ubicación | location | Parte direccionable del estado (variable, zona, tamaño, atributo) sobre la que se define la visibilidad. |
+| UI genérica | generic UI | La interfaz que dibuja y deja jugar cualquier juego a partir de su IR, sin escribir nada (`@gamehub/auto-ui`). |
+| UI propia | custom UI | Interfaz hecha a mano para un juego (`games/<juego>/ui`, con `defineGameUi`); la app la usa en vez de la genérica. |
 | Ventana de reacción | reaction window | Nodo `window`: varios asientos pueden responder a un evento ("¡Mentiroso!"). |
 | Vista | view | Estado redactado para un asiento concreto. |
 | Zona | zone | Colección ordenada de componentes con posiciones públicas (mazo, pila, fila). Ver también *bolsa*. |

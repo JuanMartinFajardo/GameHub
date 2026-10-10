@@ -49,6 +49,14 @@
 | 041 | Abandonar = último puesto y un bot juega por el asiento; la partida acaba si queda uno | Aceptada (2026-10-10, usuario) |
 | 042 | LAN: puerto 7420, enlace `/r/CÓDIGO` con QR, anuncio mDNS `_gamehub._tcp` y sesiones guardadas | Aceptada (2026-10-10, usuario) |
 | 043 | Bots en red con la misma interfaz `Agent` que en proceso | Aceptada (2026-10-10, usuario) |
+| 044 | Cliente web: workspace de pnpm en la raíz (web/ y games/*/ui), TypeScript 7, React 19, Vite 8, Biome, Vitest | Propuesta (2026-10-10, F4) |
+| 045 | Tipos TS del protocolo con el mismo generador que los de Python | Propuesta (2026-10-10, F4) |
+| 046 | El servidor de partidas sirve la app web (mismo origen; el enlace y el QR abren la app) | Propuesta (2026-10-10, F4) |
+| 047 | Pistas de presentación `ui { … }`: catálogo cerrado, comprobadas y fuera del hash de reglas | Propuesta (2026-10-10, F4) |
+| 048 | UI genérica guiada por los tipos y los dominios de las acciones; constructor de acciones | Propuesta (2026-10-10, F4) |
+| 049 | Partidas en un mismo dispositivo con una conexión por asiento contra el servidor | Propuesta (2026-10-10, F4) |
+| 050 | UIs propias como paquetes en games/<juego>/ui, registradas solas; plantilla y tipos por juego | Propuesta (2026-10-10, F4) |
+| 051 | Sin dependencias de estado ni de idiomas: reductor puro + useSyncExternalStore, catálogos propios | Propuesta (2026-10-10, F4) |
 
 ---
 
@@ -347,3 +355,87 @@
 - **Consecuencias:** el mismo agente juega en la arena, en `play_match` y contra personas por la
   red sin cambiar una línea; `gamehub bot run` carga un archivo `.py` con `make_agent`, una clase
   `Agent` o una función `act`.
+
+### ADR-044 — Cliente web: pila y workspace
+- **Contexto:** la Fase 4 crea la parte de JavaScript del monorepo: paquetes de la web y UIs
+  propias que viven dentro de cada paquete de juego (`games/<juego>/ui`, como prevé la
+  [arquitectura](arquitectura.md)).
+- **Decisión:** un workspace de **pnpm en la raíz del repositorio** con `web/packages/*`,
+  `web/apps/*` y `games/*/ui`, Node 22, **TypeScript 7** estricto (el compilador nativo),
+  **React 19**, **Vite 8**, **Biome** para lint y formato (el equivalente de ruff) y **Vitest**.
+  Versiones exactas en un catálogo de `pnpm-workspace.yaml`; los paquetes internos exportan su
+  código TypeScript, sin paso de compilación.
+- **Alternativas:** el workspace dentro de `web/` (pnpm no lo encuentra al trabajar dentro de
+  `games/<juego>/ui`, que no cuelga de `web/`); ESLint + Prettier (dos herramientas y más
+  configuración); TypeScript 6 (más lento, mismo resultado).
+- **Consecuencias:** `pnpm install`, `test`, `lint`, `typecheck` y `build` desde la raíz;
+  `pnpm dev` funciona dentro de cada UI. La raíz gana `package.json`, `pnpm-workspace.yaml`,
+  `pnpm-lock.yaml`, `biome.json` y `.nvmrc`.
+
+### ADR-045 — Tipos del protocolo generados una sola vez
+- **Decisión:** `gamehub protocol types` genera desde `spec/protocol/v1` tanto los `TypedDict`
+  de Python como las `interface` de TypeScript (`@gamehub/protocol`), con el formato de cada
+  ecosistema; `--check` comprueba los dos en el CI. Para no chocar con globales de JavaScript,
+  `Number`, `Event` y `Error` pasan a llamarse `ExactNumber`, `GameEvent` y `ErrorInfo` en el
+  esquema (los mensajes en la red no cambian).
+- **Alternativas:** `json-schema-to-typescript` (otra herramienta, otro estilo de salida).
+- **Consecuencias:** un único origen de verdad para los mensajes en todos los clientes.
+
+### ADR-046 — El servidor sirve la app web
+- **Decisión:** `gamehub serve` y `gamehub host` sirven la app compilada (la del repositorio, la
+  que viaja en la rueda o `GAMEHUB_WEB_DIR`); las rutas de la app devuelven su `index.html` y
+  `/r/CÓDIGO` sigue dando la sala en JSON a quien la pide así. Endpoints nuevos: QR de la sala en
+  SVG y replays estado a estado (`/frames?seat=`).
+- **Alternativas:** la app en otro servidor (CORS, dos direcciones que recordar).
+- **Consecuencias:** mismo origen, sin CORS; el enlace y el QR de una sala abren la app, también
+  en el móvil; nada que instalar para jugar en el navegador.
+
+### ADR-047 — Pistas de presentación `ui { … }`
+- **Decisión:** una sección de Nomos con entradas `destino: pista, pista…` (variables, opciones,
+  tipos, acciones y sus parámetros, nodos, asientos) y un **catálogo cerrado** de pistas
+  (cómo dibujar, dónde, nombres traducidos, símbolos, colores, cartas, cómo elegir un argumento,
+  colores y nombres de los asientos), comprobadas por el compilador (E701–E704). Llegan a la IR
+  en una clave `ui` opcional que **no cuenta para el hash de reglas**; en las variantes, cada
+  pista sustituye a la del mismo hueco. Sin cambiar `ir_version`, porque es opcional.
+- **Alternativas:** pistas libres en `meta` (sin comprobar: los errores se verían en la
+  pantalla); una hoja de estilo aparte (otro archivo que mantener sincronizado con las reglas).
+- **Consecuencias:** cambiar la presentación no cambia las reglas ni sus replays; las pistas
+  mal escritas fallan al compilar, con sugerencias.
+
+### ADR-048 — UI genérica guiada por tipos y dominios
+- **Decisión:** el aspecto de cada variable sale de su tipo y de sus pistas, y cómo se elige
+  cada argumento, de la forma de su **dominio** en la IR (`cells(G)` → pulsar casillas;
+  `subsets(items(Z), a, b)` → marcar elementos de Z; `items(Z)` → elegir uno) o de una pista.
+  Un **constructor de acciones** elige los argumentos en orden con los valores que dan las
+  acciones legales (enumeradas o con `query_actions`), calculados una vez por actualización; para
+  marcar varios con acciones progresivas valida el tamaño en vez de pedir todos los
+  subconjuntos. La web enumera hasta 500 acciones legales por defecto.
+- **Consecuencias:** los 15 juegos del catálogo se juegan sin escribir interfaz (lo comprueba un
+  test que juega cada uno solo con la UI); un juego nuevo es jugable en cuanto compila.
+
+### ADR-049 — Partidas en un mismo dispositivo
+- **Decisión:** el modo local crea una sala en el servidor que sirve la app y abre una conexión
+  por asiento humano en la misma pestaña; enseña la UI de quien tiene el turno y, si el juego
+  esconde información, tapa la pantalla entre turnos.
+- **Alternativas:** un motor en el navegador (no lo hay hasta el core en WASM, F8; Pyodide pesa
+  decenas de megas).
+- **Consecuencias:** el mismo protocolo y las mismas reglas que en red; sin servidor no hay modo
+  local hasta F8.
+
+### ADR-050 — UIs propias
+- **Decisión:** una UI propia es un paquete en `games/<juego>/ui` que exporta `defineGameUi`
+  (un componente que recibe la vista, las acciones legales tipadas y `act`); la app la registra
+  sola (`import.meta.glob`) y deja cambiar a la genérica. `gamehub ui new` la crea desde una
+  plantilla que ya funciona (tipos del juego con `gamehub sdk ts`, tablero inicial, test y
+  servidor de desarrollo con la app solo para ese juego).
+- **Alternativas:** UIs dentro de `web/` (separadas de las reglas a las que pertenecen).
+- **Consecuencias:** cada juego lleva sus reglas y su interfaz juntas; si cambian las reglas,
+  TypeScript señala lo que hay que tocar (y un test, si los tipos no se regeneraron).
+
+### ADR-051 — Sin librerías de estado ni de idiomas
+- **Decisión:** el estado de cada conexión lo lleva el SDK con un reductor puro e inmutable, y
+  React lo lee con `useSyncExternalStore`; los textos, con catálogos es/en propios que
+  TypeScript comprueba (las mismas claves en los dos idiomas).
+- **Alternativas:** Redux o Zustand; i18next.
+- **Consecuencias:** el SDK sirve igual fuera de React (bots en Node, otros frameworks); menos
+  dependencias que mantener.

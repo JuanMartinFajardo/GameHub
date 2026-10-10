@@ -74,11 +74,25 @@
 - **Mental poker**: partidas P2P sin árbitro de confianza.
 - **Edición colaborativa en tiempo real** del diagrama (CRDT).
 
+### Surgidas en la Fase 4 (cliente web)
+
+- **Animaciones a partir de los eventos**: los eventos `move`, `flip` y `reveal` ya dicen qué va
+  de dónde a dónde; la UI genérica podría animar cartas y fichas sin saber nada del juego.
+- **Pistas para más formas**: recorridos (`track`, para el Parchís), grafos con coordenadas,
+  dados como forma de elegir un argumento (la cara en Dudo), agrupar variables en paneles.
+- **Etiquetas traducibles en la IR**: hoy `meta.tags` son palabras en inglés que la app traduce
+  con un diccionario; un catálogo de etiquetas compartido serviría también al hub.
+- **App instalable y sin conexión** (PWA) cuando haya motor en el navegador (WASM, F8): partidas
+  locales y replays sin servidor.
+- **Un tema por juego**: el kit ya se pinta con variables CSS; un juego podría traer su paleta
+  (tapete, madera, colores de los asientos) en la sección `ui`.
+- **Grabar una partida como vídeo o GIF** desde el visor de replays, para compartirla.
+
 ## D. Riesgos y mitigaciones
 
 | Riesgo | Mitigación |
 |---|---|
-| Alcance enorme | Cortes verticales; MVP jugable en Fase 4 y de diseño en Fase 5; IA al final |
+| Alcance enorme | Cortes verticales; MVP jugable en Fase 4 (hecho: cualquier juego del catálogo se juega en el navegador) y de diseño en Fase 5; IA al final |
 | Expresividad vs. analizabilidad | Núcleo puro y total + plugins nativos puros como vía de escape |
 | Lentitud del intérprete | Escalera de rendimiento: Python → VM C++ → codegen |
 | El lenguaje cambia mucho al principio | La IR versionada es la frontera estable; migraciones automáticas |
