@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import html
+import io
 import json
 import time
 from collections import OrderedDict
@@ -478,8 +479,12 @@ class GameServer:
         if room is None:
             return _api_error(404, "unknown_room", "no existe esa sala")
         url = self.url(request, f"/r/{room.code}")
-        svg = segno.make(url, error="m").svg_inline(scale=8, border=2, dark="#111827")
-        return Response(svg, media_type="image/svg+xml")
+        out = io.BytesIO()
+        # Con xmlns: el SVG se usa como imagen (<img src=…>), no incrustado en el HTML.
+        segno.make(url, error="m").save(
+            out, kind="svg", scale=8, border=2, dark="#111827", xmldecl=False, svgns=True
+        )
+        return Response(out.getvalue(), media_type="image/svg+xml")
 
     async def replay_frames(self, request: Request) -> Response:
         """La partida paso a paso tal como la vio un asiento (`?seat=N`), un espectador

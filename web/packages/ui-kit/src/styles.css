@@ -62,7 +62,7 @@
   --gh-shadow-lg: 0 12px 40px rgba(16, 24, 40, 0.18);
   --gh-card-width: 64px;
   --gh-die-size: 40px;
-  --gh-cell-size: 56px;
+  --gh-cell-size: 68px;
   --gh-speed: 160ms;
 
   color-scheme: light;
@@ -304,6 +304,10 @@
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--gh-border);
+}
+
+.gh-panel__header:last-child {
+  border-bottom: 0;
 }
 
 .gh-panel__title {
@@ -823,11 +827,15 @@ button.gh-card:hover:not(:disabled):not(.gh-card--selected) {
   border-bottom: 1px solid var(--gh-border);
 }
 
-.gh-scoreboard th {
+.gh-scoreboard thead th {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--gh-text-muted);
+}
+
+.gh-scoreboard tbody th {
+  font-weight: 600;
 }
 
 .gh-scoreboard td.gh-num,
@@ -836,7 +844,7 @@ button.gh-card:hover:not(:disabled):not(.gh-card--selected) {
   font-variant-numeric: tabular-nums;
 }
 
-.gh-scoreboard tr.gh-scoreboard--highlight td {
+.gh-scoreboard tr.gh-scoreboard--highlight > * {
   background: var(--gh-accent-soft);
 }
 

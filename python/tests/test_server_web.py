@@ -75,6 +75,7 @@ def test_room_qr_as_svg(server: ServerThread) -> None:
     code = create(server, game="nim")["code"]
     status, kind, body = get(server, f"/api/v1/rooms/{code}/qr.svg")
     assert status == 200 and kind.startswith("image/svg+xml") and body.startswith("<svg")
+    assert 'xmlns="http://www.w3.org/2000/svg"' in body  # para usarlo en un <img>
     assert get(server, "/api/v1/rooms/ZZZZZZ/qr.svg")[0] == 404
 
 

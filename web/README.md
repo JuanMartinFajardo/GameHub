@@ -12,6 +12,8 @@ y la app para jugar en el navegador.
 | [`@gamehub/client`](packages/client) | SDK cliente: conexión WebSocket con reconexión y `resume`, estado de la sala y la partida (inmutable, apto para React), acciones legales y progresivas, sesiones guardadas, API REST |
 | [`@gamehub/react`](packages/react) | Hooks de React sobre el SDK: sala, partida, vista, acciones legales, jugar, IR de la sala |
 | [`@gamehub/auto-ui`](packages/auto-ui) | **UI genérica**: cualquier juego dibujado y jugable a partir de su IR (tipos, dominios de las acciones y pistas `ui`), con registro de eventos y resultado |
+| [`@gamehub/shell`](packages/shell) | La experiencia de jugar como librería: inicio, crear y entrar en salas, lobby (invitar con código, enlace o QR; asientos, bots, configuración), partida con la UI genérica o una propia, chat, revancha, replays paso a paso y partidas en un mismo dispositivo |
+| [`apps/play`](apps/play) | La app web (Vite) que sirve `gamehub serve`: registra sola las UIs propias de `games/*/ui` y tiene una galería del kit en `/kit` |
 
 ## Requisitos
 
@@ -27,4 +29,14 @@ pnpm test             # tests de todos los paquetes (Vitest); los de integració
                       # `gamehub serve` con uv (GAMEHUB_SKIP_SERVER_TESTS=1 los salta)
 pnpm typecheck        # TypeScript estricto
 pnpm lint             # Biome: lint y formato (pnpm format para corregir)
+pnpm build            # compila la app (apps/play/dist), que luego sirve gamehub serve
+pnpm dev              # la app con recarga en caliente (http://localhost:5173), contra un
+                      # servidor de partidas local: cd python && uv run gamehub serve ../games
+```
+
+Para jugar en el navegador basta con compilar una vez y arrancar el servidor:
+
+```bash
+cd web && pnpm install && pnpm build
+cd ../python && uv run gamehub serve ../games --open
 ```

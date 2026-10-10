@@ -40,6 +40,20 @@ game Nim {
     terminal End { payoff: win_loss(other(turn) if misere else turn, 1, -1) }
   }
 
+  ui {
+    heaps: label({ es: "Montones", en: "Heaps" })
+    turn: hidden
+    action take: label({ es: "Quitar", en: "Take" })
+    action take.heap: label({ es: "Montón", en: "Heap" })
+    action take.count: label({ es: "Cuántos", en: "How many" })
+    node Take: label({ es: "Jugada", en: "Move" })
+    node End: label({ es: "Final", en: "End" })
+    sizes: label({ es: "Tamaño de los montones", en: "Heap sizes" })
+    misere: label(
+      { es: "Misère (pierde quien se lleva el último)", en: "Misère (taking the last one loses)" }
+    )
+  }
+
   test "quien se lleva el último gana" {
     params { sizes: [2] }
     play take(0, 2)

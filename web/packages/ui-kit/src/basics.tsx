@@ -53,7 +53,7 @@ export function Badge(props: {
 export function Panel(props: {
   title?: ReactNode;
   actions?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   bodyClassName?: string;
 }) {
@@ -65,7 +65,9 @@ export function Panel(props: {
           {props.actions}
         </header>
       )}
-      <div className={cx("gh-panel__body", props.bodyClassName)}>{props.children}</div>
+      {props.children !== null && props.children !== undefined && props.children !== false && (
+        <div className={cx("gh-panel__body", props.bodyClassName)}>{props.children}</div>
+      )}
     </section>
   );
 }

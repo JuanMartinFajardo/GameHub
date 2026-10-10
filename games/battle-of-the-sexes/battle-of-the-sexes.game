@@ -23,6 +23,13 @@ game BattleOfTheSexes extends TwoByTwo {
     column_payoffs: List<Real> = [2, 0, 0, 3]
   }
 
+  ui {
+    Choice: symbols(Opera: "🎭", Football: "⚽"), labels(
+      Opera: { es: "Ópera", en: "Opera" },
+      Football: { es: "Fútbol", en: "Football" }
+    )
+  }
+
   test "en la ópera" {
     play 0: choose(Opera), 1: choose(Opera)
     expect payoff == [3, 2]

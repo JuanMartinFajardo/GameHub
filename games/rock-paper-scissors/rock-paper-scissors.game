@@ -41,6 +41,19 @@ game RockPaperScissors {
     terminal End { payoff: [score(s) for s in seats] }
   }
 
+  ui {
+    hand: label({ es: "Mano", en: "Hand" })
+    Hand: symbols(Rock: "✊", Paper: "✋", Scissors: "✌️"), labels(
+      Rock: { es: "Piedra", en: "Rock" },
+      Paper: { es: "Papel", en: "Paper" },
+      Scissors: { es: "Tijera", en: "Scissors" }
+    )
+    action show: label({ es: "Sacar", en: "Show" })
+    action show.h: label({ es: "Mano", en: "Hand" })
+    node Show: label({ es: "¡Piedra, papel o tijera!", en: "Rock, paper, scissors!" })
+    node End: label({ es: "Final", en: "End" })
+  }
+
   test "el papel envuelve a la piedra" {
     play 0: show(Paper), 1: show(Rock)
     expect payoff == [1, -1]

@@ -7,10 +7,11 @@ import type {
   CreateRoom,
   EndReason,
   ExactNumber,
+  GameEvent,
   Room,
   RoomList,
-  SeatPlayer,
   ServerInfo,
+  View,
 } from "@gamehub/protocol";
 import { endpoints } from "./endpoints";
 import { ClientError } from "./errors";
@@ -18,11 +19,17 @@ import { ClientError } from "./errors";
 /** Una GameIR (JSON): `ir.schema.json`. `@gamehub/auto-ui` la tipa con detalle. */
 export type GameIr = Record<string, unknown>;
 
+/** Quien jugó en cada asiento de una partida guardada (la posición en la lista es el asiento). */
+export interface RecordedPlayer {
+  name: string;
+  kind: "human" | "bot";
+}
+
 /** Resumen de una partida terminada (`GET /api/v1/matches`). */
 export interface MatchListing {
   id: string;
   game: { id: string; version: string; rules_hash: string };
-  players: SeatPlayer[];
+  players: RecordedPlayer[];
   reason: EndReason;
   payoffs: ExactNumber[] | null;
   ranking: number[] | null;
@@ -37,7 +44,7 @@ export interface Replay {
   params: Record<string, unknown>;
   seed: number | null;
   steps: ({ chance: unknown[] } | { seat: number; action: { name: string; args: object } })[];
-  players?: SeatPlayer[];
+  players?: RecordedPlayer[];
   result?: {
     node?: string;
     payoffs?: ExactNumber[];
@@ -114,4 +121,37 @@ export async function listMatches(server: string): Promise<MatchListing[]> {
 
 export function getReplay(server: string, id: string): Promise<Replay> {
   return fetchJson(api(server, `/replays/${encodeURIComponent(id)}`));
+}
+
+/** Un estado de una partida terminada tal como lo vio alguien (`GET …/frames`). */
+export interface ReplayFrame {
+  step: number;
+  view: View;
+  events: GameEvent[];
+}
+
+export interface ReplayFrames {
+  match: string;
+  /** "all" (todo a la vista), "public" (espectador) o el asiento. */
+  seat: string;
+  ir: GameIr;
+  players: RecordedPlayer[];
+  params: Record<string, unknown>;
+  result: Replay["result"] | null;
+  fairness?: unknown;
+  frames: ReplayFrame[];
+}
+
+/** La partida paso a paso tal como la vio `seat` ("all", "public" o un asiento). */
+export function replayFrames(
+  server: string,
+  id: string,
+  seat: string | number = "all",
+): Promise<ReplayFrames> {
+  return fetchJson(
+    api(
+      server,
+      `/replays/${encodeURIComponent(id)}/frames?seat=${encodeURIComponent(String(seat))}`,
+    ),
+  );
 }

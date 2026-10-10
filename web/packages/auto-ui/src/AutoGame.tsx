@@ -214,7 +214,6 @@ function SeatsArea(props: {
   end: MatchEnd | null;
 }) {
   const ctx = useAuto();
-  const t = useMessages(messages);
   const vars = ctx.model.vars.filter((v) => v.place === "seats" && visible(v));
   const seats = props.players.map((p) => p.seat).sort((a, b) => a - b);
   // Quien juega, primero.
@@ -252,9 +251,7 @@ function SeatsArea(props: {
               </span>
             }
           >
-            {vars.length === 0 ? (
-              <span className="gh-muted">{t("seat", { n: s + 1 })}</span>
-            ) : (
+            {vars.length === 0 ? null : (
               <div className="gh-auto__seat-vars">
                 {vars.map((v) => {
                   const all = props.view.state[v.name];
@@ -405,8 +402,7 @@ function ChoiceStep(props: { builder: Builder }) {
     <>
       <span className="gh-auto__hint">
         <strong>{actionLabel}</strong>
-        {chosen.length > 0 && ` (${chosen.join(", ")})`} ·{" "}
-        {t("choose", { what: pickText(param.label, ctx.locale) })}
+        {chosen.length > 0 && ` (${chosen.join(", ")})`} · {pickText(param.label, ctx.locale)}:
       </span>
       {candidates === null ? (
         <Spinner label={t("loading")} />
@@ -457,7 +453,7 @@ export function EventLog(props: { log: LoggedEvent[]; nodes?: boolean; limit?: n
   const ctx = useAuto();
   const t = useMessages(messages);
   const end = useRef<HTMLLIElement | null>(null);
-  const lines = props.log
+  const lines = actionsFirst(props.log)
     .map((e, i) => ({
       key: i,
       seq: e.seq,
@@ -513,4 +509,24 @@ export function ResultView(props: { end: MatchEnd; players: PlayerInfo[] }) {
       />
     </Panel>
   );
+}
+
+/** En cada actualización, la jugada antes que lo que provoca (el motor emite primero los
+ * efectos, como lo que se revela, y después la propia acción). */
+function actionsFirst(log: LoggedEvent[]): LoggedEvent[] {
+  const out: LoggedEvent[] = [];
+  let group: LoggedEvent[] = [];
+  const flush = () => {
+    const actions = group.filter((e) => e.event.type === "action");
+    const rest = group.filter((e) => e.event.type !== "action");
+    // Un único jugador en el paso: su jugada va delante de sus efectos.
+    out.push(...(actions.length === 1 ? [...actions, ...rest] : group));
+    group = [];
+  };
+  for (const entry of log) {
+    if (group.length > 0 && group[0]?.seq !== entry.seq) flush();
+    group.push(entry);
+  }
+  flush();
+  return out;
 }

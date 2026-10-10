@@ -24,6 +24,13 @@ game StagHunt extends TwoByTwo {
     column_payoffs: List<Real> = [4, 3, 0, 3]
   }
 
+  ui {
+    Choice: symbols(Stag: "🦌", Hare: "🐇"), labels(
+      Stag: { es: "Ciervo", en: "Stag" },
+      Hare: { es: "Liebre", en: "Hare" }
+    )
+  }
+
   test "cazar juntos el ciervo" {
     play 0: choose(Stag), 1: choose(Stag)
     expect payoff == [4, 4]

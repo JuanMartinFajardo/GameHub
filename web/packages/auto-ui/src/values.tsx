@@ -146,18 +146,13 @@ export function CellContent(props: { type: TypeRef; value: unknown }) {
   const inner = type.kind === "option" ? type.inner : type;
   if (inner.kind === "enum") {
     const look = enumLook(ctx.model, inner.name, String(value), ctx.locale);
-    if (look.color)
-      return (
-        <Token size="fill" color={look.color} label={look.text}>
-          {look.symbol}
-        </Token>
-      );
+    const color = look.color ?? enumColor(inner.values.indexOf(String(value)));
+    // Con símbolo, el símbolo en su color (✕, ◯); con color y sin símbolo, una ficha (Conecta 4).
+    if (look.symbol === undefined && look.color !== undefined) {
+      return <Token size="fill" color={look.color} label={look.text} />;
+    }
     return (
-      <Token
-        glyph
-        label={look.text}
-        color={look.symbol ? undefined : enumColor(inner.values.indexOf(String(value)))}
-      >
+      <Token glyph label={look.text} color={color}>
         {look.symbol ?? shortName(look.text)}
       </Token>
     );

@@ -37,6 +37,21 @@ game TicTacToe {
     terminal Draw { payoff: fill(0) }
   }
 
+  ui {
+    board: grid, label({ es: "Tablero", en: "Board" })
+    turn: hidden
+    Mark: symbols(X: "✕", O: "◯"), colors(X: "#e53935", O: "#1e88e5")
+    action place: label({ es: "Marcar", en: "Place" })
+    action place.c: label({ es: "Casilla", en: "Cell" })
+    node Move: label({ es: "Jugada", en: "Move" })
+    node Win: label({ es: "Victoria", en: "Win" })
+    node Draw: label({ es: "Tablas", en: "Draw" })
+    seats: colors("#e53935", "#1e88e5"), names(
+      { es: "Cruces", en: "Crosses" },
+      { es: "Círculos", en: "Noughts" }
+    )
+  }
+
   test "X gana en diagonal" {
     play place((0, 0)), place((0, 1)), place((1, 1)), place((0, 2)), place((2, 2))
     expect at(Win)

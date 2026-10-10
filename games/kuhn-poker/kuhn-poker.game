@@ -69,6 +69,28 @@ game KuhnPoker {
     }
   }
 
+  ui {
+    deck: deck, label({ es: "Mazo", en: "Deck" })
+    hand: hand, label({ es: "Carta", en: "Card" })
+    put: chips, label({ es: "Apostado", en: "In the pot" })
+    moves: label({ es: "Jugadas", en: "Moves" })
+    Card: card
+    Move: labels(
+      Check: { es: "Paso", en: "Check" },
+      Bet: { es: "Apuesto", en: "Bet" },
+      Call: { es: "Igualo", en: "Call" },
+      Fold: { es: "Me retiro", en: "Fold" }
+    )
+    action check: label({ es: "Pasar", en: "Check" })
+    action bet: label({ es: "Apostar", en: "Bet" })
+    action call: label({ es: "Igualar", en: "Call" })
+    action fold: label({ es: "Retirarse", en: "Fold" })
+    node Deal: label({ es: "Reparto", en: "Deal" })
+    node Act: label({ es: "Apuestas", en: "Betting" })
+    node Folded: label({ es: "Retirada", en: "Folded" })
+    node Showdown: label({ es: "Se enseñan las cartas", en: "Showdown" })
+  }
+
   test "la carta alta gana el enfrentamiento" {
     chance where only(hand[0]) == K and only(hand[1]) == J
     play check(), bet(), call()

@@ -95,9 +95,9 @@ describe("Nim", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Take…" }));
-    expect(screen.getByText(/Elige Heap/)).toBeTruthy();
+    expect(screen.getByText(/· Heap:/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "1" }));
-    expect(screen.getByText(/Elige Count/)).toBeTruthy();
+    expect(screen.getByText(/· Count:/)).toBeTruthy();
     const counts = screen.getAllByRole("button").filter((b) => b.hasAttribute("data-gh-choice"));
     expect(counts.map((b) => b.textContent)).toEqual(["1", "2"]);
     fireEvent.click(counts[1] as HTMLElement);

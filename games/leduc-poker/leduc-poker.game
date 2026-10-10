@@ -101,6 +101,34 @@ game LeducPoker {
     }
   }
 
+  ui {
+    deck: deck, label({ es: "Mazo", en: "Deck" })
+    hand: hand, label({ es: "Carta", en: "Card" })
+    board: row, label({ es: "Carta común", en: "Board card" })
+    put: chips, label({ es: "Apostado", en: "In the pot" })
+    round: counter, place(top), label({ es: "Ronda", en: "Round" })
+    moves: label({ es: "Jugadas de la ronda", en: "Moves this round" })
+    turn: hidden
+    Card: card
+    Move: labels(
+      Check: { es: "Paso", en: "Check" },
+      Bet: { es: "Apuesto", en: "Bet" },
+      Call: { es: "Igualo", en: "Call" },
+      Raise: { es: "Subo", en: "Raise" },
+      Fold: { es: "Me retiro", en: "Fold" }
+    )
+    action check: label({ es: "Pasar", en: "Check" })
+    action bet: label({ es: "Apostar", en: "Bet" })
+    action call: label({ es: "Igualar", en: "Call" })
+    action raise: label({ es: "Subir", en: "Raise" })
+    action fold: label({ es: "Retirarse", en: "Fold" })
+    node Deal: label({ es: "Reparto", en: "Deal" })
+    node Betting: label({ es: "Apuestas", en: "Betting" })
+    node Flop: label({ es: "Carta común", en: "Flop" })
+    node Folded: label({ es: "Retirada", en: "Folded" })
+    node Showdown: label({ es: "Se enseñan las cartas", en: "Showdown" })
+  }
+
   test "la pareja con la carta común gana" {
     chance where only(hand[0]) == J and only(hand[1]) == K
     play check(), check()
