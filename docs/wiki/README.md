@@ -7,15 +7,15 @@
 
 | | |
 |---|---|
-| **Última actualización** | 2026-10-09 |
-| **Fase actual** | F1 completada (rama `f1/motor-referencia`, pendiente de fusionar a `main`) → siguiente: F2 (lenguaje Nomos) |
-| **Progreso global** | ≈ 13 % (F0 y F1 completas) |
-| **Qué funciona** | Motor de referencia en Python que ejecuta cualquier juego en GameIR: azar reproducible (PCG32) y enumerable, información oculta, nodos simultáneos, ventanas de reacción y fases. Se juega en la terminal (`gamehub play`) a 6 juegos, contra personas o bots. |
-| **Código** | [`spec/`](../../spec/README.md) (IR v0, 6 juegos, trazas de conformidad) · [`python/`](../../python) (`gamehub`: validación, motor, builder, CLI; 132 tests) |
-| **Calidad** | 10⁵ partidas aleatorias sin errores en los juegos pequeños; replays verificados paso a paso |
-| **Decisiones recientes** | PCG32 normativo (ADR-022), sin pydantic (023), orden de `$exit` (024), hash insensible a valores por defecto (025), ramas por fase (026) |
-| **Pendiente de ti** | Fusionar la rama de F1 a `main`; variantes de Mentiroso y el resto de [preguntas abiertas](preguntas-abiertas.md) |
-| **Siguiente paso** | F2: compilador de Nomos (`.game` → IR) con comprobación de tipos, formateador y stdlib v0 |
+| **Última actualización** | 2026-10-10 |
+| **Fase actual** | F3 en curso (rama `f3/servidor-partidas`): servidor de partidas y protocolo. F0, F1 y F2 están en `main` |
+| **Progreso global** | ≈ 24 % (F0, F1 y F2 completas) |
+| **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`): compilador a GameIR con tipos y errores claros, avisos (alcanzabilidad, exhaustividad, fugas de información…), clasificación, tests e invariantes (`gamehub test`), formateador, módulos y biblioteca estándar, variantes (`extends`) y combinadores (`repeat`, `best_of`), paquetes con dependencias, diagrama (`viz`), reglamento (`rules`), diff semántico y extensión de VS Code. Se juegan en la terminal con el motor de F1. |
+| **Código** | [`spec/`](../../spec/README.md) (IR v0, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, CLI; 500 tests) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (15 paquetes, 16 juegos) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
+| **Calidad** | Los 16 juegos pasan sus tests e invariantes (también en partidas aleatorias); los 6 de F1 compilan con el mismo hash que su IR escrita a mano |
+| **Decisiones recientes** | Aceptadas (2026-10-10) las de F2, ADR-027 a 035: parser a mano, sin ocultar globales, azúcar por tipos, tests fuera de la IR, módulos, mods y combinadores, paquetes, análisis sobre la IR, formato canónico |
+| **Pendiente de ti** | Variantes de Mentiroso y el resto de [preguntas abiertas](preguntas-abiertas.md) |
+| **Siguiente paso** | F3: servidor de partidas (salas, protocolo por WebSocket, LAN), para jugar en red |
 
 Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.py`](../../structure.py) ([análisis](analisis-structure-py.md)).
 
@@ -28,7 +28,7 @@ Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.p
 
 **Especificaciones**
 - [Modelo formal](modelo-formal.md) — la semántica: nodos, acciones, azar, información, tiempo, pagos
-- [Nomos, el lenguaje `.game`](lenguaje-game.md) — sintaxis con ejemplos (tres en raya, dilema del prisionero, Kuhn, Mentiroso)
+- [Nomos, el lenguaje `.game`](lenguaje-game.md) — referencia v0.1: sintaxis, tipos, flow, tests, módulos, mods, herramientas, diagnósticos
 - [GameIR](ir.md) — representación intermedia canónica, hashes, versionado, validación ([`spec/`](../../spec/README.md))
 - [Motor de referencia](motor.md) — semántica operacional exacta, azar, eventos, formatos, rendimiento
 - [Protocolo de partidas](protocolo.md) — salas, códigos, mensajes, LAN/online, azar verificable

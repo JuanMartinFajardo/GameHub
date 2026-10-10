@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: Apache-2.0
+// Rejillas: direcciones, desplazamientos y distancias entre casillas. Lo que mira un tablero
+// concreto (`cells`, `neighbors`, `lines`, `in_bounds`) es del lenguaje; aquí está lo que solo
+// depende de las coordenadas. Una casilla es el par (fila, columna): `cell(f, c)` o `(f, c)`,
+// con c[0] la fila y c[1] la columna; las direcciones son pares (Δfila, Δcolumna).
+
+/// Las cuatro direcciones ortogonales: derecha, abajo, izquierda y arriba.
+fn orthogonal() -> List<Cell> = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+
+/// Las cuatro direcciones diagonales.
+fn diagonal() -> List<Cell> = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+
+/// Las ocho direcciones (las del rey del ajedrez).
+fn all_directions() -> List<Cell> = orthogonal() + diagonal()
+
+/// La casilla `c` desplazada según `d`.
+fn shift(c: Cell, d: Cell) -> Cell = cell(c[0] + d[0], c[1] + d[1])
+
+/// Las `n` casillas que siguen a `c` en la dirección `d` (sin mirar si están en el tablero).
+fn ray(c: Cell, d: Cell, n: Int) -> List<Cell> =
+  [cell(c[0] + k * d[0], c[1] + k * d[1]) for k in 1..n]
+
+/// Distancia de Manhattan: movimientos ortogonales para ir de `a` a `b`.
+fn manhattan(a: Cell, b: Cell) -> Int = abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+/// Distancia de Chebyshev: movimientos de rey para ir de `a` a `b`.
+fn chebyshev(a: Cell, b: Cell) -> Int = max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+
+/// ¿Son vecinas ortogonales?
+fn adjacent(a: Cell, b: Cell) -> Bool = manhattan(a, b) == 1
+
+/// ¿Se tocan, también en diagonal?
+fn touching(a: Cell, b: Cell) -> Bool = chebyshev(a, b) == 1

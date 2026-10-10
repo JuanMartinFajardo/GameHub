@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: Apache-2.0
+// Dados: utilidades para leer una tirada. La tirada se hace en un nodo chance, con
+// `d = roll(6)` para cada dado (por ejemplo, en un bucle que rellena una lista).
+
+/// Las caras de un dado de `sides` caras: 1, 2, …, sides.
+fn faces(sides: Int) -> List<Int> = 1..sides
+
+/// Cuántos dados muestran `face`.
+fn count_face(dice: List<Int>, face: Int) -> Int = count(d in dice : d == face)
+
+/// Cuántos dados muestran `face`, contando como comodines los que muestran `wild` (en el Dudo,
+/// los ases).
+fn count_with_wild(dice: List<Int>, face: Int, wild: Int) -> Int =
+  count(d in dice : d == face or d == wild)
+
+/// Puntos de los dados que muestran `face` (las casillas «unos», «doses»… del Yahtzee).
+fn sum_face(dice: List<Int>, face: Int) -> Int = face * count_face(dice, face)
+
+/// Cuántas veces sale la cara más repetida (0 si no hay dados).
+fn most_repeated(dice: List<Int>) -> Int =
+  0 if len(dice) == 0 else max(f in distinct(dice) : count_face(dice, f))
+
+/// ¿Muestran todos los dados la misma cara?
+fn all_same(dice: List<Int>) -> Bool = len(distinct(dice)) <= 1
+
+/// ¿Forman los dados una escalera (caras consecutivas, sin repetir)?
+fn is_straight(dice: List<Int>) -> Bool =
+  len(dice) > 0 and len(distinct(dice)) == len(dice) and max(dice) - min(dice) == len(dice) - 1

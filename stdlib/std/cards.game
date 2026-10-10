@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0
+// Barajas: la francesa de 52 cartas y la española de 40 o 48.
+//
+//   import std.cards.{Card, Suit, Rank, french52}
+//   state { @visible(none) deck: Zone<Card> = french52() }
+
+/// Palos de la baraja francesa: tréboles, diamantes, corazones y picas.
+enum Suit { Clubs, Diamonds, Hearts, Spades }
+
+/// Rangos de la baraja francesa, de menor a mayor (el as es el más alto).
+enum Rank { Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace }
+
+/// Una carta de la baraja francesa.
+struct Card { suit: Suit, rank: Rank }
+
+/// Las 52 cartas de la baraja francesa, palo a palo.
+fn french52() -> List<Card> = [Card { suit: s, rank: r } for s in Suit.values for r in Rank.values]
+
+/// Valor numérico de un rango: del 2 al 10, la J vale 11, la Q 12, la K 13 y el as 14.
+fn rank_value(r: Rank) -> Int = ord(r) + 2
+
+/// ¿Es roja la carta (diamantes o corazones)?
+fn is_red(c: Card) -> Bool = c.suit == Suit.Diamonds or c.suit == Suit.Hearts
+
+/// Palos de la baraja española: oros, copas, espadas y bastos.
+enum SpanishSuit { Coins, Cups, Swords, Batons }
+
+/// Rangos de la baraja española, de menor a mayor: as, del 2 al 9, sota, caballo y rey.
+enum SpanishRank { Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Jack, Knight, King }
+
+/// Una carta de la baraja española.
+struct SpanishCard { suit: SpanishSuit, rank: SpanishRank }
+
+/// Las 48 cartas de la baraja española, palo a palo.
+fn spanish48() -> List<SpanishCard> =
+  [SpanishCard { suit: s, rank: r } for s in SpanishSuit.values for r in SpanishRank.values]
+
+/// Las 40 cartas de la baraja española (sin ochos ni nueves), palo a palo.
+fn spanish40() -> List<SpanishCard> =
+  [c for c in spanish48() if c.rank != SpanishRank.Eight and c.rank != SpanishRank.Nine]
+
+/// Número impreso en una carta española: del 1 al 9, la sota 10, el caballo 11 y el rey 12.
+fn spanish_number(r: SpanishRank) -> Int = ord(r) + 1

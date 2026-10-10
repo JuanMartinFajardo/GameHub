@@ -24,3 +24,8 @@ repos:
         entry: uv run --project python gamehub ir check
         language: system
         files: ^spec/ir/examples/.*\.ir\.json$
+      - id: nomos-fmt
+        name: formato de los archivos .game
+        entry: uv run --project python gamehub fmt
+        language: system
+        files: \.game$

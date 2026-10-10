@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Póker de Kuhn: el benchmark mínimo de información imperfecta.
+game KuhnPoker {
+  meta {
+    version: "1.0.0"
+    title: { es: "Póker de Kuhn", en: "Kuhn poker" }
+    description: { es: "Tres cartas, una por jugador, una ronda de apuestas. Valor del juego para el asiento 0: -1/18." }
+    license: "CC-BY-4.0"
+    tags: ["benchmark", "imperfect-information", "chance", "zero-sum"]
+  }
+  players 2
+
+  /// Ordenadas: J < Q < K
+  enum Card { J, Q, K }
+  enum Move { Check, Bet, Call, Fold }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<Card> = [J, Q, K]
+    @visible(owner) @size_visible(all)
+    hand: per_player Bag<Card>
+    /// Fichas aportadas, ante incluido
+    put: per_player Int = 1
+    moves: List<Move>
+  }
+
+  /// Nadie ha apostado todavía: se puede pasar o apostar.
+  fn opening() -> Bool = moves == [] or moves == [Check]
+  fn facing_bet() -> Bool = len(moves) > 0 and last(moves) == Bet
+  /// Historial con una jugada más.
+  fn record(m: Move) -> List<Move> = append(moves, m)
+
+  flow {
+    start -> Deal
+
+    chance Deal {
+      shuffle deck
+      deal 1 from deck to each hand
+      -> Act
+    }
+
+    /// Los asientos alternan: 0, 1, 0.
+    decision Act {
+      actor: len(moves) % 2
+      action check() requires opening() { moves = record(Check) }
+      action bet() requires opening() {
+        moves = record(Bet)
+        put[actor] += 1
+      }
+      action call() requires facing_bet() {
+        moves = record(Call)
+        put[actor] += 1
+      }
+      action fold() requires facing_bet() { moves = record(Fold) }
+      -> Folded when last(moves) == Fold
+      -> Showdown when moves == [Check, Check] or last(moves) == Call
+      -> Act
+    }
+
+    /// Gana quien no se retiró y cobra lo que puso el otro.
+    terminal Folded {
+      let folder = (len(moves) - 1) % 2
+      payoff: win_loss(other(folder), put[folder], -put[folder])
+    }
+
+    terminal Showdown {
+      let w = argmax(s in seats : ord(only(hand[s])))
+      payoff: win_loss(w, put[other(w)], -put[other(w)])
+    }
+  }
+
+  test "la carta alta gana el enfrentamiento" {
+    chance where only(hand[0]) == K and only(hand[1]) == J
+    play check(), bet(), call()
+    expect at(Showdown) and payoff == [2, -2]
+  }
+
+  test "retirarse pierde el ante" {
+    chance where only(hand[0]) == J and only(hand[1]) == Q
+    play bet(), fold()
+    expect payoff == [1, -1]
+  }
+
+  test "no se puede igualar sin apuesta" {
+    seed 3
+    expect illegal call()
+    expect legal check()
+  }
+
+  /// Hay siempre tres cartas: en el mazo o en las manos
+  invariant size(deck) + sum(s in seats : size(hand[s])) == 3
+}

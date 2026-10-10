@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Juegos simultáneos de 2×2: la base de la familia (caza del ciervo, gallina, pares o nones,
+// batalla de los sexos…). Cada variante extiende este juego cambiando las opciones y los pagos.
+
+/// Dos jugadores eligen a la vez, en secreto, una de dos opciones. Los pagos salen de dos tablas
+/// de 2×2, una por jugador, en el orden (A, A), (A, B), (B, A), (B, B) según lo que eligen el
+/// jugador 0 y el jugador 1.
+game TwoByTwo {
+  meta {
+    title: { es: "Juego de 2×2", en: "2×2 game" }
+    version: "1.0.0"
+    description: {
+      es: "Juego simultáneo en forma normal con dos opciones por jugador. Por defecto, los pagos del dilema del prisionero.",
+      en: "Simultaneous normal-form game with two options per player. Defaults to the prisoner's dilemma payoffs."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["classic", "simultaneous", "normal-form"]
+  }
+  players 2
+
+  params {
+    /// Pagos del jugador 0: (A, A), (A, B), (B, A), (B, B)
+    row_payoffs: List<Real> = [3, 0, 5, 1]
+    /// Pagos del jugador 1, en el mismo orden
+    column_payoffs: List<Real> = [3, 5, 0, 1]
+    assert len(row_payoffs) == 4 and len(column_payoffs) == 4, "cada tabla tiene cuatro pagos"
+  }
+
+  /// Las dos opciones de cada jugador.
+  enum Choice { A, B }
+
+  state {
+    choice: per_player Choice?
+  }
+
+  /// Casilla de las tablas que corresponde a lo elegido.
+  fn outcome() -> Int = 2 * ord(unwrap(choice[0])) + ord(unwrap(choice[1]))
+
+  flow {
+    start -> Choose
+
+    /// Las elecciones permanecen ocultas hasta que ambos han elegido.
+    simultaneous Choose {
+      actors: seats
+      action choose(c: Choice) { choice[actor] = c }
+      -> End
+    }
+
+    terminal End { payoff: [row_payoffs[outcome()], column_payoffs[outcome()]] }
+  }
+
+  test "los pagos salen de la casilla elegida" {
+    play 0: choose(B), 1: choose(A)
+    expect payoff == [5, 0]
+  }
+
+  test "las tablas se pueden cambiar" {
+    params { row_payoffs: [1, 2, 3, 4], column_payoffs: [5, 6, 7, 8] }
+    play 0: choose(A), 1: choose(B)
+    expect payoff == [2, 6]
+  }
+}

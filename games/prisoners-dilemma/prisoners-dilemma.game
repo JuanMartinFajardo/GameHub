@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Dilema del prisionero: simultáneo y de suma no nula.
+game PrisonersDilemma {
+  meta {
+    version: "1.0.0"
+    title: { es: "Dilema del prisionero", en: "Prisoner's dilemma" }
+    description: { es: "Simultáneo, suma no nula. Único equilibrio de Nash: (Defect, Defect), dominado en Pareto por (Cooperate, Cooperate)." }
+    license: "CC-BY-4.0"
+    tags: ["classic", "simultaneous", "general-sum"]
+  }
+  players 2
+
+  params {
+    /// Tentación
+    T: Real = 5
+    /// Recompensa por cooperar
+    R: Real = 3
+    /// Castigo por desertar ambos
+    P: Real = 1
+    /// Pago del primo
+    S: Real = 0
+    assert T > R and R > P and P > S, { es: "Debe cumplirse T > R > P > S" }
+    assert 2 * R > T + S, { es: "Debe cumplirse 2R > T + S (cooperar siempre supera a alternar)" }
+  }
+
+  enum Choice { Cooperate, Defect }
+
+  state {
+    choice: per_player Choice? = none
+  }
+
+  /// Pago de quien elige `mine` contra `theirs` (tabla del dilema).
+  fn pay(mine: Choice, theirs: Choice) -> Real = match (mine, theirs) {
+    (Cooperate, Cooperate) => R
+    (Cooperate, Defect) => S
+    (Defect, Cooperate) => T
+    (Defect, Defect) => P
+  }
+
+  flow {
+    start -> Choose
+
+    /// Las elecciones permanecen ocultas hasta que ambos han elegido.
+    simultaneous Choose {
+      actors: seats
+      action choose(c: Choice) { choice[actor] = c }
+      -> End
+    }
+
+    terminal End { payoff: [pay(unwrap(choice[s]), unwrap(choice[other(s)])) for s in seats] }
+  }
+
+  test "ambos cooperan" {
+    play 0: choose(Cooperate), 1: choose(Cooperate)
+    expect payoff == [3, 3]
+  }
+
+  test "el traidor se lleva la tentación" {
+    play 0: choose(Defect), 1: choose(Cooperate)
+    expect payoff == [5, 0]
+  }
+
+  test "pagos parametrizados" {
+    params { T: 10, R: 6, P: 2, S: 1 }
+    play 0: choose(Defect), 1: choose(Defect)
+    expect payoff == [2, 2]
+  }
+}

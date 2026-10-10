@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Tres en raya: información perfecta, determinista y de suma cero.
+game TicTacToe {
+  meta {
+    id: "tictactoe"
+    version: "1.0.0"
+    title: { es: "Tres en raya", en: "Tic-tac-toe" }
+    description: { es: "Información perfecta, determinista, suma cero. Valor con juego perfecto: empate." }
+    license: "CC-BY-4.0"
+    tags: ["classic", "perfect-information", "deterministic", "zero-sum"]
+  }
+  players 2
+
+  enum Mark { X, O }
+
+  state {
+    board: Grid[3, 3] of Mark? = none
+    turn: Seat = 0
+  }
+
+  fn mark(p: Seat) -> Mark = X if p == 0 else O
+  fn wins(m: Mark) -> Bool = any(line in lines(board, 3) : all(c in line : board[c] == m))
+  fn full() -> Bool = all(c in cells(board) : not is_none(board[c]))
+
+  flow {
+    start -> Move
+
+    decision Move {
+      actor: turn
+      action place(c in cells(board)) requires is_none(board[c]) { board[c] = mark(turn) }
+      -> Win when wins(mark(turn))
+      -> Draw when full()
+      -> Move { turn = next(turn) }
+    }
+
+    terminal Win { payoff: win_loss(turn, 1, -1) }
+    terminal Draw { payoff: fill(0) }
+  }
+
+  test "X gana en diagonal" {
+    play place((0, 0)), place((0, 1)), place((1, 1)), place((0, 2)), place((2, 2))
+    expect at(Win)
+    expect payoff == [1, -1]
+  }
+
+  test "no se puede repetir casilla" {
+    play place((1, 1))
+    expect illegal place((1, 1))
+    expect legal place((0, 0))
+  }
+
+  test "tablero lleno sin línea: empate" {
+    play place((0, 0)), place((0, 1)), place((0, 2)), place((1, 1)), place((1, 0))
+    play place((1, 2)), place((2, 1)), place((2, 0)), place((2, 2))
+    expect at(Draw) and payoff == [0, 0]
+  }
+
+  /// X mueve primero: nunca tiene menos marcas que O ni más de una de ventaja
+  invariant {
+    let xs = count(c in cells(board) : board[c] == X)
+    let os = count(c in cells(board) : board[c] == O)
+    xs - os in 0..1
+  }
+}

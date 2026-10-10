@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Nim: juego combinatorio imparcial (Bouton, 1901).
+game Nim {
+  meta {
+    version: "1.0.0"
+    title: { es: "Nim", en: "Nim" }
+    description: { es: "Por turnos, cada jugador quita tantos objetos como quiera de un único montón. En la versión normal gana quien se lleva el último; en la misère, pierde. Con juego perfecto, quien mueve pierde si y solo si la suma-nim (XOR) de los montones es 0 (Bouton, 1901)." }
+    license: "CC-BY-4.0"
+    tags: ["classic", "combinatorial", "impartial", "perfect-information"]
+  }
+  players 2
+
+  params {
+    /// Tamaño inicial de cada montón
+    sizes: List<Int> = [3, 5, 7]
+    /// Si es cierto, pierde quien se lleva el último objeto
+    misere: Bool = false
+    assert len(sizes) > 0 and all(h in sizes : h >= 0) and sum(h in sizes : h) > 0,
+      { es: "Hace falta al menos un montón, ninguno negativo y algún objeto en total" }
+  }
+
+  state {
+    heaps: List<Int> = sizes
+    turn: Seat = 0
+  }
+
+  flow {
+    start -> Take
+
+    decision Take {
+      actor: turn
+      action take(heap in 0..len(heaps) - 1, count in 1..heaps[heap]) {
+        heaps[heap] = heaps[heap] - count
+      }
+      -> End when sum(h in heaps : h) == 0
+      -> Take { turn = next(turn) }
+    }
+
+    /// turn es quien acaba de llevarse el último objeto.
+    terminal End { payoff: win_loss(other(turn) if misere else turn, 1, -1) }
+  }
+
+  test "quien se lleva el último gana" {
+    params { sizes: [2] }
+    play take(0, 2)
+    expect payoff == [1, -1]
+  }
+
+  test "misère: quien se lleva el último pierde" {
+    params { sizes: [1, 1], misere: true }
+    play take(0, 1), take(1, 1)
+    expect payoff == [1, -1]
+  }
+
+  test "no se puede quitar de un montón vacío" {
+    params { sizes: [1, 2] }
+    play take(0, 1)
+    expect illegal take(0, 1)
+    expect legal take(1, 2)
+  }
+
+  invariant all(h in heaps : h >= 0)
+}

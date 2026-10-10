@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: Apache-2.0
+// Tests de la biblioteca estándar, escritos en Nomos: un juego trivial cuyos tests prueban las
+// funciones de std.
+
+import std.cards.*
+import std.dice.*
+import std.grid.*
+import std.graph.*
+
+game StdlibTests {
+  players 1
+  flow {
+    start -> End
+    terminal End { payoff: [0] }
+  }
+
+  test "std.cards" {
+    expect len(french52()) == 52 and len(distinct(french52())) == 52
+    expect first(french52()) == Card { suit: Clubs, rank: Rank.Two }
+    expect rank_value(Rank.Two) == 2 and rank_value(Rank.Ten) == 10 and rank_value(Rank.Ace) == 14
+    expect is_red(Card { suit: Hearts, rank: Queen }) and
+      not is_red(Card { suit: Spades, rank: Queen })
+    expect len(spanish48()) == 48 and len(spanish40()) == 40
+    expect all(c in spanish40() : c.rank != SpanishRank.Eight and c.rank != SpanishRank.Nine)
+    expect spanish_number(SpanishRank.Ace) == 1 and spanish_number(Knight) == 11
+  }
+
+  test "std.dice" {
+    expect faces(6) == [1, 2, 3, 4, 5, 6]
+    expect count_face([2, 5, 2, 1], 2) == 2 and count_with_wild([2, 5, 2, 1], 2, 1) == 3
+    expect sum_face([3, 3, 4], 3) == 6
+    expect most_repeated([4, 1, 4, 4, 2]) == 3 and most_repeated([]) == 0
+    expect all_same([5, 5, 5]) and not all_same([5, 1])
+    expect is_straight([3, 5, 4, 2]) and not is_straight([1, 2, 2, 3]) and not is_straight([])
+  }
+
+  test "std.grid" {
+    expect len(all_directions()) == 8 and (0, 1) in orthogonal() and (1, 1) in diagonal()
+    expect shift((2, 3), (-1, 1)) == (1, 4)
+    expect ray((0, 0), (1, 1), 3) == [(1, 1), (2, 2), (3, 3)] and ray((0, 0), (1, 0), 0) == []
+    expect manhattan((0, 0), (2, 3)) == 5 and chebyshev((0, 0), (2, 3)) == 3
+    expect adjacent((1, 1), (1, 2)) and not adjacent((1, 1), (2, 2)) and touching((1, 1), (2, 2))
+  }
+
+  test "std.graph" {
+    expect cycle(4) == [(0, 1), (1, 2), (2, 3), (3, 0)]
+    expect neighbors_of(cycle(4), 0) == [1, 3] and successors(cycle(4), 0) == [1]
+    expect connected(cycle(4), 3, 0) and not connected(cycle(4), 0, 2)
+    expect degree(cycle(4), 2) == 2 and advance(3, 2, 4) == 1
+  }
+}

@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Conecta 4: se dejan caer fichas en columnas; gana quien alinea cuatro.
+
+/// Por turnos, cada jugador deja caer una ficha en una columna que no esté llena; la ficha cae
+/// hasta la casilla libre más baja. Gana quien alinea `connect` fichas suyas en horizontal,
+/// vertical o diagonal; si el tablero se llena sin línea, empate.
+game ConnectFour {
+  meta {
+    title: { es: "Conecta 4", en: "Connect four" }
+    version: "1.0.0"
+    description: {
+      es: "Información perfecta, determinista, suma cero. Con 7×6 lo gana quien empieza jugando bien.",
+      en: "Perfect information, deterministic, zero-sum. On 7×6 the first player wins with perfect play."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["classic", "board", "connection", "perfect-information"]
+  }
+  players 2
+
+  params {
+    /// Columnas del tablero
+    columns: Int = 7
+    /// Filas del tablero
+    rows: Int = 6
+    /// Fichas en línea para ganar
+    connect: Int = 4
+    assert columns >= 1 and rows >= 1, "el tablero necesita al menos una casilla"
+    assert connect >= 2 and (connect <= columns or connect <= rows),
+      "tiene que caber una línea en el tablero"
+  }
+
+  enum Disc { Red, Yellow }
+
+  state {
+    /// La fila 0 es la de arriba: las fichas caen hacia filas mayores.
+    board: Grid[columns, rows] of Disc? = none
+    turn: Seat = 0
+  }
+
+  fn disc(p: Seat) -> Disc = Red if p == 0 else Yellow
+  /// Fila en la que se queda una ficha soltada en la columna `c` (la libre más baja).
+  fn landing(c: Int) -> Int = max([r for r in 0..<rows if is_none(board[cell(r, c)])])
+  fn wins(d: Disc) -> Bool = any(line in lines(board, connect) : all(x in line : board[x] == d))
+  fn full() -> Bool = all(x in cells(board) : not is_none(board[x]))
+
+  flow {
+    start -> Move
+
+    decision Move {
+      actor: turn
+      action drop(c in 0..<columns) requires is_none(board[cell(0, c)]) {
+        board[cell(landing(c), c)] = disc(turn)
+      }
+      -> Win when wins(disc(turn))
+      -> Draw when full()
+      -> Move { turn = next(turn) }
+    }
+
+    terminal Win { payoff: win_loss(turn, 1, -1) }
+    terminal Draw { payoff: fill(0) }
+  }
+
+  test "cuatro en vertical" {
+    play drop(0), drop(1), drop(0), drop(1), drop(0), drop(1), drop(0)
+    expect at(Win) and payoff == [1, -1]
+    expect board[(5, 0)] == Red and board[(2, 0)] == Red and is_none(board[(1, 0)])
+  }
+
+  test "cuatro en horizontal" {
+    play drop(0), drop(0), drop(1), drop(1), drop(2), drop(2), drop(3)
+    expect at(Win) and payoff == [1, -1]
+  }
+
+  test "cuatro en diagonal" {
+    play drop(0), drop(1), drop(1), drop(2), drop(3), drop(2), drop(2)
+    play drop(3), drop(4), drop(3), drop(3)
+    expect at(Win) and payoff == [1, -1]
+  }
+
+  test "una columna llena no admite más fichas" {
+    play drop(0), drop(0), drop(0), drop(0), drop(0), drop(0)
+    expect illegal drop(0)
+    expect legal drop(1)
+  }
+
+  test "tablero lleno sin línea: empate" {
+    params { columns: 3, rows: 2, connect: 3 }
+    play drop(0), drop(1), drop(1), drop(0), drop(2), drop(2)
+    expect at(Draw) and payoff == [0, 0]
+  }
+
+  /// Las fichas no flotan y se alternan.
+  invariant {
+    let reds = count(x in cells(board) : board[x] == Red)
+    let yellows = count(x in cells(board) : board[x] == Yellow)
+    reds - yellows in 0..1 and
+      all(
+        x in cells(board) :
+        is_none(board[x]) or x[0] == rows - 1 or not is_none(board[cell(x[0] + 1, x[1])])
+      )
+  }
+}

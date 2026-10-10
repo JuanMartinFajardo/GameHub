@@ -1,7 +1,8 @@
 # Catálogo de juegos
 
-> Estado: **planificado**. Ningún juego es jugable aún; tres en raya, dilema del prisionero, póker
-> de Kuhn y Mentiroso ya están escritos en IR y validados ([`spec/ir/examples`](../../spec/ir/examples)).
+> Estado: **ola 1 completa** (Fase 2, 2026-10-09). Los 16 juegos de la ola 1 están en Nomos en
+> [`games/`](../../games), cada uno un paquete con sus tests, y se juegan en la terminal
+> (`gamehub play`). Los de la ola 2 llegan en la Fase 6.
 > El orden está pensado para que cada ola fuerce **nuevas capacidades del motor** de forma incremental.
 
 Leyenda: **Az** = azar · **Oc** = información oculta · **Si** = simultaneidad/ventanas.
@@ -13,12 +14,12 @@ Leyenda: **Az** = azar · **Oc** = información oculta · **Si** = simultaneidad
 | Tres en raya (y *m,n,k*) | 2 | | | | Rejilla, líneas, terminales, parámetros de tamaño; **resolver por minimax** |
 | Piedra-papel-tijera | 2 | | | ✓ | Nodo `simultaneous`; NE mixto |
 | Dilema del prisionero (+ iterado) | 2 | | | ✓ | Parámetros con `assert`; tabla de pagos; combinador `repeat`; torneo Axelrod |
-| Familia 2×2 (pennies, halcón-paloma, caza del ciervo, batalla de sexos) | 2 | | | ✓ | Un mismo juego parametrizado por matriz |
+| Familia 2×2 (pares o nones, gallina, caza del ciervo, batalla de los sexos) | 2 | | | ✓ | Un mismo juego parametrizado por matriz; variantes con `extends` |
 | Nim | 2 | | | | Parámetros de montones; **Sprague–Grundy** |
 | Conecta 4 | 2 | | | | "Gravedad", estado mayor; alfa-beta con heurística |
 | Póker de Kuhn | 2 | ✓ | ✓ | | Azar, manos privadas (bolsas), vistas redactadas; **CFR** (valor −1/18) |
 | Póker de Leduc | 2 | ✓ | ✓ | | Dos rondas, carta pública; benchmark estándar de CFR |
-| Dudo / *Liar's dice* | 2–6 | ✓ | ✓ | | Dados ocultos, pujas crecientes, desafío |
+| Dudo / *Liar's dice* | 2–4 | ✓ | ✓ | | Dados ocultos, pujas crecientes, desafío; usa `std.dice` |
 | **Mentiroso** (*Bullshit*) | 3–6 | ✓ | ✓ | ✓ | Bolsas, parámetros de acción ocultos (`subsets`), **ventana de reacción** "¡Mentiroso!", `reveal`. Adelantado desde la ola 2: ya está en IR |
 
 ## Ola 2 — Los juegos que pediste (Fase 6)

@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// La caza del ciervo (Rousseau): un juego de coordinación de la familia 2×2.
+
+import two_by_two.{TwoByTwo}
+
+/// Cazar juntos un ciervo es lo mejor, pero solo sale bien si el otro también va a por él; una
+/// liebre se caza solo. Dos equilibrios de Nash puros: (ciervo, ciervo), el eficiente, y
+/// (liebre, liebre), el seguro.
+game StagHunt extends TwoByTwo {
+  meta {
+    title: { es: "La caza del ciervo", en: "Stag hunt" }
+    version: "1.0.0"
+    description: {
+      es: "Coordinación con riesgo: cooperar da más, pero desertar es más seguro.",
+      en: "Coordination with risk: cooperating pays more, defecting is safer."
+    }
+    tags: ["classic", "simultaneous", "coordination"]
+  }
+
+  override enum Choice { Stag, Hare }
+
+  override params {
+    row_payoffs: List<Real> = [4, 0, 3, 3]
+    column_payoffs: List<Real> = [4, 3, 0, 3]
+  }
+
+  test "cazar juntos el ciervo" {
+    play 0: choose(Stag), 1: choose(Stag)
+    expect payoff == [4, 4]
+  }
+
+  test "quien va solo a por el ciervo se queda sin nada" {
+    play 0: choose(Stag), 1: choose(Hare)
+    expect payoff == [0, 3]
+  }
+
+  test "la liebre es segura" {
+    play 0: choose(Hare), 1: choose(Hare)
+    expect payoff == [3, 3]
+  }
+}

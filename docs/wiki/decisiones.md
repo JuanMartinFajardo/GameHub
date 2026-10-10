@@ -32,6 +32,15 @@
 | 024 | `$exit`: primero `on_exit` de la fase y después sus transiciones | Aceptada (2026-10-09, F1) |
 | 025 | El hash de reglas ignora valores por defecto explícitos (listas vacías, visibilidad `all`) | Aceptada (2026-10-09, F1) |
 | 026 | Cada fase en su rama (`fN/…`); un commit por tarea; fusión a `main` con visto bueno | Aceptada (2026-10-09, usuario) |
+| 027 | Parser de Nomos escrito a mano (descenso recursivo), no con Lark | Aceptada (2026-10-10, usuario) |
+| 028 | Ningún nombre local oculta un global del juego, salvo en funciones de módulo | Aceptada (2026-10-10, usuario) |
+| 029 | Azúcar guiado por los tipos; comprobación y traducción a la IR en una sola pasada | Aceptada (2026-10-10, usuario) |
+| 030 | Tests e invariantes fuera de la IR, con una semántica de ejecución propia | Aceptada (2026-10-10, usuario) |
+| 031 | Módulos: declaraciones externas con poda; resolución std → dependencias → relativa | Aceptada (2026-10-10, usuario) |
+| 032 | Mods sobre el modelo (AST) y combinadores como transformaciones de la IR | Aceptada (2026-10-10, usuario) |
+| 033 | Paquetes con `game.toml` y `game.lock` (commits de git), sin registro central | Aceptada (2026-10-10, usuario) |
+| 034 | Análisis estáticos sobre la IR, situados en el texto con un mapa de fuentes | Aceptada (2026-10-10, usuario) |
+| 035 | Formato canónico al estilo Prettier; el parser admite continuar tras `=`, `requires`, `when` | Aceptada (2026-10-10, usuario) |
 
 ---
 
@@ -175,4 +184,79 @@
   visibilidades `all` explícitas (además de `meta`, `doc` y mensajes de restricciones).
 - **Consecuencias:** dos IR con la misma semántica escritas de forma distinta (a mano, con el
   builder, desde Nomos o desde Studio) tienen el mismo hash.
+
+### ADR-027 — Parser escrito a mano
+- **Contexto:** el roadmap preveía Lark. El lenguaje necesita mensajes de error claros con
+  sugerencias, recuperación para informar de todos los errores de un archivo y conservar los
+  comentarios para el formateador.
+- **Decisión:** analizador léxico y sintáctico propios (descenso recursivo con precedencias); los
+  comentarios son *trivia* pegada a los tokens; cada token sabe su profundidad de corchetes y la
+  recuperación salta al siguiente elemento de su mismo bloque.
+- **Alternativas:** Lark (gramática declarativa, pero errores genéricos y recuperación pobre).
+- **Consecuencias:** ~1 500 líneas sin dependencias; errores de calidad (al estilo rustc); la
+  gramática vive en el código y en la [referencia](lenguaje-game.md), no en un archivo aparte.
+
+### ADR-028 — Sin ocultar nombres globales
+- **Decisión:** un parámetro, un `let` o una variable de comprensión no puede llamarse como una
+  variable de estado, una opción, una función, un tipo, un valor de enumerado o un nombre de
+  contexto (`seats`, `actor`…) del juego (E204). Excepción: dentro de una función de módulo, el
+  estado y las opciones del juego no existen, así que sus nombres quedan libres.
+- **Motivo:** en reglas de juego, confundir `turn` (estado) con un `turn` local es un error
+  difícil de ver; los módulos, en cambio, se escriben sin conocer los juegos que los usarán.
+
+### ADR-029 — Azúcar guiado por los tipos
+- **Decisión:** el comprobador elabora y traduce cada expresión en una sola pasada (devuelve IR y
+  tipo). Las formas cómodas se traducen según el tipo: `+`/`-`/`in` en listas (`concat`,
+  `difference`, `contains`), `+=`, el selector de `move` (`value` o `values`), `deal`, `match` a
+  `case`, valores iniciales por defecto. Las cadenas `a + b + c` se aplanan.
+- **Consecuencias:** la IR solo tiene operadores del catálogo y el descompilador puede volver al
+  texto exactamente (probado en todos los juegos).
+
+### ADR-030 — Tests e invariantes fuera de la IR
+- **Decisión:** `test` e `invariant` se compilan aparte (no cambian el hash de reglas) y los
+  ejecuta `gamehub test`: el azar pendiente se resuelve con una semilla antes de cada paso;
+  `chance where c` elige con la probabilidad condicionada; tras un `set` dejan de comprobarse los
+  invariantes; los invariantes se comprueban también en partidas aleatorias.
+- **Consecuencias:** los juegos traen sus propias pruebas sin ensuciar las reglas; cada fallo se
+  explica con los valores en juego.
+
+### ADR-031 — Módulos
+- **Decisión:** las declaraciones de primer nivel (propias o importadas) son externas: solo
+  llegan a la IR si el juego las usa. `import` busca en la biblioteca estándar, después en las
+  dependencias del paquete y después junto al archivo; importar un nombre trae lo que necesita.
+  La IR no guarda módulos: queda autocontenida.
+- **Consecuencias:** las variantes y las bibliotecas no engordan la IR; un motor no necesita saber
+  nada de módulos.
+
+### ADR-032 — Mods y combinadores
+- **Decisión:** `extends` mezcla modelos (AST) antes de comprobar: la variante se compila como un
+  juego completo y la base no cambia. `repeat` y `best_of` transforman la IR de la base (fase por
+  ronda, terminales que apuntan el resultado). Para extender un combinador se descompila su IR.
+- **Consecuencias:** las variantes tienen errores situados en su texto; los combinadores valen
+  para cualquier juego, también uno escrito en IR.
+
+### ADR-033 — Paquetes
+- **Decisión:** cada juego es un directorio con `game.toml` (nombre, versión, archivo principal,
+  dependencias por `path` o `git` + `rev`) y `game.lock` (commit exacto de cada dependencia git),
+  con una caché local. `gamehub new`, `fetch`, `clone` y `fork` (que anota `forked_from`).
+- **Alternativas:** un registro central (llega con el hub, F10); versiones semánticas resueltas
+  (por ahora, revisiones de git).
+- **Consecuencias:** coherente con git como backend (ADR-008); compilaciones reproducibles.
+
+### ADR-034 — Análisis estáticos sobre la IR
+- **Decisión:** los avisos de `gamehub check` (alcanzabilidad, exhaustividad, terminación, bucles
+  sin progreso, fugas de información, declaraciones sin usar) y la clasificación se calculan sobre
+  la IR, recorrida de forma genérica con el catálogo de operadores; el compilador los sitúa en el
+  texto con un mapa de fuentes.
+- **Consecuencias:** valen igual para Nomos, IR escrita a mano o el futuro editor visual. El
+  análisis de fugas v1 es conservador (puede avisar de más), entiende el tamaño visible, la parte
+  propia de una variable `@visible(owner)` y `reveal … to all`.
+
+### ADR-035 — Formato canónico
+- **Decisión:** `gamehub fmt` usa un álgebra de documentos al estilo Wadler/Prettier (100
+  columnas, sangría 2): las cadenas aritméticas rellenan líneas, las de `and`/`or` van una por
+  línea, un valor que empieza por un corchete se abre junto al `=` si no cabe en la línea
+  siguiente. El parser admite que un valor empiece en la línea siguiente tras `=`, `requires`,
+  `when` y `clave:`, de modo que todo lo que escribe el formateador se vuelve a leer igual
+  (probado formateando todos los juegos a anchos de 24 a 100 columnas).
 

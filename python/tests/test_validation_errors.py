@@ -200,3 +200,10 @@ def test_phase_without_transitions_cannot_be_exited(coin_game: Doc) -> None:
     test_exit_inside_phase_is_valid(coin_game)
     coin_game["flow"]["nodes"][0]["transitions"] = []
     assert any("la fase no tiene transiciones" in p.message for p in check(coin_game))
+
+
+def test_at_can_reference_nodes_from_state_visibility(coin_game: Doc) -> None:
+    """Regresión: `at(Nodo)` en la visibilidad del estado se revisaba antes de reunir los nodos."""
+    coin_game["state"][0]["visibility"] = {"when": ["at", "Guess"]}
+    coin_game["functions"][0]["body"] = ["at", "Flip"]
+    assert check(coin_game) == []

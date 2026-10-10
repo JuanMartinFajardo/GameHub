@@ -1,335 +1,434 @@
-# Nomos — el lenguaje `.game`
+# Nomos — el lenguaje `.game` (referencia v0.1)
 
-> Estado: **RFC de sintaxis v0.1 aprobado** (2026-10-09; [ADR-017](decisiones.md), [ADR-018](decisiones.md)).
-> El compilador llega en la Fase 2. La semántica está en el [modelo formal](modelo-formal.md); el
-> texto compila a [GameIR](ir.md), cuyo núcleo ya está especificado en [`spec/ir/v0`](../../spec/ir/v0).
+> Estado: **implementado** (Fase 2). Compilador en [`python/src/gamehub/lang`](../../python/src/gamehub/lang);
+> el texto se traduce a [GameIR](ir.md), que ejecuta el [motor](motor.md). La semántica de fondo
+> está en el [modelo formal](modelo-formal.md). Esta página es la referencia del lenguaje tal
+> como funciona hoy; al final se resumen las diferencias con el RFC de la Fase 0.
 
 ## 1. Objetivos de diseño
 
-- **Legible por humanos** y **diffeable** (un cambio de regla = un diff pequeño).
-- **Correspondencia 1:1 con el diagrama de flujo:** cada `node` es una caja y cada `->` una flecha
-  con su guarda. Por eso el editor visual y el texto pueden ser dos vistas del mismo juego.
-- **Expresiones puras, tipadas y totales**; efectos solo en bloques `{ … }` de efectos.
-- Sintaxis con llaves, palabras clave en inglés, expresiones al estilo Python (`and`, `or`, `not`,
-  `in`, `if … else …`). Textos visibles para jugadores, traducibles (`es`, `en`…).
+- **Legible por humanos** y **diffeable**: un cambio de regla es un diff pequeño (y
+  `gamehub diff` lo explica por elementos).
+- **Correspondencia 1:1 con el diagrama**: cada nodo es una caja y cada `->` una flecha con su
+  condición (`gamehub viz` dibuja exactamente eso).
+- **Expresiones puras, tipadas y totales** (sin recursión ni bucles infinitos); los efectos, solo
+  en bloques de efectos. El azar, solo en nodos `chance` y en la preparación.
+- Sintaxis con llaves, palabras clave en inglés y expresiones al estilo de Python (`and`, `or`,
+  `not`, `in`, `a if c else b`); los textos que ve el jugador, traducibles.
 
-## 2. Estructura de un archivo
-
-```
-game <Nombre> {
-  meta { … }            // título, versión, autores, etiquetas, licencia
-  params { … }          // parámetros y variantes (con validaciones)
-  players …             // nº de asientos: 2 | 3..6 | param n
-  roles / teams { … }   // opcional
-  enum / struct …       // tipos
-  deck …                // componentes (barajas, fichas)
-  state { … }           // esquema de estado + visibilidad
-  fn …                  // funciones puras
-  flow { … }            // el diagrama de flujo (statechart)
-  ui { … }              // pistas de renderizado (opcional, no afecta a las reglas)
-  test "…" { … }        // tests de reglas
-}
-```
-
-## 3. Tipos
-
-| Tipo | Ejemplo | Notas |
-|---|---|---|
-| Primitivos | `Bool`, `Int`, `Real`, `Text` | `Real` racional/decimal exacto en pagos |
-| Asiento | `Seat` | `next(s)`, `prev(s)`, `other(s)` (2 jug.), `seats`, `num_players` |
-| Enumerados | `enum Suit { Oros, Copas, Espadas, Bastos }` | Ordenados por declaración |
-| Registros | `struct Card { suit: Suit, rank: Rank }` | Inmutables |
-| Opcional | `Mark?` | `none` |
-| Colecciones | `List<T>`, `Set<T>`, `Map<K,V>` | |
-| Zona | `Zone<Card>` | Colección **ordenada** con posiciones públicas (mazo, pila, fila de Memory) |
-| Bolsa | `Bag<Card>` | Multiconjunto **sin orden** (una mano): quien no ve su contenido solo ve su tamaño |
-| Por jugador | `per_player T` | Azúcar de `Map<Seat,T>` con noción de *dueño* |
-| Tableros | `Grid[8, 8] of Piece?`, `Graph<Square>` | `cells`, `neighbors`, `ray(dir)`, `lines(len)` |
-| Rangos | `0..n` (inclusivo), `0..<n` | |
-
-## 4. Visibilidad
-
-Anotaciones sobre el estado (o sobre parámetros de acción y eventos):
-
-```
-@visible(all)                 // por defecto
-@visible(none)                // nadie (p. ej. el mazo)
-@visible(owner)               // el dueño en per_player / zonas con dueño
-@visible(team_of(owner))
-@visible(seats: {dealer})     // un conjunto calculado
-@visible(all if at(Showdown) else owner)   // dependiente del estado/nodo
-@size_visible(all)            // en zonas: el tamaño es público aunque el contenido no
-```
-
-Efectos relacionados: `reveal x to all`, `reveal x to {s}`, `flip c face_up`.
-
-## 5. Flow
-
-```
-flow {
-  start -> Nodo                        // o: start { efectos de preparación } -> Nodo
-
-  decision Nombre {                    // un actor
-    actor: expr
-    action nombre(p: Dominio, …) requires guarda { efectos } [-> Destino]
-    -> Destino when cond { efectos }   // transiciones en orden; la última puede no tener `when`
-  }
-  simultaneous Nombre { actors: expr; action …; resolve { … }; -> … }
-  window Nombre { eligible: expr; mode: priority(order) | collect | race; action …; action pass; -> … }
-  chance Nombre { shuffle deck; roll d6 into x; … ; -> … }
-  auto Nombre { efectos; -> … }
-  phase Nombre [for r in 1..R | repeat until cond] { start -> …; nodos…; on_enter {…}; on_exit {…} }
-  call Modulo.Subflow(args) -> Destino
-  terminal Nombre { payoff: expr; rank: expr }
-}
-```
-
-`-> exit` sale de la `phase` actual. Dentro de una acción, `actor` es quien actúa.
-
-## 6. Efectos (sentencias)
-
-`x = e` · `x += e` · `let y = e` · `if c { … } else { … }` · `for x in col { … }` ·
-`move c from Z1 to Z2 [top|bottom]` · `move_all Z1 to Z2` · `deal n from Z to each hand` ·
-`shuffle Z`* · `roll d6 into x`* · `draw_random c from Z`* · `reveal …` · `emit Evento{…} @visible(…)` ·
-`reward s += e` · `log "…"` &nbsp;&nbsp;(* solo en nodos `chance` / `start`)
-
-## 7. Ejemplos
-
-### 7.1 Tres en raya (información perfecta, determinista)
+## 2. Un vistazo
 
 ```game
 game TicTacToe {
-  meta { title: "Tres en raya", version: "1.0.0", tags: [classic] }
+  meta {
+    id: "tictactoe"
+    version: "1.0.0"
+    title: { es: "Tres en raya", en: "Tic-tac-toe" }
+  }
   players 2
 
   enum Mark { X, O }
 
   state {
     board: Grid[3, 3] of Mark? = none
-    turn:  Seat = 0
+    turn: Seat = 0
   }
 
   fn mark(p: Seat) -> Mark = X if p == 0 else O
   fn wins(m: Mark) -> Bool = any(line in lines(board, 3) : all(c in line : board[c] == m))
+  fn full() -> Bool = all(c in cells(board) : not is_none(board[c]))
 
   flow {
     start -> Move
 
     decision Move {
       actor: turn
-      action place(c: Cell(board)) requires board[c] == none {
-        board[c] = mark(turn)
-      }
-      -> Win  when wins(mark(turn))
-      -> Draw when all(c in cells(board) : board[c] != none)
+      action place(c in cells(board)) requires is_none(board[c]) { board[c] = mark(turn) }
+      -> Win when wins(mark(turn))
+      -> Draw when full()
       -> Move { turn = next(turn) }
     }
 
-    terminal Win  { payoff: zero_sum(winner: turn) }   // +1 ganador, -1 perdedor
-    terminal Draw { payoff: all(0) }
+    terminal Win { payoff: win_loss(turn, 1, -1) }
+    terminal Draw { payoff: fill(0) }
   }
 
   test "X gana en diagonal" {
-    play place((0,0)), place((0,1)), place((1,1)), place((0,2)), place((2,2))
+    play place((0, 0)), place((0, 1)), place((1, 1)), place((0, 2)), place((2, 2))
     expect at(Win) and payoff == [1, -1]
   }
+
+  /// X mueve primero: nunca tiene menos marcas que O ni más de una de ventaja
+  invariant {
+    let xs = count(c in cells(board) : board[c] == X)
+    let os = count(c in cells(board) : board[c] == O)
+    xs - os in 0..1
+  }
 }
 ```
 
-### 7.2 Dilema del prisionero (simultáneo, suma no nula)
+Más ejemplos completos en [`games/`](../../games): Kuhn y Leduc (póker), Mentiroso, Dudo, Conecta 4,
+Nim, la familia 2×2 (con `extends`) y el dilema del prisionero iterado (con `repeat`).
+
+## 3. Léxico
+
+- **Identificadores**: letras, dígitos y `_`, sin empezar por dígito. Por costumbre, tipos,
+  valores de enumerado y nodos en `CamelCase`; lo demás en `snake_case`.
+- **Palabras reservadas**: `action and assert auto case chance deal decision div else emit enum
+  exit extend extends fail false flip flow fn for game if import in invariant let match meta
+  move none not or override params phase players remove requires reveal reward shuffle
+  simultaneous start state struct terminal test true when window`.
+- **Palabras de contexto** (solo son palabras clave donde tocan, así que valen como nombres):
+  `from to each as of top bottom at all face_up face_down face play expect legal illegal set seed
+  where node per_player`, las claves de los miembros de un nodo y de `meta`, y `Grid`.
+- **Números**: enteros (`42`, `1_000`) y decimales exactos (`0.5`, que es el racional 1/2; los
+  pagos y los `Real` son racionales exactos). `div` es la división entera y `%` el módulo; `//`
+  empieza un comentario.
+- **Textos**: `"…"` con escapes `\n \t \r \" \\ \0 \u{…}`. Un **texto traducible** es
+  `{ es: "…", en: "…" }` (entradas separadas por comas o por saltos de línea).
+- **Comentarios**: `// …`, `/* … */` y **de documentación** `/// …`, que se pegan a la
+  declaración siguiente (y llegan a la IR como `doc`). Para documentación traducible:
+  `@doc({ es: "…", en: "…" })`.
+- **Saltos de línea**: separan elementos y sentencias. Dentro de `( … )` y `[ … ]` no cuentan;
+  dentro de `{ … }`, sí. Una expresión continúa en la línea siguiente tras un operador binario
+  (`+`, `and`…) y tras `=`, `+=`…, `requires`, `when` y `clave:` (así parte las líneas el
+  formateador). `;` también separa.
+
+## 4. Archivos, módulos y paquetes
+
+Un archivo `.game` contiene, en cualquier orden: `import`, `enum`, `struct`, `fn` de primer nivel,
+juegos (`game Nombre { … }`) y juegos derivados con un combinador
+(`game Nombre = repeat(…)`). Un archivo sin juegos es un **módulo** (`gamehub check` comprueba sus
+tipos y funciones).
 
 ```game
-game PrisonersDilemma {
-  meta { title: "Dilema del prisionero", version: "1.0.0" }
-  players 2
-
-  params {
-    T: Real = 5;  R: Real = 3;  P: Real = 1;  S: Real = 0
-    assert T > R and R > P and P > S and 2*R > T + S
-  }
-
-  enum Choice { Cooperate, Defect }
-
-  state {
-    choice: per_player Choice? = none   // un nodo simultaneous oculta los envíos hasta resolverse
-  }
-
-  flow {
-    start -> Choose
-
-    simultaneous Choose {
-      actors: seats
-      action choose(c: Choice) { choice[actor] = c }
-      -> End
-    }
-
-    terminal End {
-      payoff: table (choice[0], choice[1]) {
-        (Cooperate, Cooperate) => (R, R)
-        (Cooperate, Defect)    => (S, T)
-        (Defect,    Cooperate) => (T, S)
-        (Defect,    Defect)    => (P, P)
-      }
-    }
-  }
-}
-
-// Combinador: dilema iterado de 200 rondas, pago = suma, se observa el historial público.
-game IteratedPD = repeat(PrisonersDilemma, rounds: 200, payoff: sum)
+import std.cards.{Card, Rank, french52}    // nombres concretos
+import std.dice.*                          // todo lo que declara el módulo
+import prisoners_dilemma.{PrisonersDilemma}
 ```
 
-### 7.3 Póker de Kuhn (azar + información oculta)
+- **Resolución** de `a.b`: `std.…` es la [biblioteca estándar](../../stdlib/std); después, una
+  **dependencia** `a` del paquete del archivo (`game.toml`); si no, el archivo `a/b.game` junto al
+  que importa. En un `import` cada parte es un identificador: `prisoners_dilemma` encuentra
+  también `prisoners-dilemma.game`. `import dep.{X}` lee el archivo principal de la dependencia;
+  `import dep.sub.{X}`, `sub.game` dentro de ella.
+- **Qué trae**: un nombre importado trae también lo que necesita del módulo (sus tipos y
+  funciones auxiliares). Lo importado solo llega a la IR si el juego lo usa.
+- **Ámbito de módulo**: las funciones de un módulo no ven el estado ni las opciones de ningún
+  juego (sí `seats` y `num_players`); sus parámetros pueden llamarse como cualquier cosa del juego.
+- Un nombre no se puede importar de dos módulos ni chocar con una declaración propia (E202); los
+  ciclos de importación son un error (E504).
 
-```game
-game KuhnPoker {
-  meta { title: "Póker de Kuhn", version: "1.0.0", tags: [benchmark] }
-  players 2
+**Biblioteca estándar v0** (`stdlib/std/`, probada con [tests en Nomos](../../python/tests/fixtures/stdlib.game)):
 
-  enum Card { J, Q, K }                         // J < Q < K
-  enum Move { Check, Bet, Call, Fold }
+| Módulo | Contenido |
+|---|---|
+| `std.cards` | Baraja francesa (`Suit`, `Rank` del 2 al as, `Card`, `french52()`, `rank_value`, `is_red`) y española (`SpanishSuit`, `SpanishRank`, `SpanishCard`, `spanish40()`, `spanish48()`, `spanish_number`) |
+| `std.dice` | `faces`, `count_face`, `count_with_wild` (comodines), `sum_face`, `most_repeated`, `all_same`, `is_straight` |
+| `std.grid` | Direcciones (`orthogonal`, `diagonal`, `all_directions`), `shift`, `ray`, `manhattan`, `chebyshev`, `adjacent`, `touching` |
+| `std.graph` | Grafos como listas de aristas: `neighbors_of`, `successors`, `connected`, `degree`, `cycle`, `advance` |
 
-  state {
-    @visible(none) @size_visible(all) deck: Zone<Card> = [J, Q, K]
-    @visible(owner) hand: per_player Bag<Card>
-    put:   per_player Int = 1                   // fichas aportadas (ante incluido)
-    moves: List<Move> = []
-  }
+**Paquetes** ([`gamehub.packages`](../../python/src/gamehub/packages.py)): cada juego vive en un
+directorio con su `game.toml`.
 
-  flow {
-    start -> Deal
+```toml
+[game]
+name = "iterated-pd"             # minúsculas y guiones (el id del juego)
+version = "1.0.0"
+entry = "iterated-pd.game"       # opcional: por defecto <name>.game
+license = "CC-BY-4.0"
+authors = ["GameHub"]
+forked_from = "url@commit"       # lo escribe gamehub fork
 
-    chance Deal {
-      shuffle deck
-      deal 1 from deck to each hand
-      -> Act
-    }
-
-    decision Act {
-      actor: len(moves) % 2                     // alternan 0, 1, 0
-      action check() requires moves == [] or moves == [Check]  { moves += [Check] }
-      action bet()   requires moves == [] or moves == [Check]  { moves += [Bet];  put[actor] += 1 }
-      action call()  requires last(moves) == Bet               { moves += [Call]; put[actor] += 1 }
-      action fold()  requires last(moves) == Bet               { moves += [Fold] }
-      -> Fold     when last(moves) == Fold
-      -> Showdown when moves == [Check, Check] or last(moves) == Call
-      -> Act
-    }
-
-    terminal Fold {                             // gana quien no se retiró y cobra lo que puso el otro
-      let folder = (len(moves) - 1) % 2
-      payoff: zero_sum(winner: other(folder), amount: put[folder])
-    }
-    terminal Showdown {
-      let w = argmax(s in seats : only(hand[s]))
-      payoff: zero_sum(winner: w, amount: put[other(w)])
-    }
-  }
-}
+[dependencies]
+prisoners-dilemma = { path = "../prisoners-dilemma" }
+cartas = { git = "https://…", rev = "v1.0" }    # rama, etiqueta o commit
 ```
 
-### 7.4 Mentiroso (*Bullshit*: parámetros ocultos + ventana de reacción)
+`gamehub fetch` descarga las dependencias git (también las de las dependencias) en la caché
+(`~/.cache/gamehub/git`) y escribe `game.lock` con el commit exacto de cada una; con el lock, la
+compilación es reproducible (`--update` vuelve a resolver). `gamehub new` crea un paquete con un
+juego mínimo que compila y pasa su test; `gamehub clone` clona y descarga dependencias;
+`gamehub fork` copia y anota el origen (`forked_from`, y el remoto original pasa a `upstream`).
 
-Reglas: por turnos, cada jugador pone de 1 a 4 cartas boca abajo en el centro declarando que son
-del rango que toca ("3 cuatros"); el rango avanza As, Dos, Tres… Cualquiera puede gritar
-"¡Mentiroso!": si era mentira, quien jugó se lleva el montón; si era verdad, se lo lleva quien
-acusó. Gana quien se queda sin cartas sin ser pillado. Versión ejecutable en IR:
-[`mentiroso.ir.json`](../../spec/ir/examples/mentiroso.ir.json).
+## 5. Un juego por dentro
 
-```game
-game Mentiroso {
-  meta { title: "Mentiroso", version: "0.1.0", tags: [cards, bluffing] }
-  players 3..6
-  params { max_play: Int = 4 }
-
-  enum Suit { Clubs, Diamonds, Hearts, Spades }
-  enum Rank { Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King }
-  struct Card { suit: Suit, rank: Rank }
-
-  state {
-    @visible(none)  deck: Zone<Card> = [Card { suit: s, rank: r } for s in Suit, r in Rank]
-    @visible(owner) hand: per_player Bag<Card>         // el tamaño es público por defecto
-    @visible(none)  pile: Zone<Card> = []              // montón boca abajo
-    turn: Seat = 0
-    rank: Rank = Ace                                   // rango que toca declarar
-    last_by: Seat = 0
-    last_count: Int = 0                                // cuántas cartas se jugaron (se ve)
-    winner: Seat = 0
-  }
-
-  fn next_rank(r: Rank) -> Rank = Rank.values[(ord(r) + 1) % len(Rank.values)]
-  fn last_play() -> List<Card> = items(pile)[0 : last_count]
-  fn truthful() -> Bool = all(c in last_play() : c.rank == rank)
-
-  flow {
-    start -> Deal
-
-    chance Deal {
-      shuffle deck
-      deal all from deck to each hand                  // una a una, en ronda
-      -> Play
-    }
-
-    decision Play {
-      actor: turn
-      action play(cards: subset(hand[actor], size: 1..max_play) @visible(none) @size_visible(all)) {
-        move cards from hand[actor] to pile
-        last_by = actor
-        last_count = len(cards)
-        emit claim { seat: actor, count: len(cards), rank: rank }      // "3 cuatros"
-      }
-      -> Challenge
-    }
-
-    window Challenge {
-      eligible: seats - [last_by]
-      mode: collect(order: seats_from(next(last_by)) - [last_by])     // deciden a la vez
-      action liar() {                                                 // "¡Mentiroso!"
-        reveal last_play() to all
-        if truthful() { move_all pile to hand[actor] }                // acusó en falso
-        else          { move_all pile to hand[last_by] }              // era mentira
-      }
-      -> End  when len(hand[last_by]) == 0 { winner = last_by }
-      -> Play { turn = next(turn); rank = next_rank(rank) }
-    }
-
-    terminal End { payoff: [1 if s == winner else 0 for s in seats] }
-  }
-}
-```
-
-Pasar es implícito en las ventanas. Variantes previstas como parámetros (pendientes de confirmar,
-[pregunta 9b](preguntas-abiertas.md)): rango libre o elegido al abrir ronda, quién puede acusar,
-quién juega tras una acusación, baraja española.
-
-## 8. Modularidad
-
-```game
-import std.cards.{Spanish40, Suit, Rank}      // barajas: French52, Spanish40/48, Skat32, Wizard60
-import std.tricktaking as tt                  // sub-flows: tt.Trick, funciones: tt.must_follow
-
-game WizardVariant extends Wizard {           // un mod = herencia + parches
-  override params { rounds: Int = 10 }
-  override fn score(bid: Int, won: Int) -> Int = 30 + 10*won if bid == won else -10*abs(bid - won)
-  remove node DealerChoosesTrump
-}
-```
-
-**Combinadores de juegos:** `repeat(G, rounds, payoff)`, `best_of(G, n)`, `sum(G1, G2)` (suma
-disyuntiva de CGT), `sequence(G1, G2)`, `with_params(G, …)`.
-
-## 9. Herramientas previstas
-
-`gamehub check` (tipos, alcanzabilidad, exhaustividad, terminación, fugas de información) ·
-`gamehub fmt` (formateador canónico, conserva comentarios) · `gamehub test` · `gamehub viz`
-(diagrama Mermaid/SVG) · resaltado y LSP para VS Code / Monaco.
-
-## 10. Decisiones de sintaxis
-
-| Tema | Decisión | Estado |
+| Elemento | Forma | Notas |
 |---|---|---|
-| Nombre | **Nomos**, archivos `.game` | Aceptada (ADR-017) |
-| Bloques | Llaves | Aceptada (ADR-018) |
-| Palabras clave | Inglés; textos de jugador traducibles | Aceptada (ADR-018) |
-| Condicional | `X if c else Y` (estilo Python) | Por defecto |
-| Expresiones de colección | Comprensiones `[e for x in xs if c]`, cuantificadores `all(x in xs : p)`, cortes `xs[a : b]`, literales `Card { suit: s, rank: r }` | Por defecto |
-| Números | Pagos exactos (racionales) en la IR; `double` en el core C++ | Por defecto |
+| `meta` | `meta { id: "…", version: "…", title: …, description: …, authors: […], license: "…", tags: […] }` | `id` por defecto: el nombre en minúsculas con guiones (`TicTacToe` → `tic-tac-toe`); `version`, `"0.1.0"`. Textos traducibles en `title` y `description`. |
+| `players` | `players 2` · `players 2..4` | Obligatorio. |
+| `params` | `params { nombre: Tipo = valor … assert cond, "mensaje" }` | Opciones de la partida. Un valor por defecto solo usa opciones anteriores. Los `assert` se comprueban al crear la partida. |
+| `enum` | `enum Palo { Oros, Copas, Espadas, Bastos }` | Ordenado por declaración (`ord`, comparaciones). |
+| `struct` | `struct Card { suit: Suit, rank: Rank }` | Inmutable; literal `Card { suit: s, rank: r }`. |
+| `state` | `state { [@visible(…)] [@size_visible(…)] nombre: Tipo [= valor] … }` | Sin valor: el cero del tipo (`false`, `0`, `""`, `none`, colección vacía, primer valor del enum…). En `per_player`, el valor puede usar `owner`. |
+| `fn` | `fn nombre(p: T, …) -> R = expr` · `fn nombre(…) -> R { let … ; resultado }` | Puras; pueden leer estado y opciones; sin recursión (E208). |
+| `flow` | `flow { start … nodos … }` | Ver §9. |
+| `test` | `test "nombre" { pasos }` | Ver §10. No forman parte de la IR. |
+| `invariant` | `[/// etiqueta] invariant cond` | Ver §10. |
+
+Los nombres locales (parámetros de funciones y acciones, `let`, variables de comprensión) no
+pueden ocultar un nombre global del juego (E204): estado, opciones, funciones, tipos, valores de
+enumerado ni `seats`, `num_players`, `actor`, `viewer`, `owner`, `face_up`.
+
+## 6. Tipos
+
+| Tipo | Valores | Notas |
+|---|---|---|
+| `Bool`, `Int`, `Real`, `Text` | | `Real` = racional exacto; un `Int` vale donde se espera `Real`. |
+| `Seat` | `0 … num_players - 1` | Intercambiable con `Int`. `next(s)`, `prev(s)`, `other(s)` (2 jugadores), `seats`, `seats_from(s)`. |
+| `Cell` | `(fila, columna)` | Casilla de una rejilla; `c[0]` fila, `c[1]` columna; intercambiable con `(Int, Int)`. |
+| `T?` | `none` o un `T` | `is_none(x)`, `unwrap(x)`. |
+| `List<T>`, `Set<T>`, `Map<K, V>` | `[…]`, `set(…)`, — | |
+| `Zone<T>` | colección **ordenada** de elementos con cara (mazo, montón, mesa) | `top(z)`, `size(z)`, `items(z)`; se baraja, se reparte, se voltea. |
+| `Bag<T>` | multiconjunto **sin orden** (una mano) | Quien no ve su contenido solo ve su tamaño. |
+| `(A, B, …)` | tuplas | `t[0]`, `t[1]` con índice constante. |
+| `per_player T` | un `T` por asiento | `x[s]`; dueño de `x[s]` = `s` (para `@visible(owner)`). |
+| `Grid[ancho, alto] of T` | rejilla | Dimensiones constantes o nombres de opciones (`Grid[columns, rows] of Disc?`). `cells`, `lines(g, k)`, `neighbors`, `in_bounds`. |
+
+Una lista vale donde se espera una zona, una bolsa, un conjunto o un `per_player`.
+
+## 7. Visibilidad (información oculta)
+
+Anotaciones en variables de estado, parámetros de acción y eventos:
+
+| Anotación | Quién ve |
+|---|---|
+| `@visible(all)` | todos (por defecto) |
+| `@visible(none)` | nadie (un mazo) |
+| `@visible(owner)` | el dueño de cada parte `per_player` (una mano) |
+| `@visible(face_up)` | en una zona, lo que está boca arriba |
+| `@visible(expr)` | quien cumpla `expr`, con `viewer`, `owner`, `face_up` y `at(Nodo)`: `@visible(viewer == owner or at(Showdown))` |
+| `@size_visible(…)` | en zonas y bolsas, quién ve el tamaño (por defecto, todos) |
+
+En acciones: `action play(@visible(none) @size_visible(all) cards in …)` oculta qué cartas se
+jugaron pero no cuántas. En eventos: `@visible(owner) emit …`. `reveal x to all` /
+`reveal x to s [as "etiqueta"]` muestran un valor. Los envíos de un nodo `simultaneous` y las
+respuestas de una ventana `collect` quedan ocultos hasta resolverse. `gamehub check` avisa de
+posibles fugas (W405, §14).
+
+## 8. Expresiones
+
+**Precedencia** (de menor a mayor): `a if c else b` · `or` · `and` · `not` · comparaciones
+(`== != < <= > >= in` `not in`; no se encadenan) · rangos (`a..b` inclusivo, `a..<b`) ·
+`+ -` · `* / div %` · `-` unario · llamadas, índices, cortes y campos (`f(x)`, `xs[i]`, `xs[a:b]`,
+`c.rank`). Los paréntesis agrupan; `(a, b)` es una tupla.
+
+| Construcción | Ejemplo |
+|---|---|
+| Literales | `true`, `none`, `3`, `0.25`, `"texto"`, `[1, 2]`, `(f, c)`, `Card { suit: s, rank: r }` |
+| Enumerados | `Rank.Ace` (siempre) o `Ace` (si no es ambiguo, E203); `Rank.values` |
+| Condicional | `1 if ganó else 0` |
+| `case` | `case { x > y => 1  x < y => -1  else => 0 }` (una rama por línea) |
+| `match` | `match (a, b) { (Red, _) => 1 … }` — patrones: valores, `_` y tuplas; tiene que ser exhaustivo (E304) |
+| Bloque con `let` | `{ let xs = …; let os = …; xs - os }` |
+| Comprensión | `[c.value for c in hand[s] if c.rank != Ace]`, varios `for` e `if` |
+| Agregados | `all(x in xs : p)`, `any`, `count`, `sum`, `max`, `min`, `argmax`, `argmin`, `sort_by`, `map`, `filter`, `flat_map`; atajos `sum(xs)`, `max(xs)`, `min(xs)` |
+| Colecciones | `xs + ys` (concatenar), `xs - ys` (diferencia), `x in xs`, `x not in xs` |
+| Contexto | `actor` (acciones y transiciones de una decisión), `seats`, `num_players`, `at(Nodo)`; en visibilidad: `viewer`, `owner`, `face_up` |
+
+**Funciones predefinidas**: `len`, `size`, `items`, `top`, `first`, `last`, `only`, `reverse`,
+`distinct`, `append`, `concat`, `union`, `intersection`, `difference`, `subsets(xs, min, max)`,
+`range(a, b)`, `slice`, `contains`, `set(…)`, `abs`, `min`, `max`, `sum`, `rat(a, b)`,
+`is_none`, `unwrap`, `ord`, `next`, `prev`, `other`, `seats_from`, `cells`, `lines`,
+`neighbors`, `in_bounds`, `cell(f, c)`, `win_loss(ganador, gana, pierde)`, `fill(valor)`; y, solo
+como lado derecho de una asignación en azar, `roll(n)`, `random(xs)`, `sample([(valor, prob), …])`.
+
+## 9. Efectos y flow
+
+**Sentencias** (en `start { … }`, nodos `chance`/`auto`, acciones, `resolve`, `on_enter`,
+`on_exit` y transiciones):
+
+| Sentencia | Notas |
+|---|---|
+| `let x = e` | local al bloque |
+| `x = e`, `x += e`, `x -= e`, `x *= e` | sobre estado: variable, índice o campo (`hand[s]`, `pos.x`); `+=` concatena listas |
+| `if c { … } else if … else { … }` · `for x in xs { … }` | |
+| `move SEL from Z1 to Z2 [at top\|bottom]` | `SEL`: `all`, `top n`, `bottom n`, `at i`, un valor o una lista de valores |
+| `flip SEL of Z face_up\|face_down\|face(b)` | |
+| `shuffle Z` · `x = roll(6)` · `x = random(xs)` · `x = sample(…)` | aleatorias: solo en nodos `chance` y en `start { … }` (E306) |
+| `deal n from Z to each H` · `deal all from Z to each H` | una carta cada vez, en ronda |
+| `reveal e to all\|s [as texto]` · `[@visible(…)] emit nombre { campo: e, … }` | información y eventos |
+| `reward e to s` · `fail "texto"` | `fail` = error de reglas (un caso que el diseño no contempla) |
+
+**Flow**:
+
+```game
+flow {
+  start [{ preparación }] -> Nodo
+  decision N { actor: e  action …  -> … }
+  simultaneous N { actors: e  action …  resolve { … }  -> … }
+  window N { eligible: e  mode: priority|collect|race  [order: e]  action …  -> … }
+  chance N { efectos aleatorios  -> … }
+  auto N { efectos  -> … }
+  phase N { start -> M  [on_enter { … }]  [on_exit { … }]  nodos…  -> … }
+  terminal N { [let x = e]  payoff: e  [rank: e] }
+}
+```
+
+- **Acciones**: `action nombre(p: Tipo in dominio, …) requires cond { efectos  -> transiciones }`.
+  El dominio de cada parámetro es una colección finita que puede depender de los anteriores; con
+  un enumerado o `Bool` basta el tipo (`c: Choice`); con dominio basta el dominio
+  (`c in cells(board)`). Las transiciones de una acción van al final de su cuerpo.
+- **Transiciones**: `-> Destino [when cond] [{ efectos }]`, en orden; gana la primera que se
+  cumple. Tras una acción se prueban primero las de la acción y después las del nodo. Una
+  transición sin `when` seguida de otras es un error (E403); si todas tienen condición, `check`
+  avisa (W402). `-> exit` sale de la fase: se ejecuta su `on_exit` y después sus transiciones.
+- **Nodos**: `decision` (un actor), `simultaneous` (todos a la vez, en secreto; sin transiciones
+  por acción), `window` (reacción: pasar es implícito; `priority` por orden, `collect` en secreto,
+  `race` el primero), `chance` (azar), `auto` (sin espera), `phase` (subdiagrama), `terminal`
+  (pagos: un número por asiento). La semántica exacta, en [motor §5](motor.md#5-semántica-del-flow).
+
+## 10. Tests e invariantes
+
+```game
+test "la carta alta gana" {
+  players 2                                       // configuración, al principio
+  params { max_play: 2 }
+  seed 7
+  chance where only(hand[0]) == K and only(hand[1]) == J
+  play check(), bet(), call()                     // el asiento: el único que puede actuar
+  play 0: choose(Defect), 1: choose(Cooperate)    // o indicado
+  expect at(Showdown) and payoff == [2, -2]
+  expect legal call()
+  expect illegal raise()
+  set hand[0] = [Card { suit: Clubs, rank: Ace }] // cambiar el estado a mano
+}
+
+/// Las cartas no se pierden
+invariant size(deck) + sum(s in seats : size(hand[s])) == 3
+```
+
+- `players`, `params` y `seed` van al principio (E601); por defecto, el mínimo de jugadores, las
+  opciones por defecto y la semilla 0.
+- Antes de cada paso, el azar pendiente se resuelve con PCG32(semilla). `chance [r, …]` fija el
+  resultado; `chance where c` elige uno que cumpla `c`, con su probabilidad condicionada (por
+  enumeración o, si hay demasiados resultados, probando al azar).
+- En `expect` y en los argumentos de las acciones existen `payoff` (solo al final) y `active`.
+- Tras un `set` el test deja de comprobar los invariantes (el estado puede no ser alcanzable).
+- Los **invariantes** se comprueban en cada estado que alcanza un test y en partidas aleatorias
+  (`gamehub test --playouts N`, 20 por defecto, rotando el número de jugadores).
+
+Los fallos se explican al estilo rustc, con los valores en juego
+(`` `payoff == [1, -1]` es falso: `payoff` vale [2, -2] ``) y las jugadas legales.
+
+## 11. Mods y combinadores
+
+```game
+import tictactoe.{TicTacToe}
+
+game Misere extends TicTacToe {
+  meta { title: "Tres en raya inverso" }
+  override terminal Win { payoff: win_loss(turn, -1, 1) }
+}
+
+game WithPass extends TicTacToe {
+  state { passed: per_player Bool = false }
+  extend node Move {
+    action skip() requires not passed[actor] { passed[actor] = true }
+  }
+}
+
+game IteratedPD = repeat(PrisonersDilemma, rounds: 10, payoff: sum)
+game Match = best_of(PrisonersDilemma, rounds: 3)
+```
+
+- **`extends`**: la variante parte de la base (del archivo, importada o un combinador) y aplica en
+  orden: declaraciones nuevas (no pueden llamarse como una de la base), `override` (fn, enum,
+  struct, un nodo —también dentro de fases—, `params`, `state`; un `override params` con
+  `assert` sustituye las restricciones de la base), `remove node|fn|state|param|enum|struct X` y
+  `remove action Nodo.accion`, y `extend node X { … }` (acciones al final, transiciones
+  **delante** de las de la base). `meta` se mezcla (sin heredar `id` ni `version`); tests e
+  invariantes no se heredan. Errores E505.
+- **`repeat(Base, rounds: n, payoff: sum|mean)`** y **`best_of(Base, rounds: n)`** transforman la
+  IR: una fase por ronda que devuelve el estado a su valor inicial, terminales que apuntan el
+  resultado y un terminal final (suma o media; o `num_players - 1` para quien gana más rondas y
+  `-1` para el resto). `rounds` pasa a ser una opción del juego. Un combinador no lleva tests:
+  se extiende (`game Pruebas extends IteratedPD { test … }`). Errores E506.
+
+## 12. Herramientas
+
+| Comando | Qué hace |
+|---|---|
+| `gamehub check RUTA…` | Compila y comprueba (tipos, flow, avisos estáticos, clasificación); `--format json` para editores |
+| `gamehub fmt RUTA…` | Formato canónico (`--check`, `--diff`, `--stdin`) |
+| `gamehub test RUTA…` | Tests e invariantes (`--playouts`, `--seed`, `-k`, `--format json`) |
+| `gamehub compile` / `decompile` | `.game` ↔ IR (`.ir.json`); la vuelta es exacta |
+| `gamehub viz JUEGO` | Diagrama del flow (Mermaid o `--format dot`) |
+| `gamehub rules JUEGO` | Reglamento en Markdown (`--lang en`) |
+| `gamehub diff A B` · `gamehub diff REV1..REV2 archivo` | Diff semántico (texto o JSON) |
+| `gamehub new` · `fetch` · `clone` · `fork` | Paquetes |
+| `gamehub play` · `fuzz` · `replay` | Jugar en la terminal, partidas aleatorias, replays (aceptan `.game`) |
+
+Extensión de VS Code: [`editors/vscode/nomos`](../../editors/vscode/nomos) (resaltado,
+diagnósticos al guardar y formato).
+
+## 13. Traducción a la IR
+
+El comprobador elabora y traduce en una sola pasada; lo que no aparece aquí se traduce 1:1.
+
+| Nomos | IR |
+|---|---|
+| `a + b + c` | `["add", a, b, c]` (las cadenas se aplanan salvo que el izquierdo vaya entre paréntesis) |
+| `-5`, `0.25`, `a..<b` | `["const", -5]`, `["rat", 1, 4]`, `["range", a, b - 1]` |
+| `xs + ys`, `xs - ys`, `x in xs`, `x not in xs` | `concat`, `difference`, `["contains", xs, x]`, `["not", ["contains", …]]` |
+| `x += e` | `["assign", x, ["add", x, e]]` (o `concat` en listas) |
+| `deal n from Z to each H` | bucles de `move top 1` por asiento (`deal all`: hasta vaciar Z, en ronda) |
+| `match` | `case` (si es exhaustivo, la última rama es el caso por defecto) |
+| `max(x in xs : e)`, `sum(xs)` | `["max_of", "x", xs, e]`, `["sum", "x", xs, ["local", "x"]]` |
+| `{ let x = e; r }` | `["let", "x", e, r]` |
+| `[e for x in xs if c]` | `["map", "x", ["filter", "x", xs, c], e]` |
+| `next(s)`, `other(s)` | `["next_seat", s]`, `["other_seat", s]` |
+| variables sin valor inicial | el cero del tipo |
+| declaraciones de módulo no usadas | no llegan a la IR |
+| `test`, `invariant`, comentarios | no llegan a la IR (los `///` sí, como `doc`) |
+
+## 14. Diagnósticos
+
+Al estilo de `rustc`: código, mensaje, posición con el trozo subrayado, notas y ayuda. Los
+errores de un archivo se informan todos (el parser se recupera al nivel del bloque en el que
+está).
+
+| Códigos | Familia |
+|---|---|
+| E101–E103 | léxico: carácter inesperado, comentario o texto sin cerrar, escape desconocido |
+| E110–E112 | sintaxis: elemento inesperado, anotación no permitida, orden en una acción |
+| E201–E210 | nombres y declaraciones: desconocido (con sugerencia), duplicado o choque, ambiguo, oculta un global, fuera de su contexto (`actor`, estado en funciones de módulo…), reservado, aridad, recursión, struct sin valores, jugadores |
+| E301–E307 | tipos: incompatibles, operador no aplicable, no recorrible, `match` no exhaustivo o rama inalcanzable, dominio no finito, azar fuera de lugar, asignación a algo que no es estado |
+| E401–E406 | flow: nodos duplicados o vacíos, miembros no válidos, transiciones inalcanzables o `-> exit` fuera de fase, nodos sin salida, `start` y `flow`, acciones repetidas o en el sitio equivocado |
+| E502–E507 | módulos, mods y paquetes: `override` sin `extends`, módulo no encontrado, importación circular, mods (E505), combinadores (E506), dependencias (E507) |
+| E601–E602 | tests: configuración fuera de lugar, número de jugadores |
+| E610–E614 | fallos al ejecutar tests (`gamehub test`): lo esperado no se cumple, jugada imposible, azar, invariante, error de reglas |
+| E900 | error interno: la IR generada no es válida (un fallo de GameHub) |
+| W101 | `@size_visible` en algo que no es zona ni bolsa |
+| W401–W407 | avisos de `gamehub check`: nodo inalcanzable, transiciones que pueden no cubrir todos los casos, nodo sin camino a un final, bucle de nodos automáticos sin efectos, posible fuga de información, declaración sin usar, transición tapada (en IR escrita a mano) |
+
+**Fugas de información (W405, v1)**: un dato oculto que llega a estado o eventos visibles para
+todos (también a través de un `if`), que decide quién juega o por qué nodo sigue la partida, o del
+que dependen las jugadas legales de quien no lo ve. No cuentan el tamaño de lo que tiene tamaño
+visible, la parte del actor de una variable `@visible(owner)` ni lo revelado antes con
+`reveal … to all` en el mismo bloque.
+
+## 15. Formato canónico
+
+`gamehub fmt` (idempotente, conserva los comentarios y las líneas en blanco que los separan):
+sangría de 2 espacios, 100 columnas, una declaración o sentencia por línea, como mucho una línea
+en blanco seguida. Un nodo con un solo miembro, una acción con una sola sentencia simple y una
+transición con una sola sentencia simple van en una línea si caben. Si una expresión no cabe:
+tras `=` o `clave:` el valor pasa a la línea siguiente (o, si empieza por un corchete y tampoco
+cabe allí, se abre en la misma línea y se parte por dentro); una cadena aritmética reparte sus
+operandos rellenando líneas; una de `and`/`or`, uno por línea; las condiciones seguidas de un
+bloque llevan sangría doble.
+
+## 16. Diferencias con el RFC de la Fase 0
+
+| RFC (Fase 0) | v0.1 |
+|---|---|
+| `roll d6 into x`, `draw_random c from Z` | `x = roll(6)`, `x = random(xs)`, `x = sample(…)` |
+| `payoff: table (…) { … }`, `zero_sum(winner: …)` | `match` / `case` y `win_loss(ganador, gana, pierde)` |
+| `action play(cards: subset(hand, size: 1..4))` | `action play(cards in subsets(items(hand[actor]), 1, 4))` |
+| `move_all Z1 to Z2`, `log "…"` | `move all from Z1 to Z2`, `emit` |
+| `mode: priority(order)`, `phase … for r in …`, `call Modulo.Subflow` | `mode: …` + `order: …`; fases con transiciones; subflujos: pendiente |
+| `import std.tricktaking as tt` (alias), `roles`/`teams`, `deck`, `ui { … }` | pendiente (sin alias; roles, barajas declarativas y pistas de UI llegan con su fase) |
+
+Decisiones relacionadas: [ADR-017, ADR-018](decisiones.md) (nombre y llaves) y ADR-027 a ADR-034
+(implementación, Fase 2).

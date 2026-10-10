@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+// Grafos pequeños como listas de aristas entre vértices numerados 0, 1, 2…: recorridos de
+// tablero (Oca, Parchís), mapas de territorios… Una arista es un par (a, b); sin dirección salvo
+// en `successors`.
+
+/// Vecinos de `v` en un grafo no dirigido.
+fn neighbors_of(edges: List<(Int, Int)>, v: Int) -> List<Int> =
+  [e[1] for e in edges if e[0] == v] + [e[0] for e in edges if e[1] == v]
+
+/// Sucesores de `v` en un grafo dirigido (aristas a → b).
+fn successors(edges: List<(Int, Int)>, v: Int) -> List<Int> = [e[1] for e in edges if e[0] == v]
+
+/// ¿Hay una arista entre `a` y `b`, en cualquier sentido?
+fn connected(edges: List<(Int, Int)>, a: Int, b: Int) -> Bool =
+  any(e in edges : e[0] == a and e[1] == b or e[0] == b and e[1] == a)
+
+/// Grado de `v`: cuántas aristas lo tocan.
+fn degree(edges: List<(Int, Int)>, v: Int) -> Int = count(e in edges : e[0] == v or e[1] == v)
+
+/// Un ciclo de `n` vértices: 0 → 1 → … → n - 1 → 0 (un recorrido circular).
+fn cycle(n: Int) -> List<(Int, Int)> = [(i, (i + 1) % n) for i in 0..<n]
+
+/// El vértice al que se llega avanzando `steps` casillas desde `v` en un recorrido circular de
+/// `n` casillas.
+fn advance(v: Int, steps: Int, n: Int) -> Int = (v + steps) % n

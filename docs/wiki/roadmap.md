@@ -1,7 +1,8 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 4 % (F0 completada).**
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 24 % (F0, F1 y F2 completadas y en
+> `main`; F3 en curso).**
 
 ## Resumen
 
@@ -93,24 +94,28 @@ Resultado: ver el [log](../../log.md) del 2026-10-09 (sesión 3).
 
 **Objetivo:** diseñar juegos escribiendo texto, con errores claros y herramientas de verdad.
 
-- [ ] Gramática (Lark) y parser con posiciones; recuperación de errores
-- [ ] AST → resolución de nombres → **comprobador de tipos** → *lowering* → IR resuelta
-- [ ] Diagnósticos estilo `rustc` (línea, columna, subrayado, sugerencia)
-- [ ] `gamehub check`: tipos, nodos inalcanzables, transiciones no exhaustivas, bucles sin
+- [x] Gramática (escrito a mano, no Lark) y parser con posiciones; recuperación de errores
+- [x] AST → resolución de nombres → **comprobador de tipos** → *lowering* → IR resuelta
+- [x] Diagnósticos estilo `rustc` (línea, columna, subrayado, sugerencia)
+- [x] `gamehub check`: tipos, nodos inalcanzables, transiciones no exhaustivas, bucles sin
       progreso, **fugas de información** (v1 sencilla), clasificación del juego
-- [ ] `gamehub fmt`: formateador canónico que conserva comentarios (round-trip probado)
-- [ ] Módulos e `import`; `extends` / `override` / `remove` (mods); combinadores (`repeat`, `best_of`)
-- [ ] Bloques `test` e `invariant`; `gamehub test`
-- [ ] **stdlib v0**: `std.cards` (French52, Spanish40/48), `std.dice`, `std.grid`, `std.graph`
-- [ ] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork`
-- [ ] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones
-- [ ] `gamehub viz`: diagrama de solo lectura (Mermaid / SVG con ELK) — primer "editor visual"
-- [ ] `gamehub rules`: **reglamento autogenerado** v0 (Markdown)
-- [ ] Extensión VS Code: resaltado (TextMate) + diagnósticos
-- [ ] Juegos en `.game`: los de F1 (incluido Mentiroso) + Conecta 4, familia 2×2, PD iterado, Leduc, Dudo
+- [x] `gamehub fmt`: formateador canónico que conserva comentarios (round-trip probado)
+- [x] Módulos e `import`; `extends` / `override` / `remove` / `extend node` (mods); combinadores (`repeat`, `best_of`)
+- [x] Bloques `test` e `invariant`; `gamehub test` (invariantes también en partidas aleatorias)
+- [x] **stdlib v0**: `std.cards` (French52, Spanish40/48), `std.dice`, `std.grid`, `std.graph`
+- [x] Paquetes: `game.toml`, `game.lock`, `gamehub new`, `gamehub clone <url-git>`, `gamehub fork` (y `gamehub fetch`)
+- [x] `gamehub diff a..b`: **diff semántico** de IR entre dos versiones
+- [x] `gamehub viz`: diagrama de solo lectura (Mermaid / Graphviz) — primer "editor visual"
+- [x] `gamehub rules`: **reglamento autogenerado** v0 (Markdown)
+- [x] Extensión VS Code: resaltado (TextMate) + diagnósticos (+ formato) en `editors/vscode/nomos`
+- [x] Juegos en `.game`: los de F1 (incluido Mentiroso) + Conecta 4, familia 2×2, PD iterado, Leduc, Dudo
 
 **Aceptación:** todos los juegos de la ola 1 en `.game` pasan sus tests; `fmt` idempotente;
 `texto → IR → texto` estable; el diagrama de `viz` coincide con el flow.
+Resultado: ✅ 16 juegos en `.game` (64 comprobaciones de `gamehub test` en verde, ningún aviso de
+`check`); `fmt` idempotente y estable a cualquier ancho; ida y vuelta exacta con el
+descompilador; `viz` con una caja por nodo y una flecha por transición (tests). Ver el
+[log](../../log.md) del 2026-10-09 (sesión 4).
 
 ## F3 — Servidor de partidas y protocolo (24 → 32 %) · L
 
