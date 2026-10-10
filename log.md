@@ -5,6 +5,16 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-10 — Fase 2 aprobada y fusionada
+
+- Apruebas las ADR-027 a 035 y la fusión: la rama `f2/compilador-nomos` se fusiona a `main` y la
+  Fase 3 (servidor de partidas y protocolo) arranca en la rama `f3/servidor-partidas`.
+- Pregunta 17 movida a respondidas. Corregido un recuento de la wiki: son 15 paquetes de juego con
+  16 juegos (el paquete del PD iterado trae también su juego de tests).
+- Progreso global: ≈ 24 %.
+
+---
+
 ## 2026-10-09 — Sesión 4: Fase 2, el lenguaje Nomos y sus herramientas
 
 **Respuestas recibidas**: fusionar F1 a `main` (hecho, `bc6b203`) y arrancar F2 en la rama

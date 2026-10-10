@@ -32,15 +32,15 @@
 | 024 | `$exit`: primero `on_exit` de la fase y después sus transiciones | Aceptada (2026-10-09, F1) |
 | 025 | El hash de reglas ignora valores por defecto explícitos (listas vacías, visibilidad `all`) | Aceptada (2026-10-09, F1) |
 | 026 | Cada fase en su rama (`fN/…`); un commit por tarea; fusión a `main` con visto bueno | Aceptada (2026-10-09, usuario) |
-| 027 | Parser de Nomos escrito a mano (descenso recursivo), no con Lark | Propuesta (2026-10-09, F2) |
-| 028 | Ningún nombre local oculta un global del juego, salvo en funciones de módulo | Propuesta (2026-10-09, F2) |
-| 029 | Azúcar guiado por los tipos; comprobación y traducción a la IR en una sola pasada | Propuesta (2026-10-09, F2) |
-| 030 | Tests e invariantes fuera de la IR, con una semántica de ejecución propia | Propuesta (2026-10-09, F2) |
-| 031 | Módulos: declaraciones externas con poda; resolución std → dependencias → relativa | Propuesta (2026-10-09, F2) |
-| 032 | Mods sobre el modelo (AST) y combinadores como transformaciones de la IR | Propuesta (2026-10-09, F2) |
-| 033 | Paquetes con `game.toml` y `game.lock` (commits de git), sin registro central | Propuesta (2026-10-09, F2) |
-| 034 | Análisis estáticos sobre la IR, situados en el texto con un mapa de fuentes | Propuesta (2026-10-09, F2) |
-| 035 | Formato canónico al estilo Prettier; el parser admite continuar tras `=`, `requires`, `when` | Propuesta (2026-10-09, F2) |
+| 027 | Parser de Nomos escrito a mano (descenso recursivo), no con Lark | Aceptada (2026-10-10, usuario) |
+| 028 | Ningún nombre local oculta un global del juego, salvo en funciones de módulo | Aceptada (2026-10-10, usuario) |
+| 029 | Azúcar guiado por los tipos; comprobación y traducción a la IR en una sola pasada | Aceptada (2026-10-10, usuario) |
+| 030 | Tests e invariantes fuera de la IR, con una semántica de ejecución propia | Aceptada (2026-10-10, usuario) |
+| 031 | Módulos: declaraciones externas con poda; resolución std → dependencias → relativa | Aceptada (2026-10-10, usuario) |
+| 032 | Mods sobre el modelo (AST) y combinadores como transformaciones de la IR | Aceptada (2026-10-10, usuario) |
+| 033 | Paquetes con `game.toml` y `game.lock` (commits de git), sin registro central | Aceptada (2026-10-10, usuario) |
+| 034 | Análisis estáticos sobre la IR, situados en el texto con un mapa de fuentes | Aceptada (2026-10-10, usuario) |
+| 035 | Formato canónico al estilo Prettier; el parser admite continuar tras `=`, `requires`, `when` | Aceptada (2026-10-10, usuario) |
 
 ---
 

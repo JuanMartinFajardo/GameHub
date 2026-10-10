@@ -7,14 +7,14 @@
 
 | | |
 |---|---|
-| **Última actualización** | 2026-10-09 |
-| **Fase actual** | F2 completada (rama `f2/compilador-nomos`, pendiente de fusionar a `main`) → siguiente: F3 (servidor de partidas y protocolo) |
+| **Última actualización** | 2026-10-10 |
+| **Fase actual** | F3 en curso (rama `f3/servidor-partidas`): servidor de partidas y protocolo. F0, F1 y F2 están en `main` |
 | **Progreso global** | ≈ 24 % (F0, F1 y F2 completas) |
 | **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`): compilador a GameIR con tipos y errores claros, avisos (alcanzabilidad, exhaustividad, fugas de información…), clasificación, tests e invariantes (`gamehub test`), formateador, módulos y biblioteca estándar, variantes (`extends`) y combinadores (`repeat`, `best_of`), paquetes con dependencias, diagrama (`viz`), reglamento (`rules`), diff semántico y extensión de VS Code. Se juegan en la terminal con el motor de F1. |
-| **Código** | [`spec/`](../../spec/README.md) (IR v0, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, CLI; 500 tests) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (16 juegos) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
+| **Código** | [`spec/`](../../spec/README.md) (IR v0, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, CLI; 500 tests) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (15 paquetes, 16 juegos) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
 | **Calidad** | Los 16 juegos pasan sus tests e invariantes (también en partidas aleatorias); los 6 de F1 compilan con el mismo hash que su IR escrita a mano |
-| **Decisiones recientes** | Propuestas de F2, ADR-027 a 035: parser a mano, sin ocultar globales, azúcar por tipos, tests fuera de la IR, módulos, mods y combinadores, paquetes, análisis sobre la IR, formato canónico |
-| **Pendiente de ti** | Revisar y fusionar la rama de F2 a `main` (y con ella las ADR-027 a 035); variantes de Mentiroso y el resto de [preguntas abiertas](preguntas-abiertas.md) |
+| **Decisiones recientes** | Aceptadas (2026-10-10) las de F2, ADR-027 a 035: parser a mano, sin ocultar globales, azúcar por tipos, tests fuera de la IR, módulos, mods y combinadores, paquetes, análisis sobre la IR, formato canónico |
+| **Pendiente de ti** | Variantes de Mentiroso y el resto de [preguntas abiertas](preguntas-abiertas.md) |
 | **Siguiente paso** | F3: servidor de partidas (salas, protocolo por WebSocket, LAN), para jugar en red |
 
 Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.py`](../../structure.py) ([análisis](analisis-structure-py.md)).

@@ -51,7 +51,7 @@ flowchart TB
 
 > **Estado (2026-10-09, Fase 2):** existen `spec/` (IR v0, trazas de conformidad), `python/`
 > (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor, presentaciones, paquetes y CLI),
-> `stdlib/` (biblioteca estándar de Nomos), `games/` (16 paquetes de juego), `editors/vscode/`
+> `stdlib/` (biblioteca estándar de Nomos), `games/` (15 paquetes con 16 juegos), `editors/vscode/`
 > (extensión de VS Code) y `docs/`. El resto de directorios se crea en la fase que los necesita.
 
 ```

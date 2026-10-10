@@ -1,8 +1,8 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 24 % (F0, F1 y F2 completadas;
-> F2 en su rama, pendiente de fusionar).**
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 24 % (F0, F1 y F2 completadas y en
+> `main`; F3 en curso).**
 
 ## Resumen
 
