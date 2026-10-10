@@ -13,11 +13,9 @@ import uvicorn
 from starlette.applications import Starlette
 
 from gamehub.protocol import MAX_MESSAGE_BYTES
+from gamehub.server import DEFAULT_PORT as DEFAULT_PORT
 from gamehub.server.app import GameServer, create_app
 from gamehub.server.rooms import Rooms
-
-#: Puerto por defecto del servidor de partidas.
-DEFAULT_PORT = 7420
 
 
 def config(app: Starlette, host: str, port: int) -> uvicorn.Config:

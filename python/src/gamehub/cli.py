@@ -186,6 +186,20 @@ def _parser() -> argparse.ArgumentParser:
     _check_or_write(conformance)
     conformance.set_defaults(handler=_conformance)
 
+    serve = commands.add_parser(
+        "serve", help="servidor de partidas (salas por WebSocket) para la LAN o internet"
+    )
+    serve.add_argument(
+        "games",
+        nargs="*",
+        type=Path,
+        metavar="JUEGO",
+        help="juegos que se pueden hospedar: .game, .ir.json o directorios (p. ej. games/)",
+    )
+    _server_options(serve)
+    serve.add_argument("--allow-upload", action="store_true", help="admitir salas con IR subida")
+    serve.set_defaults(handler=_serve)
+
     protocol = commands.add_parser("protocol", help="protocolo de partidas (spec/protocol)")
     protocol_commands = protocol.add_subparsers(dest="protocol_command", required=True)
     types = protocol_commands.add_parser(
@@ -194,6 +208,71 @@ def _parser() -> argparse.ArgumentParser:
     _check_or_write(types)
     types.set_defaults(handler=_protocol_types)
     return parser
+
+
+def _server_options(parser: argparse.ArgumentParser) -> None:
+    from gamehub.server import DEFAULT_PORT
+
+    parser.add_argument("--host", default="0.0.0.0", help="interfaz (por defecto, todas)")
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT, help=f"(por defecto {DEFAULT_PORT})"
+    )
+    parser.add_argument(
+        "--db",
+        help="base de datos SQLite de las partidas (por defecto ~/.local/share/gamehub/"
+        "server.sqlite3; ':memory:' para no guardar nada)",
+    )
+    parser.add_argument("--server-name", default="GameHub", help="nombre visible del servidor")
+
+
+def _store(db: str | None) -> Any:
+    from gamehub.server import default_db
+    from gamehub.server.store import MemoryStore, SqliteStore
+
+    if db == ":memory:":
+        return MemoryStore()
+    return SqliteStore(Path(db) if db else default_db())
+
+
+def _serve(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.server.catalog import Catalog, CatalogError
+    from gamehub.server.lan import base_url
+    from gamehub.server.rooms import Rooms
+    from gamehub.server.serve import running, until_stopped
+
+    try:
+        catalog = Catalog.load(args.games)
+    except CatalogError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    store = _store(args.db)
+    rooms = Rooms(catalog, store, allow_upload=args.allow_upload, name=args.server_name)
+
+    async def main() -> None:
+        async with running(rooms, args.host, args.port) as (_, server):
+            url = base_url(args.host, server.port)
+            print(f"Servidor de partidas en {url}", flush=True)
+            games = ", ".join(sorted(catalog.games)) or "ninguno"
+            print(f"  juegos: {games}" + (" · admite subir juegos" if args.allow_upload else ""))
+            where = getattr(store, "path", None)
+            print(f"  partidas guardadas en {where}" if where else "  partidas solo en memoria")
+            recovered = getattr(store, "recovered", 0)
+            if recovered:
+                print(f"  {recovered} partida(s) a medias de la última vez, cerradas como anuladas")
+            print("  Ctrl+C para parar", flush=True)
+            await until_stopped()
+        print("Servidor parado.")
+
+    try:
+        asyncio.run(main())
+    except OSError as exc:
+        print(f"error: no se puede abrir el servidor en el puerto {args.port}: {exc}")
+        return 1
+    finally:
+        store.close()
+    return 0
 
 
 def _protocol_types(args: argparse.Namespace) -> int:
