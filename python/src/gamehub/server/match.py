@@ -24,7 +24,7 @@ from gamehub.engine import PASS, Action, Game, IllegalAction, State, Status
 from gamehub.engine.fairness import block, derive_seed
 from gamehub.engine.replay import record, step_json
 from gamehub.engine.rng import STREAM_CHANCE, STREAM_SERVER, Pcg32
-from gamehub.engine.values import to_json
+from gamehub.engine.values import to_json, to_json_shared
 from gamehub.server.clock import Clock
 
 #: Máximo de acciones legales que se enumeran en una actualización (por encima, progresivas).
@@ -140,9 +140,13 @@ class Match:
     def legal(self, seat: int, limit: int) -> dict[str, Any]:
         limit = max(0, min(limit, MAX_ENUMERATED))
         found = list(islice(self.state.iter_legal_actions(seat), limit + 1))
-        if len(found) <= limit:
-            return {"kind": "enumerated", "actions": [a.to_json() for a in found]}
-        return {"kind": "progressive", "names": list(self.state.options(seat))}
+        if len(found) > limit:
+            return {"kind": "progressive", "names": list(self.state.options(seat))}
+        memo: dict[int, Any] = {}
+        actions = [
+            {"name": a.name, "args": {k: to_json_shared(v, memo) for k, v in a.args}} for a in found
+        ]
+        return {"kind": "enumerated", "actions": actions}
 
     def options(self, seat: int, name: str | None, args: dict[str, Any] | None) -> list[Any]:
         """Construcción progresiva (`query_actions`). Lanza `IllegalAction` si los argumentos no
@@ -154,7 +158,8 @@ class Match:
         if name == "pass":
             return []
         typed = self.game.decode_arguments(self.state.node, name, args or {})
-        return [to_json(v) for v in self.state.options(seat, name, typed)]
+        memo: dict[int, Any] = {}
+        return [to_json_shared(v, memo) for v in self.state.options(seat, name, typed)]
 
     def deadlines(self) -> dict[int, float]:
         return self.clock.deadlines() if self.running else {}

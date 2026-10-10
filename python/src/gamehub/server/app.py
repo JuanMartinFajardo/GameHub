@@ -195,7 +195,7 @@ class GameServer:
         try:
             kind, data, mid = parse_client(raw)
         except ProtocolError as exc:
-            conn.send(_error(exc.code, exc.message))
+            conn.send(_error(exc.code, exc.message, exc.id))
             return
         if kind == "ping":
             pong: dict[str, Any] = {"server_time": time.time()}
@@ -245,7 +245,7 @@ class GameServer:
         room, pid = found
         self._bind(conn, room, pid)
         room.participants[pid].legal_limit = conn.legal_limit
-        room.resume(pid, now, data.get("resume"))
+        room.resume(pid, now, data.get("resume"), re=mid)
         self.flush(room)
 
     def _join(self, conn: Connection, data: dict[str, Any], mid: str | None, now: float) -> None:

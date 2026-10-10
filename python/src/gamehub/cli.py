@@ -200,6 +200,24 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--allow-upload", action="store_true", help="admitir salas con IR subida")
     serve.set_defaults(handler=_serve)
 
+    bot = commands.add_parser("bot", help="bots que juegan en salas de un servidor de partidas")
+    bot_commands = bot.add_subparsers(dest="bot_command", required=True)
+    bot_run = bot_commands.add_parser("run", help="un bot entra en una sala y juega")
+    bot_run.add_argument(
+        "agent", metavar="AGENTE", help="random, first o un archivo .py con el agente"
+    )
+    bot_run.add_argument(
+        "--room", required=True, metavar="SALA", help="código de sala (K7F-Q2P) o enlace"
+    )
+    bot_run.add_argument("--server", help="servidor si la sala va por código (por defecto, este)")
+    bot_run.add_argument("--name", help="nombre visible del bot")
+    bot_run.add_argument("--seat", type=int, help="asiento que ocupar (por defecto, el primero)")
+    bot_run.add_argument(
+        "--matches", type=int, default=1, help="partidas que jugar (0 = hasta que cierre la sala)"
+    )
+    bot_run.add_argument("--seed", type=int, help="semilla del agente (random)")
+    bot_run.set_defaults(handler=_bot_run)
+
     protocol = commands.add_parser("protocol", help="protocolo de partidas (spec/protocol)")
     protocol_commands = protocol.add_subparsers(dest="protocol_command", required=True)
     types = protocol_commands.add_parser(
@@ -272,6 +290,42 @@ def _serve(args: argparse.Namespace) -> int:
         return 1
     finally:
         store.close()
+    return 0
+
+
+def _bot_run(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.client import AgentLoadError, AgentRunner, Client, ClientError, load_agent, target
+    from gamehub.engine import Game
+
+    try:
+        factory = load_agent(args.agent, seed=args.seed)
+        server, code = target(args.room, args.server)
+    except (AgentLoadError, ClientError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    name = args.name or f"Bot {Path(args.agent).stem}"
+    matches = args.matches or None
+
+    async def main() -> list[dict[str, Any]]:
+        async with Client(server, name=name, kind="bot", legal_limit=20_000) as client:
+            joined = await client.join(code, seat=args.seat)
+            seat = joined["session"]["seat"]
+            print(f"{name} en la sala {code} ({server}), asiento {seat}", flush=True)
+            game = Game(await client.room_ir())
+            runner = AgentRunner(client, factory, game, matches=matches, log=print)
+            return await runner.run()
+
+    try:
+        results = asyncio.run(main())
+    except ClientError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    for result in results:
+        payoffs = result["payoffs"]
+        shown = ", ".join(str(p) for p in payoffs) if payoffs is not None else "—"
+        print(f"partida {result['match']['number']}: {result['reason']} · pagos: {shown}")
     return 0
 
 

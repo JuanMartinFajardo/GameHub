@@ -464,3 +464,17 @@ def test_settings_patch_from_rest() -> None:
     info = room.info()
     assert info["settings"]["players"] == 3 and info["settings"]["clock"]["seconds"] == 30
     assert info["params"] == {"dice": 2} and rooms.listed() == []
+
+
+def test_resume_with_nothing_missed_refreshes_the_state() -> None:
+    h = Harness("nim")
+    a, b = h.seat("Ana"), h.seat("Luis")
+    match_id = h.last(a, "match_start")["match"]["id"]
+    h.room.disconnect(a.id, h.now)
+    h.clear()
+    h.room.resume(a.id, h.now, {"match": match_id, "seq": 0})
+    h.deliver()
+    update = h.last(a, "update")
+    assert [m["type"] for m in h.messages(a)] == ["welcome", "room", "update"]
+    assert update["seq"] == 0 and update["events"] == [] and h.legal(a)
+    assert b.seat == 1

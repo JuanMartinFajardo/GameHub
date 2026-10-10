@@ -56,3 +56,5 @@ typeCheckingMode = "standard"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Si un test se cuelga (red, hilos), vuelca la pila de todos los hilos.
+faulthandler_timeout = 120

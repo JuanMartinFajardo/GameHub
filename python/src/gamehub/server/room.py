@@ -216,14 +216,16 @@ class Room:
         self.tick(now)
         return p, token
 
-    def resume(self, pid: str, now: float, resume: dict[str, Any] | None = None) -> None:
+    def resume(
+        self, pid: str, now: float, resume: dict[str, Any] | None = None, *, re: str | None = None
+    ) -> None:
         """El participante vuelve a conectarse: recibe la sala y la partida (solo lo que le falta
         si `resume` indica la última actualización que vio)."""
         p = self._participant(pid)
         p.connected = True
         self.touched = now
         version = {"name": "gamehub", "version": __version__}
-        self._send(p, "welcome", {"server": version, "session": self.session(p)}, now)
+        self._send(p, "welcome", {"server": version, "session": self.session(p)}, now, re=re)
         self._catch_up(p, resume, now)
         self._broadcast_room(now, skip=p.id)
         self._maybe_start(now)
@@ -919,9 +921,12 @@ class Room:
             return
         limit = None if self._controlled(p.seat) else p.legal_limit
         if resume is not None and resume.get("match") == match.id and resume["seq"] <= match.seq:
-            for batch in match.batches[resume["seq"] + 1 :]:
+            missed = match.batches[resume["seq"] + 1 :]
+            for batch in missed:
                 data = match.update(p.seat, batch, now=now, legal_limit=limit)
                 self._send(p, "update", data, now)
+            if not missed:  # no faltaba nada: el estado actual, para refrescar relojes y turno
+                self._send(p, "update", match.snapshot(p.seat, now=now, legal_limit=limit), now)
             return
         self._send(p, "match_start", self._match_start(p.seat), now)
         self._send(p, "update", match.snapshot(p.seat, now=now, legal_limit=limit), now)

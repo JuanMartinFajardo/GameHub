@@ -29,12 +29,14 @@ MAX_MESSAGE_BYTES = 64 * 1024
 
 
 class ProtocolError(Exception):
-    """Un mensaje que no cumple el protocolo. `code` es un código de error del esquema."""
+    """Un mensaje que no cumple el protocolo. `code` es un código de error del esquema e `id`, el
+    del mensaje si se pudo leer (para responder con `re`)."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, id: str | None = None) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
+        self.id = id
 
 
 def schema_path() -> Path:
@@ -105,15 +107,18 @@ def parse_client(raw: str | bytes) -> tuple[str, dict[str, Any], str | None]:
         raise ProtocolError("bad_message", f"no es JSON válido: {exc}") from None
     if not isinstance(msg, dict):
         raise ProtocolError("bad_message", "un mensaje es un objeto {v, type, data}")
+    mid = msg.get("id")
+    mid = mid if isinstance(mid, str) and 0 < len(mid) <= 64 else None
     if msg.get("v") != VERSION:
-        raise ProtocolError("unsupported", f"versión del protocolo no admitida: {msg.get('v')!r}")
+        version = msg.get("v")
+        raise ProtocolError("unsupported", f"versión del protocolo no admitida: {version!r}", mid)
     kind = msg.get("type")
     table = envelopes("ClientMessage")
     if not isinstance(kind, str) or kind not in table:
-        raise ProtocolError("bad_message", f"tipo de mensaje desconocido: {kind!r}")
+        raise ProtocolError("bad_message", f"tipo de mensaje desconocido: {kind!r}", mid)
     found = problems(table[kind], msg)
     if found:
-        raise ProtocolError("bad_message", f"'{kind}': " + "; ".join(found[:3]))
+        raise ProtocolError("bad_message", f"'{kind}': " + "; ".join(found[:3]), mid)
     return kind, msg["data"], msg.get("id")
 
 

@@ -139,7 +139,9 @@ mano rival solo se ve el tamaño, [ADR-019](decisiones.md)):
 
 - `hello {token}` retoma la sesión: el servidor manda `welcome` (con la sesión), la sala y, si hay
   partida, `match_start` y una actualización completa (sin eventos). Con `resume: {match, seq}`
-  manda solo las actualizaciones posteriores, con sus eventos, como si no se hubiera ido.
+  manda solo las actualizaciones posteriores, con sus eventos, como si no se hubiera ido; si no
+  falta ninguna, reenvía la última sin eventos (mismo `seq`), para refrescar relojes y turno.
+  Un cliente trata una actualización con un `seq` ya visto como un refresco.
 - Si la sesión se abre desde otra conexión, la antigua recibe `error replaced` y se cierra.
 - Mientras alguien está desconectado la partida sigue; si le toca, cuenta su reloj (si hay).
 
