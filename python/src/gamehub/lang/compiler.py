@@ -421,6 +421,8 @@ def add_item(model: GameModel, item: ast.Item, diagnostics: Diagnostics) -> None
             model.tests.append(item)
         case ast.InvariantDecl():
             model.invariants.append(item)
+        case ast.UiBlock(entries=entries):
+            model.ui.extend(entries)
         case ast.OverrideDecl() | ast.RemoveDecl() | ast.ExtendNode():
             diagnostics.error(
                 "E502",

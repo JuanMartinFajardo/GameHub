@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from gamehub.lang import ast
 from gamehub.lang.diagnostics import Diagnostics
@@ -430,6 +430,8 @@ class Parser:
 
     def game_item_body(self) -> ast.Item:
         kind = self.peek().kind
+        if self.at_word("ui") and self.peek(1).kind == "{":
+            return self.ui_block()
         match kind:
             case "meta":
                 return self.meta_block()
@@ -500,7 +502,7 @@ class Parser:
             case "decision" | "simultaneous" | "window" | "chance" | "auto" | "phase" | "terminal":
                 raise self.fail("los nodos van dentro de 'flow {{ … }}', no sueltos en el juego")
         raise self.fail(
-            "se esperaba meta, players, params, enum, struct, state, fn, flow, test o invariant"
+            "se esperaba meta, players, params, enum, struct, state, fn, flow, ui, test o invariant"
         )
 
     def meta_block(self) -> ast.MetaBlock:
@@ -537,6 +539,94 @@ class Parser:
         items, end = self.block(entry, commas=True)
         entries = [i for i in items if isinstance(i, ast.MetaEntry)]
         return ast.MetaBlock(entries=entries, end_comments=self.claim(end))
+
+    # --- ui -------------------------------------------------------------------------------------
+
+    def ui_block(self) -> ast.UiBlock:
+        self.expect_word("ui")
+        items, end = self.block(self.ui_entry)
+        entries = [i for i in items if isinstance(i, ast.UiEntry)]
+        return ast.UiBlock(entries=entries, end_comments=self.claim(end))
+
+    def ui_entry(self) -> ast.UiEntry:
+        start = self.pos
+        if self.eat("action"):
+            target, path = "action", [self.ident("el nombre de una acción").text]
+            if self.eat("."):
+                path.append(self.ident("el nombre de un parámetro de la acción").text)
+        elif self.at_word("node") and self.peek(1).kind == "ident":
+            self.advance()
+            target, path = "node", [self.ident("el nombre de un nodo").text]
+        elif self.at_word("seats"):
+            self.advance()
+            target, path = "seats", []
+        else:
+            what = "una variable de estado, una opción, un tipo, action, node o seats"
+            target, path = "name", [self.ident(what).text]
+        self.expect(":", "':'")
+        hints = [self.ui_hint()]
+        while self.eat(","):
+            hints.append(self.ui_hint())
+        return self.finish(ast.UiEntry(target=target, path=path, hints=hints), start)
+
+    def ui_hint(self) -> ast.UiHint:
+        start = self.pos
+        name = self.ident("una pista (grid, hand, dice, label(…), symbols(…)…)").text
+        if not self.at("("):
+            return ast.UiHint(name, span=self.span_from(start))
+        self.advance()
+        args: list[ast.UiArg] = []
+        while True:
+            self.skip_newlines()
+            if self.eat(")"):
+                break
+            arg_start = self.pos
+            key = None
+            if self.at("ident") and self.peek(1).kind == ":":
+                key = self.advance().text
+                self.advance()
+            args.append(ast.UiArg(key, self.ui_value(), span=self.span_from(arg_start)))
+            self.skip_newlines()
+            if not self.eat(","):
+                self.skip_newlines()
+                self.expect(")", "',' o ')'")
+                break
+        return ast.UiHint(name, args, span=self.span_from(start))
+
+    def ui_value(self) -> Any:
+        start = self.pos
+        tok = self.peek()
+        match tok.kind:
+            case "string" | "{":
+                return self.text()
+            case "int":
+                return self.advance().value
+            case "decimal":
+                return self.advance().value
+            case "true" | "false":
+                self.advance()
+                return tok.kind == "true"
+            case "ident":
+                self.advance()
+                return ast.UiName(tok.text, span=self.span_from(start))
+            case "-" if self.peek(1).kind in ("int", "decimal"):
+                self.advance()
+                return -self.advance().value
+            case "[":
+                self.advance()
+                values: list[Any] = []
+                while True:
+                    self.skip_newlines()
+                    if self.eat("]"):
+                        break
+                    values.append(self.ui_value())
+                    self.skip_newlines()
+                    if not self.eat(","):
+                        self.skip_newlines()
+                        self.expect("]", "',' o ']'")
+                        break
+                return values
+        raise self.fail("se esperaba un valor: un texto, un número, un nombre o una lista")
 
     def players_decl(self) -> ast.PlayersDecl:
         self.expect("players")

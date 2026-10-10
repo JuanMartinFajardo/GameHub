@@ -23,7 +23,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable
 
-from gamehub.lang import ast
+from gamehub.lang import ast, ui
 from gamehub.lang.diagnostics import Diagnostics
 from gamehub.lang.model import External, GameModel
 from gamehub.lang.source import Span
@@ -45,6 +45,7 @@ def derive(
     m.functions = list(base.functions)
     m.start = base.start
     m.nodes = list(base.nodes)
+    m.ui = list(base.ui)
     m.flow_span = base.flow_span
     seen = {id(x.decl) for x in base.externals}
     m.externals = [*base.externals, *(x for x in externals if id(x.decl) not in seen)]
@@ -91,6 +92,8 @@ class _Mod:
                     self.m.tests.append(item)
                 case ast.InvariantDecl():
                     self.m.invariants.append(item)
+                case ast.UiBlock(entries=entries):
+                    self.m.ui = ui.merge(self.m.ui, entries)
                 case ast.OverrideDecl(item=inner):
                     self.override(inner, item.span)
                 case ast.RemoveDecl():

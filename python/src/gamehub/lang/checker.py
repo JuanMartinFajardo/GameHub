@@ -39,6 +39,7 @@ from gamehub.lang.model import (
 )
 from gamehub.lang.source import NO_SPAN, Span
 from gamehub.lang.types import Ty
+from gamehub.lang.ui import UiContext, check_ui
 
 IR_VERSION = "0.1.0"
 SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -155,6 +156,7 @@ class Checker:
         self.refs: dict[str, set[str]] = {"game": set()}
         self.calls: dict[str, set[str]] = {}
         self.actions: dict[str, list[ast.ActionDecl]] = {}
+        self.action_params: dict[str, dict[str, list[Ty]]] = {}
         self.in_module = False
 
     # --- utilidades -----------------------------------------------------------------------------
@@ -269,7 +271,36 @@ class Checker:
         if functions_ir:
             ir["functions"] = functions_ir
         ir["flow"] = flow_ir
+        emitted = {t["name"] for t in types_ir}
+        ui_ir = self.check_ui(emitted)
+        if ui_ir:
+            ir["ui"] = ui_ir
         return ir
+
+    def check_ui(self, emitted_types: set[str]) -> dict[str, Any]:
+        structs = {
+            name: info.fields
+            for name, info in self.types.items()
+            if isinstance(info.decl, ast.StructDecl)
+        }
+        actions = {name: dict(self.action_params.get(name, {})) for name in self.actions}
+        ctx = UiContext(
+            state=dict(self.state),
+            params=set(self.params),
+            enums=dict(self.enum_values_by_type()),
+            structs=structs,
+            actions=actions,
+            nodes=set(self.nodes),
+            emitted_types=emitted_types,
+        )
+        return check_ui(self.model.ui, ctx, self.diagnostics)
+
+    def enum_values_by_type(self) -> dict[str, list[str]]:
+        return {
+            name: list(info.decl.values)
+            for name, info in self.types.items()
+            if isinstance(info.decl, ast.EnumDecl)
+        }
 
     def ordered_types(self) -> list[TypeInfo]:
         externals = [i for i in self.types.values() if i.external]
@@ -1018,6 +1049,7 @@ class Checker:
             if scope.lookup(p.name) is not None:
                 self.error("E202", f"parámetro repetido: {p.name}", p.span)
             ty, domain = self.action_domain(p, scope, ctx)
+            self.action_params.setdefault(a.name, {}).setdefault(p.name, []).append(ty)
             param: dict[str, Any] = {"name": p.name, "type": T.to_ir(ty), "domain": domain}
             if p.visibility is not None:
                 param["visibility"] = self.visibility(p.visibility, True, p.name)

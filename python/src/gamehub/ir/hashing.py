@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Hash de reglas: SHA-256 del JSON canónico de la IR, sin metadatos ni documentación.
 
-Dos documentos que solo difieren en orden de claves, espacios, `meta`, campos `doc` o mensajes
-de las restricciones tienen el mismo hash: describen exactamente las mismas reglas.
+Dos documentos que solo difieren en orden de claves, espacios, `meta`, pistas de presentación
+(`ui`), campos `doc` o mensajes de las restricciones tienen el mismo hash: describen exactamente
+las mismas reglas.
 
 La canonicalización coincide con RFC 8785 (JCS) en el subconjunto de JSON que usa la IR
 (objetos, listas, cadenas, enteros, booleanos y null; claves ASCII): claves ordenadas, sin
@@ -22,14 +23,16 @@ def canonical_json(value: Any) -> str:
 
 
 def strip_cosmetic(doc: dict[str, Any]) -> dict[str, Any]:
-    """Copia del documento sin `meta`, sin campos `doc`, sin `message` en `constraints` y sin
-    valores por defecto explícitos (listas vacías, visibilidad `all`).
+    """Copia del documento sin `meta`, sin `ui`, sin campos `doc`, sin `message` en `constraints`
+    y sin valores por defecto explícitos (listas vacías, visibilidad `all`).
 
     No entra en las S-expresiones (listas que empiezan por una cadena): un campo llamado `doc`
     dentro de un literal de struct o de un evento forma parte de las reglas.
     """
     stripped = {
-        k: _strip(v) for k, v in doc.items() if k not in ("meta", "doc") and not _is_default(k, v)
+        k: _strip(v)
+        for k, v in doc.items()
+        if k not in ("meta", "ui", "doc") and not _is_default(k, v)
     }
     if "constraints" in stripped:
         stripped["constraints"] = [

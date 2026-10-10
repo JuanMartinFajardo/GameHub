@@ -165,6 +165,7 @@ juego mínimo que compila y pasa su test; `gamehub clone` clona y descarga depen
 | `flow` | `flow { start … nodos … }` | Ver §9. |
 | `test` | `test "nombre" { pasos }` | Ver §10. No forman parte de la IR. |
 | `invariant` | `[/// etiqueta] invariant cond` | Ver §10. |
+| `ui` | `ui { destino: pista, … }` | Pistas de presentación para las interfaces (§12). No son reglas. |
 
 Los nombres locales (parámetros de funciones y acciones, `let`, variables de comprensión) no
 pueden ocultar un nombre global del juego (E204): estado, opciones, funciones, tipos, valores de
@@ -204,7 +205,7 @@ En acciones: `action play(@visible(none) @size_visible(all) cards in …)` ocult
 jugaron pero no cuántas. En eventos: `@visible(owner) emit …`. `reveal x to all` /
 `reveal x to s [as "etiqueta"]` muestran un valor. Los envíos de un nodo `simultaneous` y las
 respuestas de una ventana `collect` quedan ocultos hasta resolverse. `gamehub check` avisa de
-posibles fugas (W405, §14).
+posibles fugas (W405, §15).
 
 ## 8. Expresiones
 
@@ -345,7 +346,53 @@ game Match = best_of(PrisonersDilemma, rounds: 3)
   `-1` para el resto). `rounds` pasa a ser una opción del juego. Un combinador no lleva tests:
   se extiende (`game Pruebas extends IteratedPD { test … }`). Errores E506.
 
-## 12. Herramientas
+## 12. Presentación: `ui { … }`
+
+Pistas para las interfaces: cómo dibujar el estado, cómo se llaman las cosas en pantalla y cómo
+se eligen los argumentos de una acción tocando el tablero. **No son reglas**: llegan a la IR en
+la clave `ui`, que no cuenta para el hash de reglas, y las lee la UI genérica de la web
+(`@gamehub/auto-ui`). Sin ellas el juego se juega igual: la UI genérica deduce casi todo de los
+tipos y de los dominios de las acciones (`cells(board)` → pulsar casillas; `subsets(items(mano))`
+→ elegir cartas de la mano).
+
+```game
+ui {
+  board: grid
+  cup: dice, label({ es: "Cubilete", en: "Cup" })
+  dice_left: counter, place(seats)
+  die: hidden
+  rank: place(top)
+  dice: label({ es: "Dados por jugador", en: "Dice per player" })   // una opción
+  Mark: symbols(X: "✕", O: "◯")
+  Disc: colors(Red: "#e53935", Yellow: "#fdd835"), labels(Red: "Rojas", Yellow: "Amarillas")
+  Card: card(rank: rank, suit: suit)
+  action bid: label({ es: "Apostar", en: "Bid" })
+  action drop.c: column(board)
+  node Bid: label({ es: "Apuestas", en: "Bidding" })
+  seats: colors("#e53935", "#fdd835"), names("Rojas", "Amarillas")
+}
+```
+
+Cada línea es `destino: pista, pista…`. `ui` solo es palabra clave al empezar la sección.
+
+| Destino | Pistas |
+|---|---|
+| variable de estado | **cómo dibujarla** (una): `grid` (rejilla), `hand` (abanico), `pile` (montón con la de arriba), `deck` (mazo boca abajo), `row` (en fila), `dice` (dados: un `Int` o una colección de `Int`), `counter` (número), `chips` (fichas de apuesta), `seat` (un jugador), `hidden` (no se dibuja); `place(table \| seats \| top)` (en la mesa, en el panel de cada asiento —solo `per_player`— o en la barra de arriba); `label(texto)` |
+| opción (`params`) | `label(texto)` |
+| enumerado | `symbols(Valor: "…", …)`, `colors(Valor: "#rrggbb", …)`, `labels(Valor: texto, …)`, `card` (sus valores son cartas), `label(texto)` |
+| struct | `card(rank: campo, suit: campo)` (carta de baraja: el campo con el valor y, si hay, el del palo), `label(texto)` |
+| `action nombre` | `label(texto)` |
+| `action nombre.parámetro` | `label(texto)`; cómo elegirlo: `cell(rejilla)` (pulsar una casilla; el parámetro es `Cell`), `column(rejilla)` / `row(rejilla)` (pulsar en una columna o fila; el parámetro es `Int`), `pick(zona)` (elegir de una colección: un elemento o una lista de ellos) |
+| `node Nombre` | `label(texto)` |
+| `seats` | `colors("#…", …)` (un color por asiento), `names(texto, …)` (p. ej. «Blancas», «Negras») |
+
+Errores: destino desconocido, con sugerencia (E701); pista que no vale para ese destino o tipo
+(E702); argumentos inválidos —valor de enumerado, campo o color que no existe, `place(seats)` en
+algo que no es `per_player`, `column(x)` para un parámetro que no es `Int`…— (E703); dos pistas del
+mismo hueco (dos formas de dibujo, dos `label`…) (E704). En una variante (`extends`), cada pista
+sustituye a la del mismo hueco en la base.
+
+## 13. Herramientas
 
 | Comando | Qué hace |
 |---|---|
@@ -362,7 +409,7 @@ game Match = best_of(PrisonersDilemma, rounds: 3)
 Extensión de VS Code: [`editors/vscode/nomos`](../../editors/vscode/nomos) (resaltado,
 diagnósticos al guardar y formato).
 
-## 13. Traducción a la IR
+## 14. Traducción a la IR
 
 El comprobador elabora y traduce en una sola pasada; lo que no aparece aquí se traduce 1:1.
 
@@ -382,7 +429,7 @@ El comprobador elabora y traduce en una sola pasada; lo que no aparece aquí se 
 | declaraciones de módulo no usadas | no llegan a la IR |
 | `test`, `invariant`, comentarios | no llegan a la IR (los `///` sí, como `doc`) |
 
-## 14. Diagnósticos
+## 15. Diagnósticos
 
 Al estilo de `rustc`: código, mensaje, posición con el trozo subrayado, notas y ayuda. Los
 errores de un archivo se informan todos (el parser se recupera al nivel del bloque en el que
@@ -397,6 +444,7 @@ está).
 | E401–E406 | flow: nodos duplicados o vacíos, miembros no válidos, transiciones inalcanzables o `-> exit` fuera de fase, nodos sin salida, `start` y `flow`, acciones repetidas o en el sitio equivocado |
 | E502–E507 | módulos, mods y paquetes: `override` sin `extends`, módulo no encontrado, importación circular, mods (E505), combinadores (E506), dependencias (E507) |
 | E601–E602 | tests: configuración fuera de lugar, número de jugadores |
+| E701–E704 | presentación (`ui`): destino desconocido, pista que no vale ahí, argumentos inválidos, pista repetida |
 | E610–E614 | fallos al ejecutar tests (`gamehub test`): lo esperado no se cumple, jugada imposible, azar, invariante, error de reglas |
 | E900 | error interno: la IR generada no es válida (un fallo de GameHub) |
 | W101 | `@size_visible` en algo que no es zona ni bolsa |
@@ -408,7 +456,7 @@ que dependen las jugadas legales de quien no lo ve. No cuentan el tamaño de lo 
 visible, la parte del actor de una variable `@visible(owner)` ni lo revelado antes con
 `reveal … to all` en el mismo bloque.
 
-## 15. Formato canónico
+## 16. Formato canónico
 
 `gamehub fmt` (idempotente, conserva los comentarios y las líneas en blanco que los separan):
 sangría de 2 espacios, 100 columnas, una declaración o sentencia por línea, como mucho una línea
@@ -419,7 +467,7 @@ cabe allí, se abre en la misma línea y se parte por dentro); una cadena aritm�
 operandos rellenando líneas; una de `and`/`or`, uno por línea; las condiciones seguidas de un
 bloque llevan sangría doble.
 
-## 16. Diferencias con el RFC de la Fase 0
+## 17. Diferencias con el RFC de la Fase 0
 
 | RFC (Fase 0) | v0.1 |
 |---|---|
@@ -428,7 +476,8 @@ bloque llevan sangría doble.
 | `action play(cards: subset(hand, size: 1..4))` | `action play(cards in subsets(items(hand[actor]), 1, 4))` |
 | `move_all Z1 to Z2`, `log "…"` | `move all from Z1 to Z2`, `emit` |
 | `mode: priority(order)`, `phase … for r in …`, `call Modulo.Subflow` | `mode: …` + `order: …`; fases con transiciones; subflujos: pendiente |
-| `import std.tricktaking as tt` (alias), `roles`/`teams`, `deck`, `ui { … }` | pendiente (sin alias; roles, barajas declarativas y pistas de UI llegan con su fase) |
+| `import std.tricktaking as tt` (alias), `roles`/`teams`, `deck` | pendiente (sin alias; roles y barajas declarativas llegan con su fase) |
+| `ui { … }` | pistas de presentación con destino (§12), desde la Fase 4 |
 
 Decisiones relacionadas: [ADR-017, ADR-018](decisiones.md) (nombre y llaves) y ADR-027 a ADR-034
 (implementación, Fase 2).

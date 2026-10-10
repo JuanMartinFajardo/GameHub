@@ -495,6 +495,48 @@ class MetaBlock(Item):
     end_comments: list[Comment] = field(default_factory=list, compare=False, repr=False)
 
 
+@dataclass
+class UiName(Node):
+    """Un nombre como argumento de una pista de `ui` (`column(board)`, `place(top)`)."""
+
+    name: str
+
+
+@dataclass
+class UiArg(Node):
+    """Argumento de una pista: `clave: valor` o solo `valor`. Valor: Text (texto o texto
+    traducible), int, Fraction, bool, UiName o lista de valores."""
+
+    key: str | None
+    value: Any
+
+
+@dataclass
+class UiHint(Node):
+    """`nombre` o `nombre(argumentos)` (`args` es None si no lleva paréntesis)."""
+
+    name: str
+    args: list[UiArg] | None = None
+
+
+@dataclass(kw_only=True)
+class UiEntry(Item):
+    """`destino: pista, pista…`. `target`: "name" (variable de estado, opción o tipo),
+    "action" (`action a` o `action a.p`), "node" (`node N`) o "seats"; `path`, sus nombres."""
+
+    target: str
+    path: list[str]
+    hints: list[UiHint]
+
+
+@dataclass(kw_only=True)
+class UiBlock(Item):
+    """`ui { … }`: pistas de presentación para las interfaces (no son reglas)."""
+
+    entries: list[UiEntry]
+    end_comments: list[Comment] = field(default_factory=list, compare=False, repr=False)
+
+
 @dataclass(kw_only=True)
 class PlayersDecl(Item):
     min: int

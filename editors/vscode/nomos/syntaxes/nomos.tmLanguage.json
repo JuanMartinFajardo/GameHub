@@ -87,6 +87,10 @@
         {
           "name": "keyword.other.block.nomos",
           "match": "\\b(resolve|on_enter|on_exit)(?=\\s*\\{)"
+        },
+        {
+          "name": "keyword.declaration.nomos",
+          "match": "^\\s*(ui)(?=\\s*\\{)"
         }
       ]
     },

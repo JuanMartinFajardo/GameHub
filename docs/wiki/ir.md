@@ -40,7 +40,10 @@ Conjunto de nodos de la IR resuelta (núcleo mínimo): `decision`, `simultaneous
 
 Esquema: [`ir.schema.json`](../../spec/ir/v0/ir.schema.json). Claves de primer nivel:
 `ir_version`, `game` (id + versión), `meta`, `players` (min/max), `params`, `constraints`,
-`types` (enum/struct), `state`, `functions`, `flow` (`setup`, `start`, `nodes`).
+`types` (enum/struct), `state`, `functions`, `flow` (`setup`, `start`, `nodes`) y, opcional, `ui`
+(pistas de presentación para las interfaces: `state`, `params`, `types`, `actions`, `nodes`, `seats`;
+sección `ui { … }` de Nomos, [lenguaje](lenguaje-game.md) §12; añadida en la Fase 4, sin cambiar
+`ir_version` porque es opcional y no afecta a las reglas).
 
 Extracto de [`tictactoe.ir.json`](../../spec/ir/examples/tictactoe.ir.json):
 
@@ -103,7 +106,7 @@ Extracto de [`tictactoe.ir.json`](../../spec/ir/examples/tictactoe.ir.json):
 
 | Hash | Sobre qué se calcula | Para qué sirve |
 |---|---|---|
-| **Hash de reglas** | IR resuelta en JSON canónico (RFC 8785), sin `meta`, `doc`, mensajes de restricciones ni valores por defecto explícitos ([ADR-025](decisiones.md)) | Identifica exactamente las reglas. Bots, replays, análisis y ratings lo referencian. Implementado: `gamehub.ir.hashing.rules_hash`. |
+| **Hash de reglas** | IR resuelta en JSON canónico (RFC 8785), sin `meta`, `ui`, `doc`, mensajes de restricciones ni valores por defecto explícitos ([ADR-025](decisiones.md)) | Identifica exactamente las reglas. Bots, replays, análisis y ratings lo referencian. Implementado: `gamehub.ir.hashing.rules_hash`. |
 | **Hash de interfaz** | Esquema de vistas + esquema de acciones + eventos | Compatibilidad de UIs y bots; **semver automático**: si cambia de forma incompatible, la versión debe subir de *major*. |
 
 Un cambio cosmético (renombrar un título, mover una caja del diagrama) no cambia el hash de reglas.

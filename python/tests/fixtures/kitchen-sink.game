@@ -201,6 +201,35 @@ game KitchenSink {
     }
   }
 
+  ui {
+    deck: deck
+    hand: hand, label({ es: "Mano", en: "Hand" })
+    secret: counter, place(seats)
+    table: pile
+    board: grid
+    scores: chips
+    round: counter, place(top), label("Ronda")
+    picked: row
+    die: dice
+    leader: seat
+    note: hidden
+    rounds: label({ es: "Rondas", en: "Rounds" })
+    Color: symbols(Red: "R", Green: "G", Blue: "B"), colors(
+      Red: "#f00",
+      Green: "#0a0",
+      Blue: "#00f"
+    )
+    Suit: labels(Hearts: { es: "Corazones", en: "Hearts" }, Spades: "Picas"), card
+    Card: card(rank: value, suit: suit)
+    action bid: label("Apostar")
+    action bid.n: label("Cantidad")
+    action place.c: cell(board)
+    action discard.c: pick(hand)
+    action steal.c: pick(hand), label("Carta")
+    node Play: label({ es: "Juego", en: "Play" })
+    seats: colors("#e53935", "#1e88e5", "#43a047"), names("Norte", "Sur", "Este")
+  }
+
   test "se juega hasta el final" {
     players 2
     seed 4
