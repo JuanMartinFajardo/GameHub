@@ -240,6 +240,16 @@ def _parser() -> argparse.ArgumentParser:
     rooms.add_argument("--timeout", type=float, default=2.0, help="segundos buscando (mDNS)")
     rooms.set_defaults(handler=_rooms)
 
+    load = commands.add_parser("loadtest", help="prueba de carga del servidor de partidas")
+    load.add_argument("game", type=Path, nargs="?", metavar="JUEGO", help=".game o .ir.json")
+    load.add_argument("--server", help="servidor ya en marcha (por defecto, uno propio)")
+    load.add_argument("--game-id", help="id del juego en ese servidor")
+    load.add_argument("--rooms", type=int, default=100)
+    load.add_argument("--players", type=int, default=2)
+    load.add_argument("--matches", type=int, default=1, help="partidas seguidas por sala")
+    load.add_argument("--seed", type=int, default=0)
+    load.set_defaults(handler=_loadtest)
+
     bot = commands.add_parser("bot", help="bots que juegan en salas de un servidor de partidas")
     bot_commands = bot.add_subparsers(dest="bot_command", required=True)
     bot_run = bot_commands.add_parser("run", help="un bot entra en una sala y juega")
@@ -443,6 +453,43 @@ def _rooms(args: argparse.Namespace) -> int:
     return asyncio.run(list_rooms(server=args.server, timeout=args.timeout, out=_say))
 
 
+def _loadtest(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from gamehub.server.catalog import Catalog
+    from gamehub.server.loadtest import run_load
+    from gamehub.server.rooms import Limits, Rooms
+    from gamehub.server.run import ServerThread
+    from gamehub.server.store import MemoryStore
+
+    def load(url: str, game_id: str) -> int:
+        print(f"Prueba de carga: {args.rooms} salas de {game_id} con {args.players} bots cada una…")
+        report = asyncio.run(
+            run_load(
+                url,
+                game_id,
+                rooms=args.rooms,
+                players=args.players,
+                matches=args.matches,
+                seed=args.seed,
+            )
+        )
+        print(report.summary())
+        return 0 if not report.failures and report.matches == args.rooms * args.matches else 1
+
+    if args.server:
+        if not args.game_id:
+            raise SystemExit("con --server hace falta --game-id")
+        return load(args.server, args.game_id)
+    if args.game is None:
+        raise SystemExit("indica el juego (archivo .game o .ir.json) o --server y --game-id")
+    game = _load_game(args.game, None)
+    limits = Limits(max_rooms=max(1000, args.rooms), rate=1000, burst=1000)
+    rooms = Rooms(Catalog([game]), MemoryStore(), limits=limits)
+    with ServerThread(rooms) as server:
+        return load(server.url, game.id)
+
+
 def _bot_run(args: argparse.Namespace) -> int:
     import asyncio
 
@@ -628,9 +675,19 @@ def _game_files(paths: list[Path]) -> list[Path]:
 
 
 def _load_game(path: Path, name: str | None) -> Any:
-    """Un juego desde un archivo .game (compilándolo) o .ir.json."""
+    """Un juego desde un archivo .game (compilándolo), un .ir.json o un paquete (su archivo
+    principal, según `game.toml`)."""
     from gamehub.engine import load_game
 
+    if path.is_dir():
+        from gamehub.packages import MANIFEST, PackageError, load_manifest
+
+        if not (path / MANIFEST).is_file():
+            raise SystemExit(f"{path} no es un paquete de juego (falta {MANIFEST})")
+        try:
+            path = load_manifest(path).entry_path
+        except PackageError as exc:
+            raise SystemExit(str(exc)) from None
     if path.suffix == ".game":
         from gamehub.lang.compiler import load_nomos
 

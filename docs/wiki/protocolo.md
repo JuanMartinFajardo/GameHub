@@ -198,13 +198,31 @@ el último paso, verificable igual que las demás.
 
 - Mensajes de hasta 64 KiB, validados contra el esquema; 20 mensajes/s por conexión con ráfagas
   de 60 (`error rate_limited`; si se insiste, se cierra la conexión).
-- Hasta 1 000 salas y 5 000 conexiones por servidor; 32 espectadores por sala; nombres de hasta 32
-  caracteres y chat de hasta 500, sin caracteres de control.
+- Hasta 1 000 salas y 5 000 conexiones por servidor (más allá: `503` al crear salas y cierre
+  `1013` «vuelve más tarde» de la conexión); 32 espectadores por sala; peticiones REST de hasta
+  2 MiB (`413`); nombres de hasta 32 caracteres y chat de hasta 500, sin caracteres de control.
 - Una conexión lenta tiene su propia cola: si se llena, se la desconecta (puede reconectar).
 - Las salas sin nadie conectado se cierran (30 min en el lobby, 2 h en partida).
 - Subir juegos (`POST /api/v1/rooms` con `ir`) está desactivado salvo `--allow-upload`: las reglas
   son datos y el motor limita los pasos, pero un juego puede ser caro de ejecutar.
 - Si las reglas fallan en mitad de una partida (`RuleError`), la partida se anula y se avisa.
+
+### Rendimiento (prueba de carga, Apple Silicon, un solo proceso de servidor)
+
+`gamehub loadtest` crea muchas salas a la vez y las llena de bots aleatorios que juegan por
+WebSocket en cuanto les toca (el peor caso: nadie piensa), midiendo la latencia de cada jugada.
+Con el servidor en otro proceso (`gamehub serve`) y **100 salas simultáneas**:
+
+| Juego | Conexiones | Partidas | Tiempo | Jugadas/s | Latencia p50 / p95 | Fallos |
+|---|---:|---:|---:|---:|---:|---:|
+| Nim (2 jugadores, 3 partidas por sala) | 200 | 300 | 1,6 s | ≈ 1 300 | 51 / 64 ms | 0 |
+| Dudo (4 jugadores) | 400 | 100 | 5,2 s | ≈ 850 | 95 / 112 ms | 0 |
+| Dudo (4 jugadores, 3 partidas por sala) | 400 | 300 | 14,9 s | ≈ 890 | 99 / 125 ms | 0 |
+
+La latencia es la de un servidor saturado a propósito: con personas, que tardan segundos en
+jugar, cada sala está casi siempre parada. El coste de cada jugada lo dominan el motor de
+referencia (vistas y acciones legales) y el JSON; el core C++ (F8) lo reducirá. Mentiroso, con
+miles de acciones legales por turno, es el caso caro (una partida de 3 bots por red, ≈ 5 s).
 
 ## 13. Modos de conexión
 

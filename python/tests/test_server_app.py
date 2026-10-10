@@ -204,3 +204,42 @@ def test_rate_limit() -> None:
         kinds = [c.recv()["type"] for _ in range(6)]
         assert kinds.count("pong") == 3 and kinds.count("error") == 3
         c.close()
+
+
+def test_limits_body_rooms_and_connections() -> None:
+    from websockets.exceptions import ConnectionClosed
+
+    limits = Limits(max_rooms=2, max_connections=2, max_body=1000, rate=100, burst=100)
+    rooms = Rooms(Catalog([game("nim")]), allow_upload=True, limits=limits)
+    with ServerThread(rooms) as small:
+        status, data = http(small, "/api/v1/rooms", {"ir": game("rock-paper-scissors").ir})
+        assert status == 413 and data["error"]["code"] == "bad_message"
+        assert http(small, "/api/v1/rooms", {"game": "nim"})[0] == 201
+        assert http(small, "/api/v1/rooms", {"game": "nim"})[0] == 201
+        status, data = http(small, "/api/v1/rooms", {"game": "nim"})
+        assert status == 503 and data["error"]["code"] == "not_allowed"
+        first, second = Client(small), Client(small)
+        first.hello()
+        second.hello()
+        third = connect(small.ws_url).__enter__()
+        with pytest.raises(ConnectionClosed) as closed:
+            third.recv(5)
+        assert closed.value.rcvd is not None and closed.value.rcvd.code == 1013  # «más tarde»
+        for c in (first, second):
+            c.close()
+
+
+def test_load_many_rooms_at_once() -> None:
+    """Una prueba de carga reducida (la completa, de 100 salas: `gamehub loadtest`)."""
+    import asyncio
+
+    from gamehub.server.loadtest import run_load
+
+    limits = Limits(rate=1000, burst=1000)
+    rooms = Rooms(Catalog([game("nim"), game("dudo")]), limits=limits)
+    with ServerThread(rooms) as busy:
+        nim = asyncio.run(run_load(busy.url, "nim", rooms=20, matches=2))
+        dudo = asyncio.run(run_load(busy.url, "dudo", rooms=10, players=4))
+    assert nim.failures == [] and nim.matches == 40
+    assert dudo.failures == [] and dudo.matches == 10 and dudo.clients == 40
+    assert "40 partidas" in nim.summary() and nim.percentile(0.5) > 0

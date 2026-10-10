@@ -332,10 +332,10 @@ class GameServer:
     # --- WebSocket ------------------------------------------------------------------------------
 
     async def websocket(self, ws: WebSocket) -> None:
-        if self.open_connections >= self.rooms.limits.max_connections:
-            await ws.close(code=1013)  # "try again later"
-            return
         await ws.accept()
+        if self.open_connections >= self.rooms.limits.max_connections:
+            await ws.close(code=1013, reason="servidor lleno: vuelve a intentarlo más tarde")
+            return
         self.open_connections += 1
         limits = self.rooms.limits
         conn = Connection(ws, TokenBucket(limits.rate, limits.burst, self.now()))
