@@ -17,7 +17,7 @@ from enum import Enum
 from fractions import Fraction
 from typing import Any
 
-from gamehub.engine.env import Ctx, Env
+from gamehub.engine.env import PUBLIC, Ctx, Env
 from gamehub.engine.errors import IllegalAction, RuleError
 from gamehub.engine.events import Event
 from gamehub.engine.expr import boolean, iterate, num, seat
@@ -161,13 +161,33 @@ class State:
         return self.store[self.game.var_index[name]]
 
     def legal_actions(self, seat_: int) -> list[Action]:
+        return list(self.iter_legal_actions(seat_))
+
+    def iter_legal_actions(self, seat_: int) -> Iterator[Action]:
+        """Las acciones legales de `legal_actions`, en el mismo orden, a medida que se piden (para
+        contar o mostrar solo las primeras sin enumerarlas todas)."""
         if seat_ not in self.active_seats:
-            return []
+            return
         node = self.game.nodes[self.node or ""]
-        actions = list(self._enumerate(node, seat_))
+        yield from self._enumerate(node, seat_)
         if node.kind == "window":
-            actions.append(PASS)
-        return actions
+            yield PASS
+
+    def ranking(self) -> tuple[int, ...] | None:
+        """Puesto de cada asiento en un estado terminal (1 = primero; los empatados comparten
+        puesto). Sale del `rank` del nodo terminal si lo declara y, si no, de los pagos: más pago,
+        mejor puesto. `None` si la partida no ha terminado."""
+        if self.payoffs is None:
+            return None
+        node = self.game.nodes[self.node or ""]
+        if node.rank is None:
+            return competition_ranking(self.payoffs)
+        ranks = tuple(iterate(node.rank(self._env()), "rank"))
+        if len(ranks) != self.n or any(
+            isinstance(r, bool) or not isinstance(r, int) or not 1 <= r <= self.n for r in ranks
+        ):
+            raise RuleError(f"'rank' debe dar un puesto de 1 a {self.n} por asiento: {ranks}")
+        return ranks
 
     def options(
         self, seat_: int, name: str | None = None, args: dict[str, Any] | None = None
@@ -260,7 +280,8 @@ class State:
     # --- información ----------------------------------------------------------------------------
 
     def view(self, seat_: int | None) -> dict[str, Any]:
-        """El estado tal como lo ve un asiento (`None` = vista omnisciente)."""
+        """El estado tal como lo ve un asiento (`None` = vista omnisciente, `PUBLIC` = un
+        espectador, que no ocupa ningún asiento)."""
         ctx = Ctx(self.game, list(self.store), self.params, self.n, self._path())
         env = Env(ctx, viewer=seat_)
         state = {
@@ -299,26 +320,11 @@ class State:
 
     def decode_action(self, seat_: int, data: dict[str, Any]) -> Action:
         """Acción desde JSON (`{"name": …, "args": {…}}`), con los tipos de sus parámetros."""
-        name = data.get("name")
-        node = self.game.nodes.get(self.node or "")
-        if node is None:
-            raise IllegalAction("no hay acciones en este estado")
-        if name == "pass" and node.kind == "window":
-            return PASS
-        adef = node.actions_by_name.get(name or "")
-        if adef is None:
-            raise IllegalAction(f"acción desconocida en {node.id}: {name}")
-        given = data.get("args", {})
-        try:
-            args = tuple(
-                (p.name, self.game.types.decode(given[p.name], p.type)) for p in adef.params
-            )
-        except (KeyError, ValueError) as exc:
-            raise IllegalAction(f"argumentos inválidos para {name}: {exc}") from None
-        return Action(adef.name, args)
+        return decode_action(self.game, self.node, data)
 
     def events(self, seat_: int | None) -> list[dict[str, Any]]:
-        """Eventos del último paso que ve el asiento (`None` = todos, sin redactar)."""
+        """Eventos del último paso que ve el asiento (`None` = todos, sin redactar; `PUBLIC` =
+        los que ve un espectador)."""
         return [e for e in (ev.for_seat(seat_) for ev in self.step.events) if e is not None]
 
     def history(self) -> list[Step]:
@@ -403,6 +409,33 @@ class State:
         return Action(action.name, tuple(args.items()))
 
 
+def decode_action(game: GameDef, node_id: str | None, data: dict[str, Any]) -> Action:
+    """Acción del nodo `node_id` desde JSON (`{"name": …, "args": {…}}`), con los tipos de sus
+    parámetros. No comprueba la legalidad: eso lo hace `apply_action`."""
+    name = data.get("name")
+    node = game.nodes.get(node_id or "")
+    if node is None:
+        raise IllegalAction("no hay acciones en este estado")
+    if name == "pass" and node.kind == "window":
+        return PASS
+    adef = node.actions_by_name.get(name or "") if isinstance(name, str) else None
+    if adef is None:
+        raise IllegalAction(f"acción desconocida en {node.id}: {name}")
+    given = data.get("args", {})
+    if not isinstance(given, dict):
+        raise IllegalAction(f"argumentos inválidos para {name}: se esperaba un objeto")
+    try:
+        args = tuple((p.name, game.types.decode(given[p.name], p.type)) for p in adef.params)
+    except (KeyError, ValueError, TypeError) as exc:
+        raise IllegalAction(f"argumentos inválidos para {name}: {exc}") from None
+    return Action(adef.name, args)
+
+
+def competition_ranking(scores: tuple[Any, ...]) -> tuple[int, ...]:
+    """Puestos de competición: 1 + cuántos tienen una puntuación mayor (los empates comparten)."""
+    return tuple(1 + sum(1 for other in scores if other > s) for s in scores)
+
+
 def _snapshot_value(v: Any) -> Any:
     if isinstance(v, Zone):
         snap: dict[str, Any] = {"items": [to_json(i.value) for i in v.items]}
@@ -475,7 +508,7 @@ class _Tx:
         return Env(self.ctx, **kw)
 
     def emit(self, payload: dict[str, Any]) -> None:
-        self.ctx.events.append(Event.public(payload, self.n))
+        self.ctx.events.append(Event.shared(payload, self.n))
 
     @property
     def current(self) -> NodeDef:
@@ -711,7 +744,7 @@ class _Tx:
     def _action_event(self, adef: ActionDef, actor: int, action: Action) -> None:
         full = {"type": "action", "seat": actor, **action.to_json()}
         seen: list[dict[str, Any] | None] = []
-        for viewer in range(self.n):
+        for viewer in (*range(self.n), PUBLIC):
             env = Env(self.ctx, viewer=viewer, owner=actor)
             if viewer == actor:
                 seen.append(full)
@@ -728,4 +761,4 @@ class _Tx:
                     else:
                         args[p.name] = HIDDEN
                 seen.append({"type": "action", "seat": actor, "name": action.name, "args": args})
-        self.ctx.events.append(Event(full, tuple(seen)))
+        self.ctx.events.append(Event(full, tuple(seen[:-1]), seen[-1]))

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
 
-from gamehub.engine.env import Env
+from gamehub.engine.env import PUBLIC, Env
 from gamehub.engine.errors import RuleError
 from gamehub.engine.events import Event
 from gamehub.engine.expr import Compiled, ExprCompiler, boolean, index_value, iterate, num, seat
@@ -300,8 +300,7 @@ class StmtCompiler:
                 "items": values,
             }
             seen: list[dict[str, Any] | None] = []
-            for s in range(ctx.n):
-                (size_a, items_a), (size_b, items_b) = before[s], after[s]
+            for (size_a, items_a), (size_b, items_b) in zip(before, after, strict=True):
                 if not (size_a or size_b):
                     seen.append(None)
                     continue
@@ -310,7 +309,7 @@ class StmtCompiler:
                     for v, a, b in zip(values, items_a, items_b, strict=True)
                 ]
                 seen.append({**full, "items": shown})
-            ctx.events.append(Event(full, tuple(seen)))
+            ctx.events.append(Event(full, tuple(seen[:-1]), seen[-1]))
 
         return run
 
@@ -332,7 +331,7 @@ class StmtCompiler:
                 "count": len(chosen),
                 "face_up": up,
             }
-            env.ctx.events.append(Event.public(payload, env.ctx.n))
+            env.ctx.events.append(Event.shared(payload, env.ctx.n))
 
         return run
 
@@ -351,7 +350,7 @@ class StmtCompiler:
                 items[i], items[j] = items[j], items[i]
             target.set(env, zone.with_items(items))
             payload = {"type": "shuffle", "zone": _loc_json(target.locate(env))}
-            env.ctx.events.append(Event.public(payload, env.ctx.n))
+            env.ctx.events.append(Event.shared(payload, env.ctx.n))
 
         return run
 
@@ -392,9 +391,9 @@ class StmtCompiler:
             payload: dict[str, Any] = {"type": "reveal", "value": to_json(value(env))}
             if label is not None:
                 payload["label"] = label
-            env.ctx.events.append(
-                Event(payload, tuple(payload if s in to else None for s in range(n)))
-            )
+            seen = tuple(payload if s in to else None for s in range(n))
+            # Un espectador ve lo que se revela a todos los asientos.
+            env.ctx.events.append(Event(payload, seen, payload if len(to) == n else None))
 
         return run
 
@@ -408,11 +407,11 @@ class StmtCompiler:
                 "name": name,
                 "fields": {k: to_json(f(env)) for k, f in compiled.items()},
             }
-            seen = tuple(
+            seen = [
                 payload if policy.allows(Env(env.ctx, viewer=s, owner=env.actor)) else None
-                for s in range(env.ctx.n)
-            )
-            env.ctx.events.append(Event(payload, seen))
+                for s in (*range(env.ctx.n), PUBLIC)
+            ]
+            env.ctx.events.append(Event(payload, tuple(seen[:-1]), seen[-1]))
 
         return run
 
@@ -425,7 +424,7 @@ class StmtCompiler:
                 "seat": seat(who(env), env.ctx.n, "reward"),
                 "amount": to_json(num(amount(env), "reward")),
             }
-            env.ctx.events.append(Event.public(payload, env.ctx.n))
+            env.ctx.events.append(Event.shared(payload, env.ctx.n))
 
         return run
 
@@ -450,11 +449,12 @@ def _sightings(
     items: list[ZoneItem],
     policies: tuple[Policy, Policy],
 ) -> list[tuple[bool, list[bool]]]:
-    """Para cada asiento: ¿ve el tamaño de la zona? ¿y cada elemento movido?"""
+    """Para cada asiento y al final para un espectador: ¿ve el tamaño de la zona? ¿y cada
+    elemento movido?"""
     policy, size_policy = policies
     owner = loc[1]
     result = []
-    for s in range(env.ctx.n):
+    for s in (*range(env.ctx.n), PUBLIC):
         probe = Env(env.ctx, viewer=s, owner=owner)
         seen_items = [policy.allows(probe.replace(face_up=it.face_up)) for it in items]
         result.append((size_policy.allows(probe), seen_items))

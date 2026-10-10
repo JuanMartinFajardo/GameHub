@@ -27,7 +27,7 @@ from gamehub.ir.hashing import rules_hash
 from gamehub.ir.spec import load_json
 
 if TYPE_CHECKING:
-    from gamehub.engine.state import State
+    from gamehub.engine.state import Action, State
 
 Member = Callable[[Env, Any], tuple[bool, Any]]
 
@@ -345,6 +345,13 @@ class Game:
         from gamehub.engine.state import State
 
         return State.initial(self.defn, num_players or self.defn.min_players, params or {})
+
+    def decode_action(self, node: str | None, data: dict[str, Any]) -> Action:
+        """Acción del nodo `node` desde JSON, sin necesidad de un estado: la usan los clientes,
+        que solo conocen su vista (el nodo actual va en ella)."""
+        from gamehub.engine.state import decode_action
+
+        return decode_action(self.defn, node, data)
 
 
 def load_game(source: str | Path | dict[str, Any]) -> Game:

@@ -293,8 +293,14 @@ def _replay(args: argparse.Namespace) -> int:
     data = load(args.file)
     game_path = args.game or examples_dir() / f"{data['game']['id']}.ir.json"
     game = _load_game(game_path, None)
+    fair = data.get("fairness")
     try:
-        final = replay(game, data)
+        if isinstance(fair, dict) and "server_seed" in fair:
+            from gamehub.engine.fairness import verify
+
+            final = verify(game, data)
+        else:
+            final = replay(game, data)
     except EngineError as exc:
         print(f"✗ {args.file}: {exc}")
         return 1
@@ -306,6 +312,8 @@ def _replay(args: argparse.Namespace) -> int:
                 print(f"[{i}] " + " | ".join(shown))
     payoffs = ", ".join(str(p) for p in (final.payoffs or ()))
     print(f"✓ {args.file}: {len(data['steps'])} pasos verificados · pagos: {payoffs or '—'}")
+    if isinstance(fair, dict) and "server_seed" in fair:
+        print("✓ azar verificado: la semilla revelada cumple el compromiso y produce cada sorteo")
     return 0
 
 
