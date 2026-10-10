@@ -255,3 +255,12 @@ def test_bot_run_command(server: ServerThread, capsys: pytest.CaptureFixture[str
     assert not cli_thread.is_alive(), "gamehub bot run no ha terminado"
     out = capsys.readouterr().out
     assert codes == [0] and "partida 1: terminal" in out
+
+
+def test_message_ids_are_unique_across_clients() -> None:
+    """Dos procesos que retoman la misma sesión no pueden repetir ids: el servidor descartaría
+    como reintento la jugada del segundo (lo encontró la prueba de aceptación)."""
+    a, b = Client("127.0.0.1"), Client("127.0.0.1")
+    ids_a = {a._next_id() for _ in range(100)}
+    ids_b = {b._next_id() for _ in range(100)}
+    assert len(ids_a) == 100 and not ids_a & ids_b

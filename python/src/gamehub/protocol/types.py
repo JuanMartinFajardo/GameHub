@@ -43,7 +43,9 @@ type ServerMessage = (
 )
 
 
-# Identificador que elige el cliente: el servidor lo devuelve en `re` y descarta un `act` repetido.
+# Identificador que elige el cliente, único en toda la sesión (también si otro proceso la retoma con
+# el mismo token: conviene un prefijo aleatorio): el servidor lo devuelve en `re` y descarta un
+# `act` con un id ya visto.
 type MessageId = str
 
 

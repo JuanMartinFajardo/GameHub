@@ -60,7 +60,9 @@ Errores: `{"error": {"code", "message"}}` con el estado HTTP correspondiente (40
 
 Sobres: cliente `{"v": 1, "type", "id"?, "data"}` · servidor `{"v": 1, "type", "re"?, "data"}`.
 `id` lo elige el cliente; el servidor lo devuelve en `re` en las respuestas directas (`joined`,
-`welcome`, `rejected`, `actions`, `pong`, `error`) y descarta un `act` con un `id` ya visto.
+`welcome`, `rejected`, `actions`, `pong`, `error`) y descarta un `act` con un `id` ya visto en la
+sesión. Por eso tiene que ser único en toda la sesión, también si otro proceso la retoma con el
+mismo token: el SDK de Python usa un prefijo aleatorio por cliente (`3f9a1c2e-17`).
 
 **Cliente → servidor**
 

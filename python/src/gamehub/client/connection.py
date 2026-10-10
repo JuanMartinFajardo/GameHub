@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import itertools
 import json
+import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -114,6 +115,9 @@ class Client:
         self.pending: dict[str, tuple[asyncio.Future[dict[str, Any]], set[str], set[str]]] = {}
         self.reader: asyncio.Task[None] | None = None
         self.closed = False
+        # Los ids de mensaje deben ser únicos en toda la sesión, también entre procesos que la
+        # retoman con el mismo token (el servidor descarta un `act` con un id ya visto).
+        self._prefix = secrets.token_hex(4)
         self._ids = itertools.count(1)
         # Estado que se sigue de los mensajes.
         self.server: dict[str, Any] | None = None
@@ -240,7 +244,7 @@ class Client:
         await self.send("kick", {"participant": participant})
 
     async def send(self, kind: str, data: dict[str, Any]) -> str:
-        mid = f"c{next(self._ids)}"
+        mid = self._next_id()
         await self._raw(client_message(kind, data, mid))
         return mid
 
@@ -293,6 +297,9 @@ class Client:
 
     # --- internos -------------------------------------------------------------------------------
 
+    def _next_id(self) -> str:
+        return f"{self._prefix}-{next(self._ids)}"
+
     def _hello(self) -> dict[str, Any]:
         data: dict[str, Any] = {
             "client": {"name": CLIENT_NAME, "kind": self.kind, "version": __version__},
@@ -333,7 +340,7 @@ class Client:
         """Envía y espera la respuesta con su `re`. Un `error` lanza `ClientError`, salvo los de
         `tolerate`, tras los que se sigue esperando (al retomar una sesión caducada el servidor
         responde con `invalid_token` y después con `welcome`)."""
-        mid = f"c{next(self._ids)}"
+        mid = self._next_id()
         future: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
         self.pending[mid] = (future, expect | {"error"}, set(tolerate))
         try:
@@ -372,7 +379,7 @@ class Client:
             delay = min(delay * 2, 5.0)
             try:
                 self.ws = await self._open()
-                await self._raw(client_message("hello", self._hello(), f"c{next(self._ids)}"))
+                await self._raw(client_message("hello", self._hello(), self._next_id()))
             except ClientError:
                 continue
             self._status("connected")

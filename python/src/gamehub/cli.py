@@ -493,25 +493,26 @@ def _loadtest(args: argparse.Namespace) -> int:
 def _bot_run(args: argparse.Namespace) -> int:
     import asyncio
 
-    from gamehub.client import AgentLoadError, AgentRunner, Client, ClientError, load_agent, target
+    from gamehub.client import AgentLoadError, AgentRunner, Client, ClientError, load_agent
+    from gamehub.client.play import resolve
     from gamehub.engine import Game
 
     try:
         factory = load_agent(args.agent, seed=args.seed)
-        server, code = target(args.room, args.server)
-    except (AgentLoadError, ClientError) as exc:
+    except AgentLoadError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     name = args.name or f"Bot {Path(args.agent).stem}"
     matches = args.matches or None
 
     async def main() -> list[dict[str, Any]]:
+        server, code = await resolve(args.room, args.server, _say)
         async with Client(server, name=name, kind="bot", legal_limit=20_000) as client:
             joined = await client.join(code, seat=args.seat)
             seat = joined["session"]["seat"]
-            print(f"{name} en la sala {code} ({server}), asiento {seat}", flush=True)
+            _say(f"{name} en la sala {code} ({server}), asiento {seat}")
             game = Game(await client.room_ir())
-            runner = AgentRunner(client, factory, game, matches=matches, log=print)
+            runner = AgentRunner(client, factory, game, matches=matches, log=_say)
             return await runner.run()
 
     try:
@@ -522,7 +523,7 @@ def _bot_run(args: argparse.Namespace) -> int:
     for result in results:
         payoffs = result["payoffs"]
         shown = ", ".join(str(p) for p in payoffs) if payoffs is not None else "—"
-        print(f"partida {result['match']['number']}: {result['reason']} · pagos: {shown}")
+        _say(f"partida {result['match']['number']}: {result['reason']} · pagos: {shown}")
     return 0
 
 

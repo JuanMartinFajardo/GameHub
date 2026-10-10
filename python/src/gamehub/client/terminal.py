@@ -120,6 +120,7 @@ class Terminal:
         self.finished = False
         self.last_status: str | None = None
         self.connected: dict[int, bool] = {}
+        self.welcomed = False
 
     # --- bucle ----------------------------------------------------------------------------------
 
@@ -128,8 +129,9 @@ class Terminal:
         reader = asyncio.create_task(self._read(lines))
         try:
             await self._load_game()
-            if self.client.room is not None:
-                self._show_room(self.client.room)
+            room = self.client.room
+            if room is not None and room["status"] == "lobby":
+                self._show_room(room)
             async for msg in self.client:
                 await self.on_message(msg)
                 if self.finished:
@@ -157,7 +159,9 @@ class Terminal:
         kind, data = msg["type"], msg["data"]
         match kind:
             case "welcome" if "session" in data:
-                self.out("Conexión recuperada.")
+                if self.welcomed:  # el primero es el de la conexión inicial
+                    self.out("Conexión recuperada.")
+                self.welcomed = True
             case "joined":
                 self._remember(data["token"])
                 where = (
