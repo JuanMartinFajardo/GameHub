@@ -230,7 +230,184 @@ importers:
         specifier: 'catalog:'
         version: 5.0.2(@types/node@22.20.5)(jsdom@30.1.1)(vite@8.3.4(@types/node@22.20.5))
 
-  apps/play:
+  games/connect-four/ui:
+    dependencies:
+      '@gamehub/auto-ui':
+        specifier: workspace:*
+        version: link:../../../web/packages/auto-ui
+      '@gamehub/i18n':
+        specifier: workspace:*
+        version: link:../../../web/packages/i18n
+      '@gamehub/protocol':
+        specifier: workspace:*
+        version: link:../../../web/packages/protocol
+      '@gamehub/shell':
+        specifier: workspace:*
+        version: link:../../../web/packages/shell
+      '@gamehub/ui-kit':
+        specifier: workspace:*
+        version: link:../../../web/packages/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 'catalog:'
+        version: 2.5.14
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.1.1(vite@8.3.4(@types/node@22.20.5))
+      jsdom:
+        specifier: 'catalog:'
+        version: 30.1.1
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.4(@types/node@22.20.5)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@types/node@22.20.5)(jsdom@30.1.1)(vite@8.3.4(@types/node@22.20.5))
+
+  games/dudo/ui:
+    dependencies:
+      '@gamehub/auto-ui':
+        specifier: workspace:*
+        version: link:../../../web/packages/auto-ui
+      '@gamehub/client':
+        specifier: workspace:*
+        version: link:../../../web/packages/client
+      '@gamehub/i18n':
+        specifier: workspace:*
+        version: link:../../../web/packages/i18n
+      '@gamehub/protocol':
+        specifier: workspace:*
+        version: link:../../../web/packages/protocol
+      '@gamehub/shell':
+        specifier: workspace:*
+        version: link:../../../web/packages/shell
+      '@gamehub/ui-kit':
+        specifier: workspace:*
+        version: link:../../../web/packages/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 'catalog:'
+        version: 2.5.14
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.1.1(vite@8.3.4(@types/node@22.20.5))
+      jsdom:
+        specifier: 'catalog:'
+        version: 30.1.1
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.4(@types/node@22.20.5)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@types/node@22.20.5)(jsdom@30.1.1)(vite@8.3.4(@types/node@22.20.5))
+
+  games/tictactoe/ui:
+    dependencies:
+      '@gamehub/auto-ui':
+        specifier: workspace:*
+        version: link:../../../web/packages/auto-ui
+      '@gamehub/i18n':
+        specifier: workspace:*
+        version: link:../../../web/packages/i18n
+      '@gamehub/protocol':
+        specifier: workspace:*
+        version: link:../../../web/packages/protocol
+      '@gamehub/shell':
+        specifier: workspace:*
+        version: link:../../../web/packages/shell
+      '@gamehub/ui-kit':
+        specifier: workspace:*
+        version: link:../../../web/packages/ui-kit
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 'catalog:'
+        version: 2.5.14
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.1.1(vite@8.3.4(@types/node@22.20.5))
+      jsdom:
+        specifier: 'catalog:'
+        version: 30.1.1
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.4(@types/node@22.20.5)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.2(@types/node@22.20.5)(jsdom@30.1.1)(vite@8.3.4(@types/node@22.20.5))
+
+  web/apps/play:
     dependencies:
       '@gamehub/auto-ui':
         specifier: workspace:*
@@ -270,7 +447,7 @@ importers:
         specifier: 'catalog:'
         version: 8.3.4(@types/node@22.20.5)
 
-  packages/auto-ui:
+  web/packages/auto-ui:
     dependencies:
       '@gamehub/client':
         specifier: workspace:*
@@ -316,13 +493,13 @@ importers:
         specifier: 'catalog:'
         version: 8.21.3
 
-  packages/client:
+  web/packages/client:
     dependencies:
       '@gamehub/protocol':
         specifier: workspace:*
         version: link:../protocol
 
-  packages/i18n:
+  web/packages/i18n:
     devDependencies:
       '@testing-library/dom':
         specifier: 'catalog:'
@@ -343,9 +520,9 @@ importers:
         specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
 
-  packages/protocol: {}
+  web/packages/protocol: {}
 
-  packages/react:
+  web/packages/react:
     dependencies:
       '@gamehub/client':
         specifier: workspace:*
@@ -373,7 +550,7 @@ importers:
         specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
 
-  packages/shell:
+  web/packages/shell:
     dependencies:
       '@gamehub/auto-ui':
         specifier: workspace:*
@@ -425,7 +602,7 @@ importers:
         specifier: 'catalog:'
         version: 8.21.3
 
-  packages/ui-kit:
+  web/packages/ui-kit:
     dependencies:
       '@gamehub/i18n':
         specifier: workspace:*

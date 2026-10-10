@@ -1,8 +1,9 @@
-# Paquetes del monorepo web y las UIs propias que viven dentro de cada paquete de juego.
+# La parte de JavaScript del monorepo: los paquetes y la app de web/ y las UIs propias que viven
+# dentro de cada paquete de juego (games/<juego>/ui).
 packages:
-  - "packages/*"
-  - "apps/*"
-  - "../games/*/ui"
+  - "web/packages/*"
+  - "web/apps/*"
+  - "games/*/ui"
 
 # Versiones exactas compartidas por todos los paquetes ("catalog:" en cada package.json).
 catalog:

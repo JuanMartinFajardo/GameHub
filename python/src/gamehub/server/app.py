@@ -640,7 +640,7 @@ h1 {{ margin-top: 0; }} code {{ font-size: 1.05em; }} .muted {{ color: var(--mut
 
 _NO_WEB = (
     "<p>Este servidor no tiene la app web compilada.</p>"
-    "<p>En el repositorio: <code>cd web &amp;&amp; pnpm install &amp;&amp; pnpm build</code>.</p>"
+    "<p>En el repositorio: <code>pnpm install &amp;&amp; pnpm build</code> (en la raíz).</p>"
 )
 
 
@@ -655,6 +655,6 @@ def _room_page(room: Room, url: str) -> str:
         f"<p>{html.escape(room.game.title)} · {_status_text(room)}</p><ul>{seats}</ul>"
         "<p>Para unirte desde la terminal:</p>"
         f"<pre><code>gamehub join {html.escape(url)}</code></pre>"
-        "<p class='muted'>Para jugar en el navegador, compila la app web (pnpm -C web build).</p>"
+        "<p class='muted'>Para jugar en el navegador, compila la app web (pnpm build).</p>"
     )
     return _page(f"Sala {display(room.code)}", body)

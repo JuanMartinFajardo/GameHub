@@ -1,8 +1,8 @@
 {
-  "name": "gamehub-web",
+  "name": "gamehub",
   "private": true,
   "type": "module",
-  "description": "Cliente web de GameHub: SDK TypeScript, UI genérica, UI kit y la app para jugar.",
+  "description": "Monorepo de GameHub: la parte de JavaScript (web/ y las UIs propias de games/*/ui).",
   "license": "Apache-2.0",
   "packageManager": "pnpm@12.5.1",
   "engines": {
@@ -13,8 +13,8 @@
     "build": "pnpm --filter @gamehub/play build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
-    "lint": "biome check .",
-    "format": "biome check --write ."
+    "lint": "biome check",
+    "format": "biome check --write"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

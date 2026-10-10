@@ -40,15 +40,12 @@ jobs:
 
   web:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version-file: web/.nvmrc
-      # Los tests de integración del SDK arrancan el servidor de partidas de Python.
+          node-version-file: .nvmrc
+      # Los tests de integración arrancan el servidor de partidas de Python.
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
@@ -62,3 +59,5 @@ jobs:
         run: pnpm typecheck
       - name: Tests
         run: pnpm test
+      - name: App web
+        run: pnpm build

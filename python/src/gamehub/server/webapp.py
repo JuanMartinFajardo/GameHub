@@ -3,7 +3,7 @@
 
 Se busca, por orden: `GAMEHUB_WEB_DIR`; la copia que viaja dentro del paquete instalado
 (`gamehub/webapp`, la pone ahí la construcción de la rueda); la compilación del repositorio
-(`web/apps/play/dist`, tras `pnpm -C web build`). Sin ella, el servidor funciona igual, con
+(`web/apps/play/dist`, tras `pnpm build` en la raíz). Sin ella, el servidor funciona igual, con
 unas páginas mínimas en vez de la app.
 
 Las rutas de la app (`/`, `/r/CÓDIGO`, `/replay/ID`, `/local/JUEGO`, `/kit`) devuelven su

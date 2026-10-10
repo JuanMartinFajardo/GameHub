@@ -17,19 +17,22 @@ y la app para jugar en el navegador.
 
 ## Requisitos
 
-- **Node 22** (`nvm use` en esta carpeta lee `.nvmrc`).
+- **Node 22** (`nvm use` en la raíz lee `.nvmrc`).
 - **pnpm**, mediante corepack: `corepack enable` una vez (o `corepack pnpm …` sin activarlo).
+
+El workspace de pnpm está en la **raíz del repositorio** (`pnpm-workspace.yaml`): incluye
+`web/packages/*`, `web/apps/*` y las UIs propias de los juegos (`games/<juego>/ui`). Los comandos
+se ejecutan desde la raíz.
 
 ## Comandos
 
 ```bash
-cd web
-pnpm install          # dependencias (versiones exactas en pnpm-workspace.yaml)
+pnpm install          # dependencias (versiones exactas en el catálogo de pnpm-workspace.yaml)
 pnpm test             # tests de todos los paquetes (Vitest); los de integración arrancan
                       # `gamehub serve` con uv (GAMEHUB_SKIP_SERVER_TESTS=1 los salta)
 pnpm typecheck        # TypeScript estricto
 pnpm lint             # Biome: lint y formato (pnpm format para corregir)
-pnpm build            # compila la app (apps/play/dist), que luego sirve gamehub serve
+pnpm build            # compila la app (web/apps/play/dist), que luego sirve gamehub serve
 pnpm dev              # la app con recarga en caliente (http://localhost:5173), contra un
                       # servidor de partidas local: cd python && uv run gamehub serve ../games
 ```
@@ -37,6 +40,14 @@ pnpm dev              # la app con recarga en caliente (http://localhost:5173), 
 Para jugar en el navegador basta con compilar una vez y arrancar el servidor:
 
 ```bash
-cd web && pnpm install && pnpm build
-cd ../python && uv run gamehub serve ../games --open
+pnpm install && pnpm build
+cd python && uv run gamehub serve ../games --open
 ```
+
+## UIs propias
+
+`gamehub ui new games/<juego>` crea una UI de React para un juego en `games/<juego>/ui`, con los
+tipos del juego (`gamehub sdk ts`), un tablero inicial, un test y un servidor de desarrollo
+(`pnpm dev` en su carpeta: la app solo con ese juego). La app web registra sola las UIs de
+`games/*/ui`. Ejemplos: [tres en raya](../games/tictactoe/ui), [Conecta 4](../games/connect-four/ui)
+y [Dudo](../games/dudo/ui).
