@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0
+import { defineMessages } from "@gamehub/i18n";
+
+export const messages = defineMessages(
+  {
+    cell: "Casilla {row}, {column}",
+    column: "Columna {column}",
+    row: "Fila {row}",
+    faceDown: "Carta boca abajo",
+    cardOf: "{rank} de {suit}",
+    die: "Dado: {value}",
+    hiddenDie: "Dado oculto",
+    cards: "{n} cartas",
+    card: "1 carta",
+    empty: "Vacío",
+    you: "tú",
+    bot: "bot",
+    away: "desconectado",
+    ready: "listo",
+    turn: "le toca",
+    space: "Casilla {n}",
+    clock: "Tiempo restante",
+  },
+  {
+    cell: "Cell {row}, {column}",
+    column: "Column {column}",
+    row: "Row {row}",
+    faceDown: "Face-down card",
+    cardOf: "{rank} of {suit}",
+    die: "Die: {value}",
+    hiddenDie: "Hidden die",
+    cards: "{n} cards",
+    card: "1 card",
+    empty: "Empty",
+    you: "you",
+    bot: "bot",
+    away: "disconnected",
+    ready: "ready",
+    turn: "to play",
+    space: "Space {n}",
+    clock: "Time left",
+  },
+);
