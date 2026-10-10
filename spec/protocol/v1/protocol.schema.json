@@ -1,0 +1,974 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gamehub.invalid/spec/protocol/v1/protocol.schema.json",
+  "title": "Protocolo de partidas de GameHub, versión 1",
+  "description": "Mensajes WebSocket entre clientes (personas, bots, interfaces) y el servidor de partidas, y cuerpos de la API REST. Cada mensaje es un sobre {v, type, id?, data} (cliente) o {v, type, re?, data} (servidor). Semántica: docs/wiki/protocolo.md.",
+  "$defs": {
+    "ClientMessage": {
+      "description": "Cualquier mensaje del cliente al servidor.",
+      "oneOf": [
+        { "$ref": "#/$defs/HelloMessage" },
+        { "$ref": "#/$defs/JoinMessage" },
+        { "$ref": "#/$defs/SitMessage" },
+        { "$ref": "#/$defs/StandMessage" },
+        { "$ref": "#/$defs/LeaveMessage" },
+        { "$ref": "#/$defs/ReadyMessage" },
+        { "$ref": "#/$defs/ActMessage" },
+        { "$ref": "#/$defs/QueryActionsMessage" },
+        { "$ref": "#/$defs/ResignMessage" },
+        { "$ref": "#/$defs/ChatSendMessage" },
+        { "$ref": "#/$defs/PingMessage" },
+        { "$ref": "#/$defs/ResyncMessage" },
+        { "$ref": "#/$defs/ConfigureMessage" },
+        { "$ref": "#/$defs/SetSeatMessage" },
+        { "$ref": "#/$defs/KickMessage" }
+      ]
+    },
+    "ServerMessage": {
+      "description": "Cualquier mensaje del servidor al cliente.",
+      "oneOf": [
+        { "$ref": "#/$defs/WelcomeMessage" },
+        { "$ref": "#/$defs/JoinedMessage" },
+        { "$ref": "#/$defs/RoomMessage" },
+        { "$ref": "#/$defs/MatchStartMessage" },
+        { "$ref": "#/$defs/UpdateMessage" },
+        { "$ref": "#/$defs/ActionsMessage" },
+        { "$ref": "#/$defs/RejectedMessage" },
+        { "$ref": "#/$defs/MatchEndMessage" },
+        { "$ref": "#/$defs/ChatMessage" },
+        { "$ref": "#/$defs/PongMessage" },
+        { "$ref": "#/$defs/ErrorMessage" }
+      ]
+    },
+
+    "MessageId": {
+      "description": "Identificador que elige el cliente: el servidor lo devuelve en `re` y descarta un `act` repetido.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "RoomCode": {
+      "description": "Código de sala: 6 caracteres de Crockford base32 (se muestra como K7F-Q2P; al escribirlo se admiten minúsculas, guiones y espacios, y O/I/L valen 0/1/1).",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{6}$"
+    },
+    "Name": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "Seat": { "type": "integer", "minimum": 0 },
+    "Number": {
+      "description": "Número exacto: entero, o racional como texto «n/d».",
+      "oneOf": [{ "type": "integer" }, { "type": "string", "pattern": "^-?[0-9]+/[0-9]+$" }]
+    },
+    "Json": { "description": "Cualquier valor JSON." },
+    "JsonObject": { "type": "object", "additionalProperties": { "$ref": "#/$defs/Json" } },
+    "Empty": { "type": "object", "additionalProperties": false },
+    "ActionData": {
+      "description": "Una acción: nombre y argumentos en JSON (como en los replays).",
+      "type": "object",
+      "required": ["name", "args"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "args": { "$ref": "#/$defs/JsonObject" }
+      }
+    },
+
+    "PlayerRange": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": { "min": { "type": "integer" }, "max": { "type": "integer" } }
+    },
+    "GameInfo": {
+      "type": "object",
+      "required": ["id", "version", "title", "rules_hash", "players"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "rules_hash": { "type": "string" },
+        "players": { "$ref": "#/$defs/PlayerRange" }
+      }
+    },
+    "Clock": {
+      "description": "Control de tiempo de la sala.",
+      "oneOf": [
+        { "$ref": "#/$defs/ClockNone" },
+        { "$ref": "#/$defs/ClockMove" },
+        { "$ref": "#/$defs/ClockMatch" }
+      ]
+    },
+    "ClockNone": {
+      "description": "Sin reloj.",
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": { "kind": { "const": "none" } }
+    },
+    "ClockMove": {
+      "description": "Un plazo fijo para cada decisión.",
+      "type": "object",
+      "required": ["kind", "seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "move" },
+        "seconds": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "ClockMatch": {
+      "description": "Reloj de ajedrez: un tiempo total por asiento que corre mientras le toca, más un incremento tras cada jugada.",
+      "type": "object",
+      "required": ["kind", "initial", "increment"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "match" },
+        "initial": { "type": "number", "exclusiveMinimum": 0 },
+        "increment": { "type": "number", "minimum": 0 }
+      }
+    },
+    "OnTimeout": {
+      "description": "Qué pasa al vencer un plazo: una jugada legal al azar, pasar (si se puede; si no, al azar), un bot juega por el asiento el resto de la partida, o el asiento abandona.",
+      "enum": ["random", "pass", "bot", "forfeit"]
+    },
+    "BotKind": { "description": "Bots que ejecuta el propio servidor.", "enum": ["random", "first"] },
+    "RoomSettings": {
+      "type": "object",
+      "required": [
+        "players",
+        "clock",
+        "on_timeout",
+        "spectators",
+        "spectator_delay",
+        "bot_delay",
+        "private"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "players": { "type": "integer", "minimum": 1 },
+        "clock": { "$ref": "#/$defs/Clock" },
+        "on_timeout": { "$ref": "#/$defs/OnTimeout" },
+        "spectators": { "type": "boolean" },
+        "spectator_delay": { "type": "number", "minimum": 0, "maximum": 3600 },
+        "bot_delay": { "type": "number", "minimum": 0, "maximum": 60 },
+        "private": { "type": "boolean" }
+      }
+    },
+    "SettingsPatch": {
+      "description": "Cambios de configuración (solo los campos indicados).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clock": { "$ref": "#/$defs/Clock" },
+        "on_timeout": { "$ref": "#/$defs/OnTimeout" },
+        "spectators": { "type": "boolean" },
+        "spectator_delay": { "type": "number", "minimum": 0, "maximum": 3600 },
+        "bot_delay": { "type": "number", "minimum": 0, "maximum": 60 },
+        "private": { "type": "boolean" }
+      }
+    },
+    "SeatKind": {
+      "description": "open: libre · reserved: libre, guardado para un nombre · human: una persona · bot: un bot (del servidor o un cliente bot).",
+      "enum": ["open", "reserved", "human", "bot"]
+    },
+    "SeatInfo": {
+      "type": "object",
+      "required": ["seat", "kind", "connected", "ready", "host"],
+      "additionalProperties": false,
+      "properties": {
+        "seat": { "$ref": "#/$defs/Seat" },
+        "kind": { "$ref": "#/$defs/SeatKind" },
+        "participant": { "type": "string" },
+        "name": { "$ref": "#/$defs/Name" },
+        "connected": { "type": "boolean" },
+        "ready": { "type": "boolean" },
+        "host": { "type": "boolean" },
+        "bot": { "$ref": "#/$defs/BotKind" }
+      }
+    },
+    "SpectatorInfo": {
+      "type": "object",
+      "required": ["participant", "name", "connected", "host"],
+      "additionalProperties": false,
+      "properties": {
+        "participant": { "type": "string" },
+        "name": { "$ref": "#/$defs/Name" },
+        "connected": { "type": "boolean" },
+        "host": { "type": "boolean" }
+      }
+    },
+    "RoomStatus": { "enum": ["lobby", "running", "closed"] },
+    "EndReason": {
+      "description": "terminal: las reglas acabaron la partida · forfeit: abandonaron todos menos uno · aborted: se cerró la sala a medias.",
+      "enum": ["terminal", "forfeit", "aborted"]
+    },
+    "MatchRef": {
+      "type": "object",
+      "required": ["id", "number"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "number": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "MatchSummary": {
+      "type": "object",
+      "required": ["match", "reason", "payoffs", "ranking"],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "$ref": "#/$defs/MatchRef" },
+        "reason": { "$ref": "#/$defs/EndReason" },
+        "payoffs": {
+          "oneOf": [{ "type": "array", "items": { "$ref": "#/$defs/Number" } }, { "type": "null" }]
+        },
+        "ranking": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+      }
+    },
+    "Room": {
+      "description": "Estado público de una sala (mensaje `room` y GET /api/v1/rooms/{code}).",
+      "type": "object",
+      "required": [
+        "code",
+        "game",
+        "params",
+        "settings",
+        "status",
+        "seats",
+        "spectators",
+        "commitment",
+        "match",
+        "last"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "$ref": "#/$defs/RoomCode" },
+        "game": { "$ref": "#/$defs/GameInfo" },
+        "params": { "$ref": "#/$defs/JsonObject" },
+        "settings": { "$ref": "#/$defs/RoomSettings" },
+        "status": { "$ref": "#/$defs/RoomStatus" },
+        "seats": { "type": "array", "items": { "$ref": "#/$defs/SeatInfo" } },
+        "spectators": { "type": "array", "items": { "$ref": "#/$defs/SpectatorInfo" } },
+        "commitment": {
+          "description": "Compromiso del azar de la partida en curso o de la siguiente (azar verificable).",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "match": { "oneOf": [{ "$ref": "#/$defs/MatchRef" }, { "type": "null" }] },
+        "last": { "oneOf": [{ "$ref": "#/$defs/MatchSummary" }, { "type": "null" }] }
+      }
+    },
+    "Session": {
+      "description": "Quién es el cliente en la sala.",
+      "type": "object",
+      "required": ["room", "participant", "name", "role", "seat", "host"],
+      "additionalProperties": false,
+      "properties": {
+        "room": { "$ref": "#/$defs/RoomCode" },
+        "participant": { "type": "string" },
+        "name": { "$ref": "#/$defs/Name" },
+        "role": { "enum": ["player", "spectator"] },
+        "seat": { "oneOf": [{ "$ref": "#/$defs/Seat" }, { "type": "null" }] },
+        "host": { "type": "boolean" }
+      }
+    },
+    "View": {
+      "description": "El estado tal como lo ve el destinatario (vista redactada del motor).",
+      "type": "object",
+      "required": ["node", "status", "active", "state"],
+      "additionalProperties": false,
+      "properties": {
+        "node": { "type": ["string", "null"] },
+        "status": { "enum": ["chance", "decision", "terminal"] },
+        "active": { "type": "array", "items": { "$ref": "#/$defs/Seat" } },
+        "state": { "$ref": "#/$defs/JsonObject" },
+        "responded": { "type": "array", "items": { "$ref": "#/$defs/Seat" } },
+        "payoffs": { "type": "array", "items": { "$ref": "#/$defs/Number" } }
+      }
+    },
+    "Event": {
+      "description": "Un evento del motor tal como lo ve el destinatario (node, action, move, reveal, emit…).",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "type": "string" } },
+      "additionalProperties": { "$ref": "#/$defs/Json" }
+    },
+    "Legal": {
+      "description": "Las acciones legales del destinatario cuando le toca.",
+      "oneOf": [{ "$ref": "#/$defs/LegalEnumerated" }, { "$ref": "#/$defs/LegalProgressive" }]
+    },
+    "LegalEnumerated": {
+      "description": "Todas las acciones legales, en el orden del motor.",
+      "type": "object",
+      "required": ["kind", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "enumerated" },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/ActionData" } }
+      }
+    },
+    "LegalProgressive": {
+      "description": "Demasiadas para enumerarlas: los nombres disponibles; el resto se construye con query_actions.",
+      "type": "object",
+      "required": ["kind", "names"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "progressive" },
+        "names": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Clocks": {
+      "description": "Tiempo en milisegundos al enviar el mensaje: lo que le queda a cada asiento (null si su reloj no corre) y qué asientos tienen el reloj en marcha.",
+      "type": "object",
+      "required": ["kind", "remaining_ms", "running"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["move", "match"] },
+        "remaining_ms": {
+          "type": "array",
+          "items": { "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }] }
+        },
+        "running": { "type": "array", "items": { "$ref": "#/$defs/Seat" } }
+      }
+    },
+    "Fairness": {
+      "description": "Azar verificable (esquema gamehub-fair/1): el compromiso se publica antes de empezar; server_seed y seed se revelan al terminar.",
+      "type": "object",
+      "required": ["scheme", "commitment", "client_seeds"],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": { "const": "gamehub-fair/1" },
+        "commitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "client_seeds": { "type": "array", "items": { "type": "string", "maxLength": 64 } },
+        "server_seed": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "seed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "SeatPlayer": {
+      "type": "object",
+      "required": ["seat", "name", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "seat": { "$ref": "#/$defs/Seat" },
+        "name": { "$ref": "#/$defs/Name" },
+        "kind": { "enum": ["human", "bot"] }
+      }
+    },
+    "ClientInfo": {
+      "type": "object",
+      "required": ["name", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "version": { "type": "string", "maxLength": 32 },
+        "kind": { "enum": ["human", "bot"] }
+      }
+    },
+    "ServerRef": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "Sender": {
+      "type": "object",
+      "required": ["participant", "name", "seat"],
+      "additionalProperties": false,
+      "properties": {
+        "participant": { "type": "string" },
+        "name": { "$ref": "#/$defs/Name" },
+        "seat": { "oneOf": [{ "$ref": "#/$defs/Seat" }, { "type": "null" }] }
+      }
+    },
+
+    "Hello": {
+      "description": "Primer mensaje de cada conexión. Con `token`, retoma la sesión (reconexión): el servidor reenvía la sala y las actualizaciones posteriores a `last_seq`.",
+      "type": "object",
+      "required": ["client"],
+      "additionalProperties": false,
+      "properties": {
+        "client": { "$ref": "#/$defs/ClientInfo" },
+        "token": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "last_seq": { "type": "integer", "minimum": -1 },
+        "legal_limit": {
+          "description": "Cuántas acciones legales enumerar como mucho en cada update (por defecto 256); por encima, construcción progresiva.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000
+        }
+      }
+    },
+    "Join": {
+      "description": "Entrar en una sala como jugador (en el asiento pedido o en el primero libre) o como espectador.",
+      "type": "object",
+      "required": ["room", "role", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "room": { "type": "string", "minLength": 1, "maxLength": 16 },
+        "role": { "enum": ["player", "spectator"] },
+        "name": { "$ref": "#/$defs/Name" },
+        "seat": { "$ref": "#/$defs/Seat" }
+      }
+    },
+    "Sit": {
+      "description": "Sentarse (o cambiar de asiento) en el lobby.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "seat": { "$ref": "#/$defs/Seat" } }
+    },
+    "Ready": {
+      "description": "Listo (o no) para empezar; `seed` es la semilla que aporta el jugador al azar de la partida.",
+      "type": "object",
+      "required": ["ready"],
+      "additionalProperties": false,
+      "properties": {
+        "ready": { "type": "boolean" },
+        "seed": { "type": "string", "maxLength": 64 }
+      }
+    },
+    "Act": {
+      "description": "Jugar una acción. `seq` es la última actualización vista: se rechaza si es anterior al comienzo del turno vigente del asiento.",
+      "type": "object",
+      "required": ["seq", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "action": { "$ref": "#/$defs/ActionData" }
+      }
+    },
+    "QueryActions": {
+      "description": "Construcción progresiva: sin `name`, los nombres de acción disponibles; con `name` y los primeros argumentos, los valores posibles del siguiente.",
+      "type": "object",
+      "required": ["seq"],
+      "additionalProperties": false,
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "args": { "$ref": "#/$defs/JsonObject" }
+      }
+    },
+    "ChatSend": {
+      "type": "object",
+      "required": ["text"],
+      "additionalProperties": false,
+      "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 500 } }
+    },
+    "Ping": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "t": { "type": "number" } }
+    },
+    "Configure": {
+      "description": "Solo el anfitrión y en el lobby: número de jugadores, opciones del juego y configuración de la sala.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "players": { "type": "integer", "minimum": 1 },
+        "params": { "$ref": "#/$defs/JsonObject" },
+        "settings": { "$ref": "#/$defs/SettingsPatch" }
+      }
+    },
+    "SetSeat": {
+      "description": "Solo el anfitrión: abrir un asiento, reservarlo para un nombre o ponerle un bot del servidor (también en partida: el bot sustituye a quien ocupaba el asiento).",
+      "type": "object",
+      "required": ["seat", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "seat": { "$ref": "#/$defs/Seat" },
+        "kind": { "enum": ["open", "reserved", "bot"] },
+        "name": { "$ref": "#/$defs/Name" },
+        "bot": { "$ref": "#/$defs/BotKind" }
+      }
+    },
+    "Kick": {
+      "description": "Solo el anfitrión: echar a un participante de la sala.",
+      "type": "object",
+      "required": ["participant"],
+      "additionalProperties": false,
+      "properties": { "participant": { "type": "string" } }
+    },
+
+    "Welcome": {
+      "type": "object",
+      "required": ["server"],
+      "additionalProperties": false,
+      "properties": {
+        "server": { "$ref": "#/$defs/ServerRef" },
+        "session": { "$ref": "#/$defs/Session" }
+      }
+    },
+    "Joined": {
+      "description": "Respuesta a `join`: el token de sesión (guárdalo para reconectar) y quién eres.",
+      "type": "object",
+      "required": ["token", "session"],
+      "additionalProperties": false,
+      "properties": {
+        "token": { "type": "string" },
+        "session": { "$ref": "#/$defs/Session" }
+      }
+    },
+    "MatchStart": {
+      "type": "object",
+      "required": ["match", "seat", "players", "params", "seats", "fairness", "clock"],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "$ref": "#/$defs/MatchRef" },
+        "seat": { "oneOf": [{ "$ref": "#/$defs/Seat" }, { "type": "null" }] },
+        "players": { "type": "integer", "minimum": 1 },
+        "params": { "$ref": "#/$defs/JsonObject" },
+        "seats": { "type": "array", "items": { "$ref": "#/$defs/SeatPlayer" } },
+        "fairness": { "$ref": "#/$defs/Fairness" },
+        "clock": { "$ref": "#/$defs/Clock" }
+      }
+    },
+    "Update": {
+      "description": "Lo que ha pasado desde la actualización anterior (una acción y el azar que la sigue) y el estado resultante, proyectado para el destinatario.",
+      "type": "object",
+      "required": ["seq", "view", "events"],
+      "additionalProperties": false,
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "view": { "$ref": "#/$defs/View" },
+        "events": { "type": "array", "items": { "$ref": "#/$defs/Event" } },
+        "legal": { "$ref": "#/$defs/Legal" },
+        "clocks": { "$ref": "#/$defs/Clocks" }
+      }
+    },
+    "Actions": {
+      "description": "Respuesta a query_actions.",
+      "type": "object",
+      "required": ["seq", "options"],
+      "additionalProperties": false,
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string" },
+        "args": { "$ref": "#/$defs/JsonObject" },
+        "options": { "type": "array", "items": { "$ref": "#/$defs/Json" } }
+      }
+    },
+    "Rejected": {
+      "description": "Una acción que no se ha aplicado.",
+      "type": "object",
+      "required": ["seq", "reason", "detail"],
+      "additionalProperties": false,
+      "properties": {
+        "seq": { "type": ["integer", "null"] },
+        "reason": { "enum": ["illegal_action", "stale_seq", "not_your_turn", "not_running"] },
+        "detail": { "type": "string" }
+      }
+    },
+    "MatchEnd": {
+      "description": "Fin de la partida: resultado, vista completa, semilla revelada y el replay (GET /api/v1/replays/{replay}).",
+      "type": "object",
+      "required": [
+        "match",
+        "reason",
+        "payoffs",
+        "ranking",
+        "forfeited",
+        "view",
+        "fairness",
+        "replay"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "$ref": "#/$defs/MatchRef" },
+        "reason": { "$ref": "#/$defs/EndReason" },
+        "payoffs": {
+          "oneOf": [{ "type": "array", "items": { "$ref": "#/$defs/Number" } }, { "type": "null" }]
+        },
+        "ranking": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+        "forfeited": { "type": "array", "items": { "$ref": "#/$defs/Seat" } },
+        "view": { "$ref": "#/$defs/View" },
+        "fairness": { "$ref": "#/$defs/Fairness" },
+        "replay": { "type": "string" }
+      }
+    },
+    "Chat": {
+      "type": "object",
+      "required": ["sender", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "sender": { "$ref": "#/$defs/Sender" },
+        "text": { "type": "string" }
+      }
+    },
+    "Pong": {
+      "type": "object",
+      "required": ["server_time"],
+      "additionalProperties": false,
+      "properties": {
+        "t": { "type": "number" },
+        "server_time": { "type": "number", "description": "Segundos desde la época Unix." }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "bad_message",
+            "unsupported",
+            "unknown_room",
+            "room_full",
+            "seat_taken",
+            "not_allowed",
+            "not_host",
+            "invalid_token",
+            "wrong_state",
+            "rate_limited",
+            "replaced",
+            "internal"
+          ]
+        },
+        "message": { "type": "string" }
+      }
+    },
+
+    "HelloMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "hello" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Hello" }
+      }
+    },
+    "JoinMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "join" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Join" }
+      }
+    },
+    "SitMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "sit" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Sit" }
+      }
+    },
+    "StandMessage": {
+      "description": "Levantarse del asiento en el lobby (se queda como espectador).",
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "stand" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Empty" }
+      }
+    },
+    "LeaveMessage": {
+      "description": "Salir de la sala (en partida, equivale a abandonar).",
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "leave" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Empty" }
+      }
+    },
+    "ReadyMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "ready" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Ready" }
+      }
+    },
+    "ActMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "act" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Act" }
+      }
+    },
+    "QueryActionsMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "query_actions" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/QueryActions" }
+      }
+    },
+    "ResignMessage": {
+      "description": "Abandonar la partida: un bot juega por el asiento, que queda el último.",
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "resign" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Empty" }
+      }
+    },
+    "ChatSendMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "chat" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/ChatSend" }
+      }
+    },
+    "PingMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "ping" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Ping" }
+      }
+    },
+    "ResyncMessage": {
+      "description": "Pedir de nuevo la sala y el estado completo.",
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "resync" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Empty" }
+      }
+    },
+    "ConfigureMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "configure" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Configure" }
+      }
+    },
+    "SetSeatMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "set_seat" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/SetSeat" }
+      }
+    },
+    "KickMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "kick" },
+        "id": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Kick" }
+      }
+    },
+
+    "WelcomeMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "welcome" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Welcome" }
+      }
+    },
+    "JoinedMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "joined" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Joined" }
+      }
+    },
+    "RoomMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "room" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Room" }
+      }
+    },
+    "MatchStartMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "match_start" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/MatchStart" }
+      }
+    },
+    "UpdateMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "update" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Update" }
+      }
+    },
+    "ActionsMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "actions" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Actions" }
+      }
+    },
+    "RejectedMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "rejected" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Rejected" }
+      }
+    },
+    "MatchEndMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "match_end" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/MatchEnd" }
+      }
+    },
+    "ChatMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "chat" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Chat" }
+      }
+    },
+    "PongMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "pong" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Pong" }
+      }
+    },
+    "ErrorMessage": {
+      "type": "object",
+      "required": ["v", "type", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "type": { "const": "error" },
+        "re": { "$ref": "#/$defs/MessageId" },
+        "data": { "$ref": "#/$defs/Error" }
+      }
+    },
+
+    "CreateRoom": {
+      "description": "POST /api/v1/rooms: un juego del catálogo del servidor (`game`) o una IR completa (`ir`, si el servidor lo permite).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "game": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "ir": { "$ref": "#/$defs/JsonObject" },
+        "players": { "type": "integer", "minimum": 1 },
+        "params": { "$ref": "#/$defs/JsonObject" },
+        "settings": { "$ref": "#/$defs/SettingsPatch" },
+        "name": { "$ref": "#/$defs/Name" }
+      }
+    },
+    "CreatedRoom": {
+      "description": "Respuesta de POST /api/v1/rooms: `token` es la sesión del anfitrión (hello con ese token).",
+      "type": "object",
+      "required": ["code", "token", "url", "room"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "$ref": "#/$defs/RoomCode" },
+        "token": { "type": "string" },
+        "url": { "type": "string" },
+        "room": { "$ref": "#/$defs/Room" }
+      }
+    },
+    "ServerInfo": {
+      "description": "GET /api/v1/info.",
+      "type": "object",
+      "required": ["name", "version", "protocol", "upload", "games", "rooms"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "protocol": { "const": 1 },
+        "upload": { "type": "boolean" },
+        "games": { "type": "array", "items": { "$ref": "#/$defs/GameInfo" } },
+        "rooms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "RoomList": {
+      "description": "GET /api/v1/rooms: salas públicas (no privadas) y abiertas.",
+      "type": "object",
+      "required": ["rooms"],
+      "additionalProperties": false,
+      "properties": { "rooms": { "type": "array", "items": { "$ref": "#/$defs/Room" } } }
+    },
+    "ApiError": {
+      "description": "Cuerpo de las respuestas de error de la API REST.",
+      "type": "object",
+      "required": ["error"],
+      "additionalProperties": false,
+      "properties": { "error": { "$ref": "#/$defs/Error" } }
+    }
+  }
+}

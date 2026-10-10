@@ -185,7 +185,21 @@ def _parser() -> argparse.ArgumentParser:
     conformance = commands.add_parser("conformance", help="trazas doradas de spec/conformance")
     _check_or_write(conformance)
     conformance.set_defaults(handler=_conformance)
+
+    protocol = commands.add_parser("protocol", help="protocolo de partidas (spec/protocol)")
+    protocol_commands = protocol.add_subparsers(dest="protocol_command", required=True)
+    types = protocol_commands.add_parser(
+        "types", help="tipos de Python generados desde spec/protocol/v1/protocol.schema.json"
+    )
+    _check_or_write(types)
+    types.set_defaults(handler=_protocol_types)
     return parser
+
+
+def _protocol_types(args: argparse.Namespace) -> int:
+    from gamehub.protocol.codegen import sync_types
+
+    return sync_types(write=args.write)
 
 
 def _check_or_write(parser: argparse.ArgumentParser) -> None:
