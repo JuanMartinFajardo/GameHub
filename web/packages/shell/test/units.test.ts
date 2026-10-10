@@ -34,3 +34,12 @@ describe("opciones", () => {
     expect(hasHiddenInformation(buildModel(tictactoe as unknown as GameIr))).toBe(false);
   });
 });
+
+describe("etiquetas", () => {
+  it("se traducen al español y se leen en inglés", async () => {
+    const { tagText } = await import("../src/tags");
+    expect(tagText("zero-sum", "es")).toBe("suma cero");
+    expect(tagText("zero-sum", "en")).toBe("zero sum");
+    expect(tagText("unknown-tag", "es")).toBe("unknown tag");
+  });
+});

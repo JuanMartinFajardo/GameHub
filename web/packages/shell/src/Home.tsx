@@ -10,6 +10,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { loadGameModel, loadServerInfo, useLoaded } from "./games";
 import { messages } from "./messages";
 import { Link, navigate } from "./router";
+import { tagText } from "./tags";
 
 export function Home(props: { server: string; only?: string }) {
   const t = useMessages(messages);
@@ -38,7 +39,7 @@ export function Home(props: { server: string; only?: string }) {
       </section>
       <div className="gh-shell-columns">
         <OpenRooms server={props.server} />
-        <RecentMatches server={props.server} />
+        <RecentMatches server={props.server} games={info.data?.games ?? []} />
       </div>
     </div>
   );
@@ -113,7 +114,7 @@ function GameCard(props: { server: string; game: GameInfo }) {
         <p className="gh-shell-tags">
           {tags.slice(0, 4).map((tag) => (
             <span key={tag} className="gh-shell-tag">
-              {tag}
+              {tagText(tag, locale)}
             </span>
           ))}
         </p>
@@ -188,7 +189,7 @@ function RoomRow(props: { room: Room }) {
   );
 }
 
-function RecentMatches(props: { server: string }) {
+function RecentMatches(props: { server: string; games: GameInfo[] }) {
   const t = useMessages(messages);
   const matches = useRefreshing(() => listMatches(props.server), 15000);
   return (
@@ -200,7 +201,11 @@ function RecentMatches(props: { server: string }) {
       ) : (
         <ul className="gh-shell-list">
           {matches.slice(0, 12).map((m) => (
-            <MatchRow key={m.id} match={m} />
+            <MatchRow
+              key={m.id}
+              match={m}
+              title={props.games.find((g) => g.id === m.game.id)?.title ?? m.game.id}
+            />
           ))}
         </ul>
       )}
@@ -208,13 +213,13 @@ function RecentMatches(props: { server: string }) {
   );
 }
 
-function MatchRow(props: { match: MatchListing }) {
+function MatchRow(props: { match: MatchListing; title: string }) {
   const t = useMessages(messages);
   const { match } = props;
   const winners = match.players.filter((_, seat) => match.ranking?.[seat] === 1).map((p) => p.name);
   return (
     <li>
-      <span>{match.game.id}</span>
+      <span>{props.title}</span>
       <span className="gh-muted">
         {match.players.map((p) => p.name).join(", ")}
         {winners.length > 0 && ` · 🏆 ${winners.join(", ")}`}
