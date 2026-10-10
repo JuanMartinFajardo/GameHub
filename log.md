@@ -5,6 +5,16 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-10 — Fase 3 aprobada y fusionada
+
+- Apruebas las ADR-036 a 043 y la fusión: la rama `f3/servidor-partidas` se fusiona a `main` y la
+  Fase 4 (cliente web: SDK TypeScript, UI genérica, UI kit, app para jugar) arranca en la rama
+  `f4/cliente-web`.
+- Pregunta 18 movida a respondidas.
+- Progreso global: ≈ 32 %.
+
+---
+
 ## 2026-10-10 — Sesión 5: Fase 3, el servidor de partidas y el juego en red
 
 **Respuestas recibidas**: aprobar las ADR-027 a 035, fusionar F2 a `main` (hecho, `a178967`) y

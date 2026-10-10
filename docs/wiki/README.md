@@ -8,13 +8,13 @@
 | | |
 |---|---|
 | **Última actualización** | 2026-10-10 |
-| **Fase actual** | F3 completada (rama `f3/servidor-partidas`, pendiente de fusionar a `main`) → siguiente: F4 (cliente web: SDK TS, UI genérica, UI kit) |
+| **Fase actual** | F4 en curso (rama `f4/cliente-web`): jugar en el navegador. F0, F1, F2 y F3 están en `main` |
 | **Progreso global** | ≈ 32 % (F0, F1, F2 y F3 completas) |
 | **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`): compilador a GameIR con tipos y errores claros, avisos (alcanzabilidad, exhaustividad, fugas de información…), clasificación, tests e invariantes (`gamehub test`), formateador, módulos y biblioteca estándar, variantes (`extends`) y combinadores (`repeat`, `best_of`), paquetes con dependencias, diagrama (`viz`), reglamento (`rules`), diff semántico y extensión de VS Code. **Se juega en red**: `gamehub host` abre una sala en la LAN (código, enlace, QR, mDNS) y los demás entran con `gamehub join`; servidor de partidas con protocolo WebSocket v1 (JSON Schema), espectadores, bots (también por la red, con la misma interfaz `Agent`), relojes, reconexión, revancha, azar verificable y partidas guardadas en SQLite. |
 | **Código** | [`spec/`](../../spec/README.md) (IR v0, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, servidor, cliente, CLI; 604 tests) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (15 paquetes, 16 juegos) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
 | **Calidad** | Los 16 juegos pasan sus tests e invariantes; aceptación de F3 con procesos reales en la LAN (4 personas en Dudo, reconexión, bot por código); 100 salas simultáneas sin fallos |
-| **Decisiones recientes** | Propuestas de F3, ADR-036 a 043: Starlette en vez de FastAPI, núcleo de salas puro, actualizaciones y turno vigente, observador público, azar verificable, abandonos, LAN con mDNS y QR, bots en red con la interfaz de siempre |
-| **Pendiente de ti** | Revisar y fusionar la rama de F3 a `main` (y con ella las ADR-036 a 043); el resto de [preguntas abiertas](preguntas-abiertas.md) |
+| **Decisiones recientes** | Aceptadas (2026-10-10) las de F3, ADR-036 a 043: Starlette en vez de FastAPI, núcleo de salas puro, actualizaciones y turno vigente, observador público, azar verificable, abandonos, LAN con mDNS y QR, bots en red con la interfaz de siempre |
+| **Pendiente de ti** | El resto de [preguntas abiertas](preguntas-abiertas.md) |
 | **Siguiente paso** | F4: jugar en el navegador (SDK TypeScript, UI genérica a partir de la IR, UI kit, lobby) — **MVP jugable** |
 
 Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.py`](../../structure.py) ([análisis](analisis-structure-py.md)).

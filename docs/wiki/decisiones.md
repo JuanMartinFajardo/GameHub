@@ -41,14 +41,14 @@
 | 033 | Paquetes con `game.toml` y `game.lock` (commits de git), sin registro central | Aceptada (2026-10-10, usuario) |
 | 034 | Análisis estáticos sobre la IR, situados en el texto con un mapa de fuentes | Aceptada (2026-10-10, usuario) |
 | 035 | Formato canónico al estilo Prettier; el parser admite continuar tras `=`, `requires`, `when` | Aceptada (2026-10-10, usuario) |
-| 036 | Servidor de partidas sobre Starlette + uvicorn (sin FastAPI ni pydantic); contratos en JSON Schema | Propuesta (2026-10-10, F3) |
-| 037 | Núcleo de salas puro (sin E/S ni reloj propio) y transporte fino | Propuesta (2026-10-10, F3) |
-| 038 | Una actualización por entrada, `seq` sin huecos y rechazo por turno vigente | Propuesta (2026-10-10, F3) |
-| 039 | Observador público en el motor: los espectadores no ocupan asiento | Propuesta (2026-10-10, F3) |
-| 040 | Azar verificable `gamehub-fair/1`: compromiso, semillas de los jugadores y semilla de 53 bits | Propuesta (2026-10-10, F3) |
-| 041 | Abandonar = último puesto y un bot juega por el asiento; la partida acaba si queda uno | Propuesta (2026-10-10, F3) |
-| 042 | LAN: puerto 7420, enlace `/r/CÓDIGO` con QR, anuncio mDNS `_gamehub._tcp` y sesiones guardadas | Propuesta (2026-10-10, F3) |
-| 043 | Bots en red con la misma interfaz `Agent` que en proceso | Propuesta (2026-10-10, F3) |
+| 036 | Servidor de partidas sobre Starlette + uvicorn (sin FastAPI ni pydantic); contratos en JSON Schema | Aceptada (2026-10-10, usuario) |
+| 037 | Núcleo de salas puro (sin E/S ni reloj propio) y transporte fino | Aceptada (2026-10-10, usuario) |
+| 038 | Una actualización por entrada, `seq` sin huecos y rechazo por turno vigente | Aceptada (2026-10-10, usuario) |
+| 039 | Observador público en el motor: los espectadores no ocupan asiento | Aceptada (2026-10-10, usuario) |
+| 040 | Azar verificable `gamehub-fair/1`: compromiso, semillas de los jugadores y semilla de 53 bits | Aceptada (2026-10-10, usuario) |
+| 041 | Abandonar = último puesto y un bot juega por el asiento; la partida acaba si queda uno | Aceptada (2026-10-10, usuario) |
+| 042 | LAN: puerto 7420, enlace `/r/CÓDIGO` con QR, anuncio mDNS `_gamehub._tcp` y sesiones guardadas | Aceptada (2026-10-10, usuario) |
+| 043 | Bots en red con la misma interfaz `Agent` que en proceso | Aceptada (2026-10-10, usuario) |
 
 ---
 
