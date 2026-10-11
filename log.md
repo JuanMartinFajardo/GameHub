@@ -5,6 +5,16 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-11 — Fase 4 aprobada y fusionada
+
+- «Ve con la fase 5»: se toman como aprobadas las ADR-044 a 051 y la fusión. La rama
+  `f4/cliente-web` se fusiona a `main` y la Fase 5 (el Studio: editor visual bidireccional con
+  simulador) arranca en la rama `f5/studio`.
+- Pregunta 21 movida a respondidas.
+- Progreso global: ≈ 41 %.
+
+---
+
 ## 2026-10-11 — Sesión 6: Fase 4, jugar en el navegador
 
 **Respuestas recibidas**: aprobar las ADR-036 a 043, fusionar F3 a `main` (hecho, `0607c1b`) y

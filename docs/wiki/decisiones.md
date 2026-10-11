@@ -49,14 +49,14 @@
 | 041 | Abandonar = último puesto y un bot juega por el asiento; la partida acaba si queda uno | Aceptada (2026-10-10, usuario) |
 | 042 | LAN: puerto 7420, enlace `/r/CÓDIGO` con QR, anuncio mDNS `_gamehub._tcp` y sesiones guardadas | Aceptada (2026-10-10, usuario) |
 | 043 | Bots en red con la misma interfaz `Agent` que en proceso | Aceptada (2026-10-10, usuario) |
-| 044 | Cliente web: workspace de pnpm en la raíz (web/ y games/*/ui), TypeScript 7, React 19, Vite 8, Biome, Vitest | Propuesta (2026-10-10, F4) |
-| 045 | Tipos TS del protocolo con el mismo generador que los de Python | Propuesta (2026-10-10, F4) |
-| 046 | El servidor de partidas sirve la app web (mismo origen; el enlace y el QR abren la app) | Propuesta (2026-10-10, F4) |
-| 047 | Pistas de presentación `ui { … }`: catálogo cerrado, comprobadas y fuera del hash de reglas | Propuesta (2026-10-10, F4) |
-| 048 | UI genérica guiada por los tipos y los dominios de las acciones; constructor de acciones | Propuesta (2026-10-10, F4) |
-| 049 | Partidas en un mismo dispositivo con una conexión por asiento contra el servidor | Propuesta (2026-10-10, F4) |
-| 050 | UIs propias como paquetes en games/<juego>/ui, registradas solas; plantilla y tipos por juego | Propuesta (2026-10-10, F4) |
-| 051 | Sin dependencias de estado ni de idiomas: reductor puro + useSyncExternalStore, catálogos propios | Propuesta (2026-10-10, F4) |
+| 044 | Cliente web: workspace de pnpm en la raíz (web/ y games/*/ui), TypeScript 7, React 19, Vite 8, Biome, Vitest | Aceptada (2026-10-11, usuario) |
+| 045 | Tipos TS del protocolo con el mismo generador que los de Python | Aceptada (2026-10-11, usuario) |
+| 046 | El servidor de partidas sirve la app web (mismo origen; el enlace y el QR abren la app) | Aceptada (2026-10-11, usuario) |
+| 047 | Pistas de presentación `ui { … }`: catálogo cerrado, comprobadas y fuera del hash de reglas | Aceptada (2026-10-11, usuario) |
+| 048 | UI genérica guiada por los tipos y los dominios de las acciones; constructor de acciones | Aceptada (2026-10-11, usuario) |
+| 049 | Partidas en un mismo dispositivo con una conexión por asiento contra el servidor | Aceptada (2026-10-11, usuario) |
+| 050 | UIs propias como paquetes en games/<juego>/ui, registradas solas; plantilla y tipos por juego | Aceptada (2026-10-11, usuario) |
+| 051 | Sin dependencias de estado ni de idiomas: reductor puro + useSyncExternalStore, catálogos propios | Aceptada (2026-10-11, usuario) |
 
 ---
 

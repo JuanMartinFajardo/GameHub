@@ -8,13 +8,13 @@
 | | |
 |---|---|
 | **Última actualización** | 2026-10-11 |
-| **Fase actual** | F4 completada (rama `f4/cliente-web`, pendiente de fusionar a `main`) → siguiente: F5 (Studio, el editor visual) |
+| **Fase actual** | F5 en curso (rama `f5/studio`): el Studio, editor visual. F0 a F4 están en `main` |
 | **Progreso global** | ≈ 41 % (F0 a F4 completas) |
 | **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`): compilador a GameIR con tipos y errores claros, avisos, clasificación, tests e invariantes, formateador, módulos y biblioteca estándar, variantes y combinadores, paquetes, diagrama, reglamento, diff semántico y extensión de VS Code; con **pistas de presentación** (`ui { … }`). **Se juega en red** (servidor de partidas con protocolo WebSocket v1, salas con código, enlace y QR, LAN con mDNS, espectadores, bots, relojes, reconexión, revancha, azar verificable, partidas en SQLite) y ahora **en el navegador**: `gamehub serve` sirve una app web (también en el móvil) donde cualquier juego se juega con la **UI genérica**, sin escribir interfaz, o con una **UI propia** (`gamehub ui new`, tipos por juego con `gamehub sdk ts`; ejemplos: tres en raya, Conecta 4 y Dudo); replays paso a paso, partidas en un mismo dispositivo, español e inglés. |
 | **Código** | [`spec/`](../../spec/README.md) (IR v0, protocolo v1, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, servidor, cliente, CLI; 673 tests) · [`web/`](../../web) (SDK TypeScript, UI kit, UI genérica, app para jugar; 85 tests con los de las UIs propias) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (15 paquetes, 16 juegos, 3 UIs propias) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
 | **Calidad** | Los 16 juegos pasan sus tests e invariantes; los 15 del catálogo se juegan enteros con la UI genérica contra el servidor (test que solo pulsa la interfaz); partida entre el navegador y la terminal (test de aceptación); aceptación de F3 en la LAN; 100 salas simultáneas sin fallos |
-| **Decisiones recientes** | Propuestas de F4, ADR-044 a 051: workspace de pnpm en la raíz (TypeScript 7, React 19, Vite, Biome), tipos del protocolo generados una vez, el servidor sirve la app, pistas `ui` fuera del hash, UI genérica guiada por tipos y dominios, partidas locales contra el servidor, UIs propias en `games/<juego>/ui`, sin librerías de estado ni de idiomas |
-| **Pendiente de ti** | Revisar y fusionar la rama de F4 a `main` (y con ella las ADR-044 a 051, pregunta 21); el resto de [preguntas abiertas](preguntas-abiertas.md) |
+| **Decisiones recientes** | Aceptadas (2026-10-11) las de F4, ADR-044 a 051: workspace de pnpm en la raíz (TypeScript 7, React 19, Vite, Biome), tipos del protocolo generados una vez, el servidor sirve la app, pistas `ui` fuera del hash, UI genérica guiada por tipos y dominios, partidas locales contra el servidor, UIs propias en `games/<juego>/ui`, sin librerías de estado ni de idiomas |
+| **Pendiente de ti** | El resto de [preguntas abiertas](preguntas-abiertas.md) |
 | **Siguiente paso** | F5: el Studio, editor visual bidireccional (diagrama ↔ texto) con simulador — **MVP de diseño** |
 
 Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.py`](../../structure.py) ([análisis](analisis-structure-py.md)).
