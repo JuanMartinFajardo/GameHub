@@ -1,0 +1,47 @@
+// __TITLE__
+// Un juego en forma normal de 2×2: los dos jugadores eligen a la vez, en secreto, y los pagos
+// salen de dos tablas (por defecto, las del dilema del prisionero).
+
+game __GAME__ {
+  meta {
+    title: "__TITLE__"
+    version: "0.1.0"
+  }
+  players 2
+
+  params {
+    /// Pagos del jugador 0: (A, A), (A, B), (B, A), (B, B)
+    row_payoffs: List<Real> = [3, 0, 5, 1]
+    /// Pagos del jugador 1, en el mismo orden
+    column_payoffs: List<Real> = [3, 5, 0, 1]
+    assert len(row_payoffs) == 4 and len(column_payoffs) == 4, "cada tabla tiene cuatro pagos"
+  }
+
+  /// Las dos opciones de cada jugador.
+  enum Choice { A, B }
+
+  state {
+    choice: per_player Choice?
+  }
+
+  /// Casilla de las tablas que corresponde a lo elegido.
+  fn outcome() -> Int = 2 * ord(unwrap(choice[0])) + ord(unwrap(choice[1]))
+
+  flow {
+    start -> Choose
+
+    /// Las elecciones quedan ocultas hasta que los dos han elegido.
+    simultaneous Choose {
+      actors: seats
+      action choose(c: Choice) { choice[actor] = c }
+      -> End
+    }
+
+    terminal End { payoff: [row_payoffs[outcome()], column_payoffs[outcome()]] }
+  }
+
+  test "los pagos salen de la casilla elegida" {
+    play 0: choose(B), 1: choose(A)
+    expect payoff == [5, 0]
+  }
+}

@@ -316,62 +316,30 @@ def camel(name: str) -> str:
     return "".join(part.capitalize() for part in name.split("-"))
 
 
-TEMPLATE = """// {title}
-// Juego creado con `gamehub new`: una carrera hasta la meta. Cámbialo a tu gusto.
-// Referencia del lenguaje: docs/wiki/lenguaje-game.md
+def new_package(
+    root: Path,
+    name: str,
+    *,
+    authors: list[str] | None = None,
+    template: str | None = None,
+    title: str | None = None,
+) -> Manifest:
+    """Crea un paquete con su manifiesto y un juego de una plantilla (`gamehub.gametemplates`):
+    compila y pasa sus tests."""
+    from gamehub import gametemplates
 
-game {camel} {{
-  meta {{
-    title: "{title}"
-    version: "0.1.0"
-  }}
-  players 2
-
-  params {{
-    /// A cuánto hay que llegar
-    target: Int = 10
-    assert target >= 1, "la meta tiene que ser al menos 1"
-  }}
-
-  state {{
-    total: Int = 0
-    turn: Seat = 0
-  }}
-
-  flow {{
-    start -> Play
-
-    /// Por turnos, cada jugador suma 1 o 2; quien llega exactamente a la meta gana.
-    decision Play {{
-      actor: turn
-      action add(n in 1..2) requires total + n <= target {{ total += n }}
-      -> End when total == target
-      -> Play {{ turn = next(turn) }}
-    }}
-
-    terminal End {{ payoff: win_loss(turn, 1, -1) }}
-  }}
-
-  test "quien llega a la meta gana" {{
-    params {{ target: 3 }}
-    play add(2), add(1)
-    expect at(End) and payoff == [-1, 1]
-  }}
-
-  invariant total <= target
-}}
-"""
-
-
-def new_package(root: Path, name: str, *, authors: list[str] | None = None) -> Manifest:
-    """Crea un paquete con su manifiesto y un juego mínimo que compila y pasa su test."""
     if not NAME.match(name):
         raise PackageError(f"nombre no válido: {name!r} (minúsculas, números y guiones)")
+    template = template or gametemplates.DEFAULT
+    if template not in gametemplates.ids():
+        raise PackageError(
+            f"plantilla desconocida: {template} (hay {', '.join(gametemplates.ids())})"
+        )
     if root.exists() and any(root.iterdir()):
         raise PackageError(f"{root} ya existe y no está vacío")
     root.mkdir(parents=True, exist_ok=True)
-    title = name.replace("-", " ").capitalize()
-    game = TEMPLATE.format(title=title, camel=camel(name))
+    title = title or name.replace("-", " ").capitalize()
+    game = gametemplates.render(template, title=title, game=camel(name))
     (root / f"{name}.game").write_text(game, encoding="utf-8")
     manifest = Manifest(root=root, name=name, authors=authors or [], license="CC-BY-4.0")
     save_manifest(manifest)

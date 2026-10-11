@@ -1,0 +1,62 @@
+// __TITLE__
+// Un juego de cartas: cada jugador recibe una carta de la baraja francesa barajada y, en su turno,
+// se la queda o la cambia por la de arriba del mazo. Gana la carta más alta.
+
+import std.cards.{Card, french52, rank_value}
+
+game __GAME__ {
+  meta {
+    title: "__TITLE__"
+    version: "0.1.0"
+  }
+  players 2..4
+
+  state {
+    @visible(none)
+    deck: Zone<Card> = french52()
+    @visible(owner)
+    hand: per_player Bag<Card>
+    turn: Seat = 0
+  }
+
+  /// El valor de la carta de un asiento (del 2 al as, que vale 14).
+  fn score(s: Seat) -> Int = rank_value(only(hand[s]).rank)
+
+  flow {
+    start {
+      shuffle deck
+      deal 1 from deck to each hand
+    } -> Turn
+
+    /// Cada uno, en su turno, se queda su carta o la cambia por la de arriba del mazo.
+    decision Turn {
+      actor: turn
+      action keep()
+      action swap() {
+        move all from hand[actor] to deck at bottom
+        move top 1 from deck to hand[actor]
+      }
+      -> Show when turn == num_players - 1
+      -> Turn { turn = next(turn) }
+    }
+
+    /// Gana la carta más alta (si empatan, el primero de ellos).
+    terminal Show { payoff: win_loss(argmax(s in seats : score(s)), 1, 0) }
+  }
+
+  ui {
+    deck: deck
+    hand: hand, place(seats)
+    turn: hidden
+    Card: card(rank: rank, suit: suit)
+  }
+
+  test "gana la carta más alta" {
+    seed 3
+    play keep(), keep()
+    expect at(Show) and sum(payoff) == 1
+  }
+
+  /// Las cartas no se pierden.
+  invariant size(deck) + sum(s in seats : size(hand[s])) == 52
+}
