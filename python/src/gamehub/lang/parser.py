@@ -363,6 +363,7 @@ class Parser:
         self.expect("import")
         path = [self.ident("el nombre de un módulo").text]
         names: list[str] | None = []
+        spans: list[Span] = []
         while self.eat("."):
             if self.eat("*"):
                 names = None
@@ -374,7 +375,9 @@ class Parser:
                     if self.eat("}"):
                         break
                     assert names is not None
-                    names.append(self.ident("un nombre a importar").text)
+                    tok = self.ident("un nombre a importar")
+                    names.append(tok.text)
+                    spans.append(tok.span)
                     self.skip_newlines()
                     if not self.eat(","):
                         self.skip_newlines()
@@ -387,18 +390,20 @@ class Parser:
                 "indica qué importar: import modulo.{A, B} o import modulo.*",
                 help="por ejemplo: import std.cards.{Card, Suit, Rank, french52}",
             )
-        return ast.Import(path=path, names=names)
+        return ast.Import(path=path, names=names, name_spans=spans)
 
     # --- juego ----------------------------------------------------------------------------------
 
     def game_decl(self) -> ast.GameDecl | ast.GameAlias:
         self.expect("game")
-        name = self.ident("el nombre del juego").text
+        name_tok = self.ident("el nombre del juego")
+        name = name_tok.text
         if self.eat("="):
             combinator = self.ident("un combinador (repeat, best_of)").text
             self.expect("(", "'('")
             self.skip_newlines()
-            base = self.ident("el juego base").text
+            base_tok = self.ident("el juego base")
+            base = base_tok.text
             args: list[tuple[str, ast.Expr]] = []
             while True:
                 self.skip_newlines()
@@ -411,12 +416,23 @@ class Parser:
                 key = self.ident("el nombre de un argumento").text
                 self.expect(":", "':'")
                 args.append((key, self.expr()))
-            return ast.GameAlias(name=name, combinator=combinator, base=base, args=args)
+            return ast.GameAlias(
+                name=name,
+                combinator=combinator,
+                base=base,
+                args=args,
+                name_spans=[name_tok.span, base_tok.span],
+            )
         extends = None
+        spans = [name_tok.span]
         if self.eat("extends"):
-            extends = self.ident("el juego base").text
+            base_tok = self.ident("el juego base")
+            extends = base_tok.text
+            spans.append(base_tok.span)
         items, end = self.block(self.game_item)
-        return ast.GameDecl(name=name, extends=extends, items=items, end_comments=self.claim(end))
+        return ast.GameDecl(
+            name=name, extends=extends, items=items, end_comments=self.claim(end), name_spans=spans
+        )
 
     def game_item(self) -> ast.Item:
         start = self.pos
@@ -489,16 +505,23 @@ class Parser:
                         help="remove node X · remove fn f · remove state x · remove param p · "
                         "remove enum E · remove struct S · remove action Nodo.accion",
                     )
-                path = [self.ident().text]
+                toks = [self.ident()]
                 while self.eat("."):
-                    path.append(self.ident().text)
-                return ast.RemoveDecl(kind=what.text, path=path)
+                    toks.append(self.ident())
+                return ast.RemoveDecl(
+                    kind=what.text, path=[t.text for t in toks], name_spans=[t.span for t in toks]
+                )
             case "extend":
                 self.advance()
                 self.expect_word("node")
-                name = self.ident("el nombre de un nodo").text
+                tok = self.ident("el nombre de un nodo")
                 items, end = self.block(lambda: self.node_member("decision"))
-                return ast.ExtendNode(name=name, members=items, end_comments=self.claim(end))
+                return ast.ExtendNode(
+                    name=tok.text,
+                    members=items,
+                    end_comments=self.claim(end),
+                    name_spans=[tok.span],
+                )
             case "decision" | "simultaneous" | "window" | "chance" | "auto" | "phase" | "terminal":
                 raise self.fail("los nodos van dentro de 'flow {{ … }}', no sueltos en el juego")
         raise self.fail(
@@ -510,7 +533,8 @@ class Parser:
 
         def entry() -> ast.MetaEntry:
             start = self.pos
-            key = self.ident("un campo de meta (title, version, tags…)").text
+            key_tok = self.ident("un campo de meta (title, version, tags…)")
+            key = key_tok.text
             self.expect(":", "':'")
             value: object
             if self.at("["):
@@ -534,7 +558,8 @@ class Parser:
                 value = values
             else:
                 value = self.text()
-            return self.finish(ast.MetaEntry(key=key, value=value), start)
+            entry = ast.MetaEntry(key=key, value=value, name_spans=[key_tok.span])
+            return self.finish(entry, start)
 
         items, end = self.block(entry, commas=True)
         entries = [i for i in items if isinstance(i, ast.MetaEntry)]
@@ -550,30 +575,41 @@ class Parser:
 
     def ui_entry(self) -> ast.UiEntry:
         start = self.pos
+        toks: list[Token] = []
         if self.eat("action"):
-            target, path = "action", [self.ident("el nombre de una acción").text]
+            target = "action"
+            toks.append(self.ident("el nombre de una acción"))
             if self.eat("."):
-                path.append(self.ident("el nombre de un parámetro de la acción").text)
+                toks.append(self.ident("el nombre de un parámetro de la acción"))
         elif self.at_word("node") and self.peek(1).kind == "ident":
             self.advance()
-            target, path = "node", [self.ident("el nombre de un nodo").text]
+            target = "node"
+            toks.append(self.ident("el nombre de un nodo"))
         elif self.at_word("seats"):
             self.advance()
-            target, path = "seats", []
+            target = "seats"
         else:
             what = "una variable de estado, una opción, un tipo, action, node o seats"
-            target, path = "name", [self.ident(what).text]
+            target = "name"
+            toks.append(self.ident(what))
         self.expect(":", "':'")
         hints = [self.ui_hint()]
         while self.eat(","):
             hints.append(self.ui_hint())
-        return self.finish(ast.UiEntry(target=target, path=path, hints=hints), start)
+        entry = ast.UiEntry(
+            target=target,
+            path=[t.text for t in toks],
+            hints=hints,
+            name_spans=[t.span for t in toks],
+        )
+        return self.finish(entry, start)
 
     def ui_hint(self) -> ast.UiHint:
         start = self.pos
-        name = self.ident("una pista (grid, hand, dice, label(…), symbols(…)…)").text
+        name_tok = self.ident("una pista (grid, hand, dice, label(…), symbols(…)…)")
+        name = name_tok.text
         if not self.at("("):
-            return ast.UiHint(name, span=self.span_from(start))
+            return ast.UiHint(name, span=self.span_from(start), name_spans=[name_tok.span])
         self.advance()
         args: list[ast.UiArg] = []
         while True:
@@ -591,7 +627,7 @@ class Parser:
                 self.skip_newlines()
                 self.expect(")", "',' o ')'")
                 break
-        return ast.UiHint(name, args, span=self.span_from(start))
+        return ast.UiHint(name, args, span=self.span_from(start), name_spans=[name_tok.span])
 
     def ui_value(self) -> Any:
         start = self.pos
@@ -651,11 +687,16 @@ class Parser:
                     message = self.text()
                 node = ast.AssertDecl(expr=expr, message=message)
             else:
-                name = self.ident("el nombre de un parámetro").text
+                name_tok = self.ident("el nombre de un parámetro")
                 self.expect(":", "':' y el tipo del parámetro")
                 type_ = self.type_expr()
                 self.expect("=", "'=' y el valor por defecto")
-                node = ast.ParamDecl(name=name, type=type_, default=self.value())
+                node = ast.ParamDecl(
+                    name=name_tok.text,
+                    type=type_,
+                    default=self.value(),
+                    name_spans=[name_tok.span],
+                )
             node.doc = doc
             return self.finish(node, start)
 
@@ -664,14 +705,18 @@ class Parser:
 
     def enum_decl(self) -> ast.EnumDecl:
         self.expect("enum")
-        name = self.ident("el nombre del enumerado").text
+        name_tok = self.ident("el nombre del enumerado")
+        name = name_tok.text
+        spans = [name_tok.span]
         self.expect("{", "'{'")
         values: list[str] = []
         while True:
             self.skip_newlines()
             if self.eat("}"):
                 break
-            values.append(self.ident("un valor del enumerado").text)
+            value = self.ident("un valor del enumerado")
+            values.append(value.text)
+            spans.append(value.span)
             self.skip_newlines()
             if not self.eat(","):
                 self.skip_newlines()
@@ -679,22 +724,24 @@ class Parser:
                 break
         if not values:
             raise self.fail("un enumerado necesita al menos un valor", self.prev_span())
-        return ast.EnumDecl(name=name, values=values)
+        return ast.EnumDecl(name=name, values=values, name_spans=spans)
 
     def struct_decl(self) -> ast.StructDecl:
         self.expect("struct")
-        name = self.ident("el nombre del struct").text
+        name_tok = self.ident("el nombre del struct")
 
         def field() -> ast.StructField:
             start = self.pos
-            fname = self.ident("el nombre de un campo").text
+            fname = self.ident("el nombre de un campo")
             self.expect(":", "':' y el tipo del campo")
-            node = ast.StructField(name=fname, type=self.type_expr())
+            node = ast.StructField(name=fname.text, type=self.type_expr(), name_spans=[fname.span])
             return self.finish(node, start)
 
         items, _ = self.block(field, commas=True)
         return ast.StructDecl(
-            name=name, fields=[f for f in items if isinstance(f, ast.StructField)]
+            name=name_tok.text,
+            fields=[f for f in items if isinstance(f, ast.StructField)],
+            name_spans=[name_tok.span],
         )
 
     def state_block(self) -> ast.StateBlock:
@@ -712,7 +759,9 @@ class Parser:
                     node.size_visibility = arg
                 else:
                     self.diagnostics.error("E111", f"anotación no permitida aquí: @{name}", span)
-            node.name = self.ident("el nombre de una variable de estado").text
+            name_tok = self.ident("el nombre de una variable de estado")
+            node.name = name_tok.text
+            node.name_spans = [name_tok.span]
             self.expect(":", "':' y el tipo de la variable")
             node.type = self.type_expr()
             if self.eat("="):
@@ -726,15 +775,21 @@ class Parser:
 
     def fn_decl(self) -> ast.FnDecl:
         self.expect("fn")
-        name = self.ident("el nombre de la función").text
+        name_tok = self.ident("el nombre de la función")
+        name = name_tok.text
         self.expect("(", "'('")
         params: list[ast.FnParam] = []
         while not self.eat(")"):
             start = self.pos
-            pname = self.ident("el nombre de un parámetro").text
+            pname = self.ident("el nombre de un parámetro")
             self.expect(":", "':' y el tipo del parámetro")
             params.append(
-                ast.FnParam(name=pname, type=self.type_expr(), span=self.span_from(start))
+                ast.FnParam(
+                    name=pname.text,
+                    type=self.type_expr(),
+                    span=self.span_from(start),
+                    name_spans=[pname.span],
+                )
             )
             if not self.eat(","):
                 self.expect(")", "',' o ')'")
@@ -746,7 +801,9 @@ class Parser:
         else:
             self.expect("=", "'=' o '{' con el cuerpo de la función")
             body = self.value()
-        return ast.FnDecl(name=name, params=params, returns=returns, body=body)
+        return ast.FnDecl(
+            name=name, params=params, returns=returns, body=body, name_spans=[name_tok.span]
+        )
 
     # --- tipos ----------------------------------------------------------------------------------
 
@@ -776,12 +833,15 @@ class Parser:
             return ast.TPerPlayer(self.type_expr(), span=self.span_from(start))
         if name == "Grid":
             self.expect("[", "'[' con las dimensiones (ancho, alto)")
-            width = self.dimension()
+            spans: list[Span] = []
+            width = self.dimension(spans)
             self.expect(",", "','")
-            height = self.dimension()
+            height = self.dimension(spans)
             self.expect("]", "']'")
             self.expect_word("of")
-            return ast.TGrid(width, height, self.type_expr(), span=self.span_from(start))
+            return ast.TGrid(
+                width, height, self.type_expr(), span=self.span_from(start), name_spans=spans
+            )
         if self.at("<"):
             self.advance()
             args = [self.type_expr()]
@@ -791,10 +851,14 @@ class Parser:
             return ast.TGeneric(name, args, span=self.span_from(start))
         return ast.TName(name, span=self.span_from(start))
 
-    def dimension(self) -> int | str:
+    def dimension(self, spans: list[Span]) -> int | str:
+        """Una dimensión de rejilla: un entero o el nombre de una opción (cuya posición se
+        añade a `spans`)."""
         if self.at("int"):
             return self.advance().value
-        return self.ident("una dimensión (entero o parámetro)").text
+        tok = self.ident("una dimensión (entero o parámetro)")
+        spans.append(tok.span)
+        return tok.text
 
     # --- flow -----------------------------------------------------------------------------------
 
@@ -824,14 +888,20 @@ class Parser:
         if self.at("{"):
             setup = self.stmt_block()
         self.expect("->", "'->' y el nodo inicial")
-        target = self.ident("el nombre del nodo inicial").text
-        return ast.StartDecl(target=target, setup=setup)
+        target = self.ident("el nombre del nodo inicial")
+        return ast.StartDecl(target=target.text, setup=setup, name_spans=[target.span])
 
     def node_decl(self) -> ast.NodeDecl:
         kind = self.advance().kind
-        name = self.ident("el nombre del nodo").text
+        name = self.ident("el nombre del nodo")
         items, end = self.block(lambda: self.node_member(kind))
-        return ast.NodeDecl(kind=kind, name=name, members=items, end_comments=self.claim(end))
+        return ast.NodeDecl(
+            kind=kind,
+            name=name.text,
+            members=items,
+            end_comments=self.claim(end),
+            name_spans=[name.span],
+        )
 
     def node_member(self, kind: str) -> ast.Item:
         start = self.pos
@@ -864,13 +934,13 @@ class Parser:
             return self.node_decl()
         if self.at("let") and kind == "terminal":
             self.advance()
-            name = self.ident("el nombre de la variable").text
+            name = self.ident("el nombre de la variable")
             self.expect("=", "'='")
-            return ast.LetMember(name=name, value=self.value())
+            return ast.LetMember(name=name.text, value=self.value(), name_spans=[name.span])
         if self.at("ident") and self.peek(1).kind == ":":
-            key = self.advance().text
+            key = self.advance()
             self.advance()
-            return ast.Member(key=key, value=self.value())
+            return ast.Member(key=key.text, value=self.value(), name_spans=[key.span])
         if (
             self.at("ident")
             and self.peek(1).kind == "{"
@@ -881,9 +951,11 @@ class Parser:
                 "on_exit",
             )
         ):
-            key = self.advance().text
+            key = self.advance()
             body, end = self.stmt_block_with_end()
-            return ast.BlockMember(key=key, body=body, end_comments=self.claim(end))
+            return ast.BlockMember(
+                key=key.text, body=body, end_comments=self.claim(end), name_spans=[key.span]
+            )
         if kind in ("chance", "auto"):
             return self.stmt_body([])
         members = ("actor", "actors", "eligible", "mode", "order", "payoff", "rank")
@@ -900,7 +972,8 @@ class Parser:
         self, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]
     ) -> ast.ActionDecl:
         self.expect("action")
-        node = ast.ActionDecl(name=self.ident("el nombre de la acción").text)
+        name = self.ident("el nombre de la acción")
+        node = ast.ActionDecl(name=name.text, name_spans=[name.span])
         for name, arg, span in annotations:
             if name == "doc" and isinstance(arg, ast.Text):
                 node.doc = arg
@@ -958,7 +1031,9 @@ class Parser:
                 param.size_visibility = arg
             else:
                 self.diagnostics.error("E111", f"anotación no permitida aquí: @{name}", span)
-        param.name = self.ident("el nombre del parámetro").text
+        name = self.ident("el nombre del parámetro")
+        param.name = name.text
+        param.name_spans = [name.span]
         if self.eat(":"):
             param.type = self.type_expr()
         if self.eat("in"):
@@ -974,8 +1049,8 @@ class Parser:
 
     def transition(self) -> ast.Transition:
         self.expect("->")
-        target = "exit" if self.eat("exit") else self.ident("el nodo de destino (o 'exit')").text
-        node = ast.Transition(target=target)
+        tok = self.advance() if self.at("exit") else self.ident("el nodo de destino (o 'exit')")
+        node = ast.Transition(target=tok.text, name_spans=[tok.span])
         if self.eat("when"):
             with self.struct_literals(False):
                 node.when = self.value()
@@ -1013,18 +1088,18 @@ class Parser:
         match kind:
             case "let":
                 self.advance()
-                name = self.ident("el nombre de la variable").text
+                name = self.ident("el nombre de la variable")
                 self.expect("=", "'='")
-                return ast.LetStmt(name, self.value())
+                return ast.LetStmt(name.text, self.value(), name_spans=[name.span])
             case "if":
                 return self.if_stmt()
             case "for":
                 self.advance()
-                var = self.ident("la variable del bucle").text
+                var = self.ident("la variable del bucle")
                 self.expect("in", "'in'")
                 with self.struct_literals(False):
                     iterable = self.expr()
-                return ast.ForStmt(var, iterable, self.stmt_block())
+                return ast.ForStmt(var.text, iterable, self.stmt_block(), name_spans=[var.span])
             case "move":
                 self.advance()
                 selector = self.selector()
@@ -1104,9 +1179,9 @@ class Parser:
         self, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]
     ) -> ast.EmitStmt:
         self.expect("emit")
-        name = self.ident("el nombre del evento").text
-        fields = self.field_list()
-        node = ast.EmitStmt(name, fields)
+        name = self.ident("el nombre del evento")
+        fields, _ = self.field_list()
+        node = ast.EmitStmt(name.text, fields, name_spans=[name.span])
         for aname, arg, span in annotations:
             if aname == "visible" and isinstance(arg, ast.Visibility):
                 node.visibility = arg
@@ -1116,23 +1191,26 @@ class Parser:
                 self.diagnostics.error("E111", f"anotación no permitida aquí: @{aname}", span)
         return node
 
-    def field_list(self) -> list[tuple[str, ast.Expr]]:
+    def field_list(self) -> tuple[list[tuple[str, ast.Expr]], list[Span]]:
+        """`{ campo: valor, … }`: los campos y la posición de cada nombre de campo."""
         self.expect("{", "'{'")
         fields: list[tuple[str, ast.Expr]] = []
+        spans: list[Span] = []
         while True:
             self.skip_newlines()
             if self.eat("}"):
                 break
-            key = self.ident("el nombre de un campo").text
+            key = self.ident("el nombre de un campo")
+            spans.append(key.span)
             self.expect(":", "':'")
             with self.struct_literals(True):
-                fields.append((key, self.expr()))
+                fields.append((key.text, self.expr()))
             self.skip_newlines()
             if not self.eat(","):
                 self.skip_newlines()
                 self.expect("}", "',' o '}'")
                 break
-        return fields
+        return fields, spans
 
     def if_stmt(self) -> ast.IfStmt:
         self.expect("if")
@@ -1289,16 +1367,19 @@ class Parser:
                     expr = self.index_or_slice(expr, start)
             elif self.at("."):
                 self.advance()
-                name = self.ident("el nombre de un campo").text
-                expr = ast.Field(expr, name, span=self.span_from(start))
+                name = self.ident("el nombre de un campo")
+                expr = ast.Field(
+                    expr, name.text, span=self.span_from(start), name_spans=[name.span]
+                )
             else:
                 return expr
 
     def call(self, func: str, start: int) -> ast.Expr:
+        func_span = self.tokens[start].span
         self.expect("(")
         with self.struct_literals(True):
             if self.eat(")"):
-                return ast.Call(func, [], span=self.span_from(start))
+                return ast.Call(func, [], span=self.span_from(start), name_spans=[func_span])
             first = self.expr()
             if (
                 self.at(":")
@@ -1310,7 +1391,12 @@ class Parser:
                 body = self.expr()
                 self.expect(")", "')'")
                 return ast.Aggregate(
-                    func, first.left.name, first.right, body, span=self.span_from(start)
+                    func,
+                    first.left.name,
+                    first.right,
+                    body,
+                    span=self.span_from(start),
+                    name_spans=[func_span, first.left.span],
                 )
             args = [first]
             while self.eat(","):
@@ -1318,7 +1404,7 @@ class Parser:
                     break
                 args.append(self.expr())
             self.expect(")", "',' o ')'")
-        return ast.Call(func, args, span=self.span_from(start))
+        return ast.Call(func, args, span=self.span_from(start), name_spans=[func_span])
 
     def index_or_slice(self, target: ast.Expr, start: int) -> ast.Expr:
         lo = None if self.at(":") else self.expr()
@@ -1352,8 +1438,10 @@ class Parser:
             case "ident":
                 self.advance()
                 if self.at("{") and not self.no_struct:
-                    fields = self.field_list()
-                    return ast.StructLit(tok.text, fields, span=self.span_from(start))
+                    fields, spans = self.field_list()
+                    return ast.StructLit(
+                        tok.text, fields, span=self.span_from(start), name_spans=[tok.span, *spans]
+                    )
                 return ast.Name(tok.text, span=tok.span)
             case "(":
                 self.advance()
@@ -1395,13 +1483,21 @@ class Parser:
                 while self.at("for"):
                     cstart = self.pos
                     self.advance()
-                    var = self.ident("la variable de la comprensión").text
+                    var = self.ident("la variable de la comprensión")
                     self.expect("in", "'in'")
                     iterable = self.or_expr()
                     conds: list[ast.Expr] = []
                     while self.eat("if"):
                         conds.append(self.or_expr())
-                    clauses.append(ast.CompFor(var, iterable, conds, span=self.span_from(cstart)))
+                    clauses.append(
+                        ast.CompFor(
+                            var.text,
+                            iterable,
+                            conds,
+                            span=self.span_from(cstart),
+                            name_spans=[var.span],
+                        )
+                    )
                 self.expect("]", "']'")
                 return ast.Comprehension(first, clauses, span=self.span_from(start))
             items = [first]
@@ -1416,15 +1512,17 @@ class Parser:
         start = self.pos
         self.expect("{")
         lets: list[tuple[str, ast.Expr]] = []
+        spans: list[Span] = []
         with self.struct_literals(True):
             while True:
                 self.skip_newlines()
                 if not self.at("let"):
                     break
                 self.advance()
-                name = self.ident("el nombre de la variable").text
+                name = self.ident("el nombre de la variable")
+                spans.append(name.span)
                 self.expect("=", "'='")
-                lets.append((name, self.value()))
+                lets.append((name.text, self.value()))
             if not lets and not allow_empty:
                 raise self.fail(
                     "un bloque { … } en una expresión empieza con 'let'",
@@ -1435,7 +1533,7 @@ class Parser:
             self.expect("}", "'}'")
         if not lets:
             return result
-        return ast.LetBlock(lets, result, span=self.span_from(start))
+        return ast.LetBlock(lets, result, span=self.span_from(start), name_spans=spans)
 
     def case_expr(self) -> ast.Expr:
         start = self.pos
@@ -1525,8 +1623,8 @@ class Parser:
             tok = self.expect("int", "un número de jugadores")
             return ast.TestStep(kind="players", value=ast.IntLit(tok.value, span=tok.span))
         if self.eat("params"):
-            entries = self.field_list()
-            return ast.TestStep(kind="params", entries=entries)
+            entries, spans = self.field_list()
+            return ast.TestStep(kind="params", entries=entries, name_spans=spans)
         if self.eat_word("seed"):
             tok = self.expect("int", "una semilla (entero)")
             return ast.TestStep(kind="seed", value=ast.IntLit(tok.value, span=tok.span))
@@ -1560,7 +1658,8 @@ class Parser:
             tok = self.advance()
             seat = ast.IntLit(tok.value, span=tok.span)
             self.advance()
-        name = self.ident("el nombre de una acción").text
+        name_tok = self.ident("el nombre de una acción")
+        name = name_tok.text
         self.expect("(", "'(' (las acciones se escriben con paréntesis: check())")
         args: list[ast.Expr] = []
         with self.struct_literals(True):
@@ -1569,7 +1668,9 @@ class Parser:
                 if not self.eat(","):
                     self.expect(")", "',' o ')'")
                     break
-        return ast.ActionLit(name, args, seat, span=self.span_from(start))
+        return ast.ActionLit(
+            name, args, seat, span=self.span_from(start), name_spans=[name_tok.span]
+        )
 
 
 def _found(tok: Token) -> str:

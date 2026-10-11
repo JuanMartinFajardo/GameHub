@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from gamehub.analysis.lint import lint
 from gamehub.ir import check as check_ir
+from gamehub.ir import wellformed_problems
 from gamehub.lang import ast, combinators
 from gamehub.lang.checker import Checker, kebab
 from gamehub.lang.combinators import COMBINATORS
@@ -22,6 +23,7 @@ from gamehub.lang.mods import derive
 from gamehub.lang.modules import Imported, Loader
 from gamehub.lang.parser import parse
 from gamehub.lang.source import Source, Span
+from gamehub.lang.symbols import SymbolIndex
 
 if TYPE_CHECKING:
     from gamehub.engine.game import Game
@@ -33,6 +35,9 @@ class CompileResult:
     file: ast.File
     diagnostics: Diagnostics
     games: dict[str, CompiledGame] = field(default_factory=dict)
+    #: Modelo (declaraciones reunidas, antes de comprobar) de cada juego con cuerpo del archivo,
+    #: también si la comprobación falló; las variantes ya mezcladas con su base.
+    models: dict[str, GameModel] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -57,7 +62,12 @@ class CompileResult:
         return self.games[name]
 
 
-def compile_source(source: Source) -> CompileResult:
+def compile_source(
+    source: Source, *, index: SymbolIndex | None = None, schema: bool = True
+) -> CompileResult:
+    """Compila un texto Nomos. Con `index`, el comprobador anota en él los símbolos (para el
+    servidor de lenguaje). `schema=False` valida la IR generada solo por su buena formación, sin
+    el JSON Schema, que es lo más lento (el editor compila a cada cambio)."""
     diagnostics = Diagnostics()
     tree = parse(source, diagnostics)
     result = CompileResult(source, tree, diagnostics)
@@ -66,17 +76,18 @@ def compile_source(source: Source) -> CompileResult:
     imported = Loader(diagnostics).root_imports(tree, source)
     if diagnostics.has_errors:
         return result
-    games = _Games(tree, diagnostics, imported)
+    games = _Games(tree, diagnostics, imported, index)
     for item in tree.games:
         compiled = games.compiled(item.name, item.span)
         if compiled is not None:
             result.games[item.name] = compiled
+    result.models = {name: model for name, model in games.models.items() if name in games.local}
     if not tree.games:
-        check_module(tree, diagnostics, imported)
+        check_module(tree, diagnostics, imported, index)
     if diagnostics.has_errors:
         return result
     for name, compiled in result.games.items():
-        problems = check_ir(compiled.ir)
+        problems = check_ir(compiled.ir) if schema else wellformed_problems(compiled.ir)
         for problem in problems:
             diagnostics.error(
                 "E900",
@@ -94,10 +105,17 @@ class _Games:
     """Los juegos que puede usar un archivo (los suyos y los importados), compilados bajo
     demanda: `extends` y los combinadores necesitan su base antes."""
 
-    def __init__(self, tree: ast.File, diagnostics: Diagnostics, imported: list[Imported]) -> None:
+    def __init__(
+        self,
+        tree: ast.File,
+        diagnostics: Diagnostics,
+        imported: list[Imported],
+        index: SymbolIndex | None = None,
+    ) -> None:
         self.tree = tree
         self.diagnostics = diagnostics
         self.imported = imported
+        self.index = index
         self.local = {g.name: g for g in tree.games}
         self.foreign: dict[str, ast.GameDecl | ast.GameAlias] = {}
         for item in imported:
@@ -146,7 +164,11 @@ class _Games:
                 result = self.combine(decl)
             else:
                 model = self.model_of(decl)
-                result = Checker(model, self.diagnostics).run() if model is not None else None
+                result = (
+                    Checker(model, self.diagnostics, self.index).run()
+                    if model is not None
+                    else None
+                )
         finally:
             self.visiting.pop()
         self.results[name] = result
@@ -376,14 +398,19 @@ def externals(
     return out
 
 
-def check_module(tree: ast.File, diagnostics: Diagnostics, imported: list[Imported]) -> None:
+def check_module(
+    tree: ast.File,
+    diagnostics: Diagnostics,
+    imported: list[Imported],
+    index: SymbolIndex | None = None,
+) -> None:
     """Un archivo sin juegos es un módulo: se comprueban sus tipos y funciones."""
     if not any(isinstance(i, ast.EnumDecl | ast.StructDecl | ast.FnDecl) for i in tree.items):
         return
     decl = ast.GameDecl(name="<módulo>")
     model = GameModel(name="<módulo>", decl=decl)
     model.externals = externals(tree, [], diagnostics, imported)
-    Checker(model, diagnostics).check_module()
+    Checker(model, diagnostics, index).check_module()
 
 
 def add_item(model: GameModel, item: ast.Item, diagnostics: Diagnostics) -> None:

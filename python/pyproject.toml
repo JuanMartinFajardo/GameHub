@@ -8,6 +8,7 @@ requires-python = ">=3.12"
 authors = [{ name = "Juan Martin Fajardo" }]
 dependencies = [
   "jsonschema>=4.23",
+  "pygls>=2.1",
   "referencing>=0.35",
   "segno>=1.6",
   "starlette>=0.46",
@@ -21,6 +22,7 @@ gamehub = "gamehub.cli:main"
 
 [dependency-groups]
 dev = [
+  "hypothesis>=6.140",
   "pre-commit>=4.0",
   "pyright>=1.1.390",
   "pytest>=8.3",

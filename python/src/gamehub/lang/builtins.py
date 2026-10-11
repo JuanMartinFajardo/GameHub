@@ -452,6 +452,7 @@ def aggregate(
     span: Span,
     *,
     short: bool = False,
+    var_span: Span | None = None,
 ) -> Typed:
     op = AGGREGATES.get(func)
     if op is None:
@@ -467,7 +468,7 @@ def aggregate(
     if short:
         inner.names[var] = _binding(item)
     else:
-        c.bind(inner, var, "local", item, span)
+        c.bind(inner, var, "local", item, span, decl=var_span)
     want = T.BOOL if op in ("all", "any", "count", "filter") else None
     body_ir, body = c.expr(body_e, inner, ctx, want)
     result: Ty
