@@ -1,0 +1,949 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Estilos de @gamehub/ui-kit: variables de diseño (tema claro y oscuro) y los componentes.
+ * Todas las clases empiezan por gh- y todo color sale de una variable --gh-…: una UI propia
+ * puede cambiar el aspecto redefiniendo variables, sin tocar los componentes.
+ */
+
+:root {
+  --gh-font:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif;
+  --gh-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  --gh-bg: #f5f6fa;
+  --gh-surface: #ffffff;
+  --gh-surface-2: #eef0f6;
+  --gh-surface-3: #e2e6f0;
+  --gh-text: #161a26;
+  --gh-text-muted: #5c6478;
+  --gh-border: #d9dde8;
+  --gh-accent: #4f46e5;
+  --gh-accent-hover: #4338ca;
+  --gh-accent-soft: #e8e7fd;
+  --gh-accent-contrast: #ffffff;
+  --gh-success: #15803d;
+  --gh-success-soft: #dcfce7;
+  --gh-warning: #b45309;
+  --gh-warning-soft: #fef3c7;
+  --gh-danger: #c62828;
+  --gh-danger-soft: #fde2e2;
+  --gh-focus: #6366f1;
+  --gh-target: #22c55e;
+  --gh-target-soft: rgba(34, 197, 94, 0.22);
+  --gh-felt: #1f6f4a;
+  --gh-felt-text: #f1f8f4;
+  --gh-board: #c9a46a;
+  --gh-board-dark: #a37b45;
+  --gh-board-line: #6b4f2a;
+  --gh-card-face: #ffffff;
+  --gh-card-edge: #c8ccd6;
+  --gh-card-red: #c62828;
+  --gh-card-black: #1b1f2a;
+  --gh-card-back: #3b37b8;
+  --gh-card-back-2: #6d68ea;
+  --gh-die: #ffffff;
+  --gh-die-pip: #1b1f2a;
+
+  --gh-seat-0: #e53935;
+  --gh-seat-1: #1e88e5;
+  --gh-seat-2: #f9a825;
+  --gh-seat-3: #43a047;
+  --gh-seat-4: #8e24aa;
+  --gh-seat-5: #00acc1;
+  --gh-seat-6: #fb8c00;
+  --gh-seat-7: #d81b60;
+
+  --gh-radius-sm: 6px;
+  --gh-radius: 10px;
+  --gh-radius-lg: 16px;
+  --gh-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.08);
+  --gh-shadow: 0 2px 6px rgba(16, 24, 40, 0.08), 0 8px 24px rgba(16, 24, 40, 0.06);
+  --gh-shadow-lg: 0 12px 40px rgba(16, 24, 40, 0.18);
+  --gh-card-width: 64px;
+  --gh-die-size: 40px;
+  --gh-cell-size: 68px;
+  --gh-speed: 160ms;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --gh-bg: #0f1218;
+    --gh-surface: #171b24;
+    --gh-surface-2: #1e2330;
+    --gh-surface-3: #2a3040;
+    --gh-text: #e8ebf3;
+    --gh-text-muted: #9aa3b8;
+    --gh-border: #2c3243;
+    --gh-accent: #818cf8;
+    --gh-accent-hover: #a5b4fc;
+    --gh-accent-soft: #272a52;
+    --gh-accent-contrast: #0f1218;
+    --gh-success: #4ade80;
+    --gh-success-soft: #13301f;
+    --gh-warning: #fbbf24;
+    --gh-warning-soft: #3a2c0b;
+    --gh-danger: #f87171;
+    --gh-danger-soft: #3d1717;
+    --gh-focus: #a5b4fc;
+    --gh-felt: #17543a;
+    --gh-board: #8f7246;
+    --gh-board-dark: #735a34;
+    --gh-board-line: #3d2c14;
+    --gh-card-face: #f4f5f8;
+    --gh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --gh-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
+    --gh-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --gh-bg: #0f1218;
+  --gh-surface: #171b24;
+  --gh-surface-2: #1e2330;
+  --gh-surface-3: #2a3040;
+  --gh-text: #e8ebf3;
+  --gh-text-muted: #9aa3b8;
+  --gh-border: #2c3243;
+  --gh-accent: #818cf8;
+  --gh-accent-hover: #a5b4fc;
+  --gh-accent-soft: #272a52;
+  --gh-accent-contrast: #0f1218;
+  --gh-success: #4ade80;
+  --gh-success-soft: #13301f;
+  --gh-warning: #fbbf24;
+  --gh-warning-soft: #3a2c0b;
+  --gh-danger: #f87171;
+  --gh-danger-soft: #3d1717;
+  --gh-focus: #a5b4fc;
+  --gh-felt: #17543a;
+  --gh-board: #8f7246;
+  --gh-board-dark: #735a34;
+  --gh-board-line: #3d2c14;
+  --gh-card-face: #f4f5f8;
+  --gh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --gh-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --gh-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+/* --- Base --------------------------------------------------------------------------------- */
+
+.gh-root {
+  font-family: var(--gh-font);
+  color: var(--gh-text);
+  background: var(--gh-bg);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gh-root *,
+.gh-root *::before,
+.gh-root *::after {
+  box-sizing: border-box;
+}
+
+.gh-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.gh-muted {
+  color: var(--gh-text-muted);
+}
+
+.gh-mono {
+  font-family: var(--gh-mono);
+}
+
+:where(.gh-root) :focus-visible {
+  outline: 2px solid var(--gh-focus);
+  outline-offset: 2px;
+}
+
+/* --- Botones, insignias, paneles, campos ------------------------------------------------------ */
+
+.gh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--gh-radius-sm);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    background var(--gh-speed),
+    border-color var(--gh-speed),
+    color var(--gh-speed),
+    transform var(--gh-speed);
+}
+
+.gh-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.gh-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.gh-button--primary {
+  background: var(--gh-accent);
+  color: var(--gh-accent-contrast);
+}
+
+.gh-button--primary:hover:not(:disabled) {
+  background: var(--gh-accent-hover);
+}
+
+.gh-button--secondary {
+  background: var(--gh-surface);
+  color: var(--gh-text);
+  border-color: var(--gh-border);
+}
+
+.gh-button--secondary:hover:not(:disabled) {
+  background: var(--gh-surface-2);
+}
+
+.gh-button--ghost {
+  background: transparent;
+  color: var(--gh-text);
+}
+
+.gh-button--ghost:hover:not(:disabled) {
+  background: var(--gh-surface-2);
+}
+
+.gh-button--danger {
+  background: var(--gh-danger);
+  color: #fff;
+}
+
+.gh-button--sm {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.85rem;
+}
+
+.gh-button--lg {
+  min-height: 46px;
+  padding: 0 20px;
+  font-size: 1.05rem;
+}
+
+.gh-button--selected {
+  background: var(--gh-accent-soft);
+  border-color: var(--gh-accent);
+  color: var(--gh-text);
+}
+
+.gh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--gh-surface-2);
+  color: var(--gh-text-muted);
+  white-space: nowrap;
+}
+
+.gh-badge--accent {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.gh-badge--success {
+  background: var(--gh-success-soft);
+  color: var(--gh-success);
+}
+
+.gh-badge--warning {
+  background: var(--gh-warning-soft);
+  color: var(--gh-warning);
+}
+
+.gh-badge--danger {
+  background: var(--gh-danger-soft);
+  color: var(--gh-danger);
+}
+
+.gh-panel {
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  box-shadow: var(--gh-shadow-sm);
+  min-width: 0;
+}
+
+.gh-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--gh-border);
+}
+
+.gh-panel__header:last-child {
+  border-bottom: 0;
+}
+
+.gh-panel__title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gh-text-muted);
+}
+
+.gh-panel__body {
+  padding: 12px 14px;
+}
+
+.gh-input,
+.gh-select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius-sm);
+  background: var(--gh-surface);
+  color: var(--gh-text);
+  font: inherit;
+}
+
+.gh-input:focus,
+.gh-select:focus {
+  outline: 2px solid var(--gh-focus);
+  outline-offset: 0;
+  border-color: transparent;
+}
+
+.gh-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.gh-field__label {
+  font-weight: 600;
+  color: var(--gh-text-muted);
+  font-size: 0.82rem;
+}
+
+.gh-spinner-wrap {
+  display: inline-flex;
+}
+
+.gh-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--gh-border);
+  border-top-color: var(--gh-accent);
+  animation: gh-spin 0.8s linear infinite;
+}
+
+@keyframes gh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Cartas ----------------------------------------------------------------------------------- */
+
+.gh-card {
+  --gh-card-w: var(--gh-card-width);
+  position: relative;
+  display: inline-block;
+  width: var(--gh-card-w);
+  aspect-ratio: 5 / 7;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: calc(var(--gh-card-w) * 0.09);
+  flex: none;
+  transition:
+    transform var(--gh-speed),
+    box-shadow var(--gh-speed);
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.25));
+}
+
+.gh-card svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gh-card--sm {
+  --gh-card-w: calc(var(--gh-card-width) * 0.7);
+}
+
+.gh-card--lg {
+  --gh-card-w: calc(var(--gh-card-width) * 1.35);
+}
+
+button.gh-card {
+  cursor: pointer;
+}
+
+button.gh-card:disabled {
+  cursor: default;
+}
+
+.gh-card--target {
+  filter: drop-shadow(0 0 0.5px var(--gh-target)) drop-shadow(0 0 4px var(--gh-target));
+}
+
+.gh-card--selected {
+  transform: translateY(-14%);
+  filter: drop-shadow(0 0 1px var(--gh-accent)) drop-shadow(0 0 6px var(--gh-accent));
+}
+
+button.gh-card:hover:not(:disabled):not(.gh-card--selected) {
+  transform: translateY(-6%);
+}
+
+.gh-card__face {
+  fill: var(--gh-card-face);
+  stroke: var(--gh-card-edge);
+  stroke-width: 1;
+}
+
+.gh-card__back {
+  fill: var(--gh-card-back);
+}
+
+.gh-card__back-pattern {
+  stroke: var(--gh-card-back-2);
+  stroke-width: 3;
+}
+
+.gh-card__index {
+  font-family: var(--gh-font);
+  font-weight: 700;
+}
+
+/* --- Manos, montones y mazos -------------------------------------------------------------------- */
+
+.gh-hand,
+.gh-dice,
+.gh-track {
+  list-style: none;
+  margin: 0;
+}
+
+.gh-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 6px 4px;
+  min-height: calc(var(--gh-card-width) * 1.4 + 18px);
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.gh-hand > li {
+  flex: none;
+  padding: 0;
+}
+
+.gh-hand--fan > * + * {
+  margin-left: calc(var(--gh-card-width) * -0.45);
+}
+
+.gh-hand--fan > * {
+  transform-origin: 50% 120%;
+}
+
+.gh-hand--flat {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gh-hand__empty {
+  color: var(--gh-text-muted);
+  font-size: 0.85rem;
+  align-self: center;
+}
+
+.gh-pile {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-pile__stack {
+  position: relative;
+  width: var(--gh-card-width);
+  aspect-ratio: 5 / 7;
+}
+
+.gh-pile__layer {
+  position: absolute;
+  inset: 0;
+}
+
+.gh-pile__empty {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed var(--gh-border);
+  border-radius: calc(var(--gh-card-width) * 0.09);
+}
+
+.gh-pile__count {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gh-text-muted);
+}
+
+/* --- Dados y fichas --------------------------------------------------------------------------- */
+
+.gh-die {
+  display: inline-block;
+  width: var(--gh-die-size);
+  height: var(--gh-die-size);
+  padding: 0;
+  border: 0;
+  background: none;
+  flex: none;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3));
+}
+
+.gh-die svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.gh-die--sm {
+  --gh-die-size: 28px;
+}
+
+.gh-die--lg {
+  --gh-die-size: 56px;
+}
+
+.gh-die--hidden svg rect {
+  fill: var(--gh-surface-3);
+}
+
+.gh-die--highlight svg rect {
+  stroke: var(--gh-accent);
+  stroke-width: 6;
+}
+
+.gh-dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 0;
+}
+
+.gh-token {
+  --gh-token-size: 36px;
+  display: inline-grid;
+  place-items: center;
+  width: var(--gh-token-size);
+  height: var(--gh-token-size);
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: calc(var(--gh-token-size) * 0.5);
+  line-height: 1;
+  color: #fff;
+  background: var(--gh-token-color, var(--gh-text-muted));
+  box-shadow:
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  flex: none;
+}
+
+.gh-token--glyph {
+  background: none;
+  box-shadow: none;
+  color: var(--gh-token-color, var(--gh-text));
+  font-size: calc(var(--gh-token-size) * 0.8);
+}
+
+.gh-token--sm {
+  --gh-token-size: 22px;
+}
+
+.gh-token--lg {
+  --gh-token-size: 48px;
+}
+
+.gh-token--fill {
+  --gh-token-size: 80%;
+  width: 80%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+/* --- Rejillas ---------------------------------------------------------------------------------- */
+
+.gh-grid {
+  --gh-cols: 3;
+  --gh-rows: 3;
+  /* En pantallas estrechas las casillas encogen para que quepa el tablero. */
+  --gh-cell: min(var(--gh-cell-size), calc((100vw - 64px) / var(--gh-cols)));
+  border-collapse: separate;
+  border-spacing: 4px;
+  padding: 4px;
+  table-layout: fixed;
+  background: var(--gh-board-line);
+  border-radius: var(--gh-radius);
+  box-shadow: var(--gh-shadow);
+}
+
+.gh-grid--plain {
+  background: var(--gh-surface-3);
+}
+
+.gh-grid__cell {
+  position: relative;
+  width: var(--gh-cell);
+  height: var(--gh-cell);
+  padding: 0;
+  border-radius: 4px;
+  background: var(--gh-board);
+  color: var(--gh-text);
+  font-size: calc(var(--gh-cell) * 0.5);
+  transition:
+    background var(--gh-speed),
+    box-shadow var(--gh-speed);
+}
+
+.gh-grid--plain .gh-grid__cell {
+  background: var(--gh-surface);
+}
+
+.gh-grid--checkered .gh-grid__cell[data-dark="true"] {
+  background: var(--gh-board-dark);
+}
+
+.gh-grid__content {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.gh-grid__hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gh-grid__cell--target::after,
+.gh-track__space.gh-grid__cell--target::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 3px var(--gh-target);
+  background: var(--gh-target-soft);
+  pointer-events: none;
+}
+
+.gh-grid__cell--hover::after,
+.gh-grid__cell--target:has(.gh-grid__hit:hover)::after {
+  box-shadow: inset 0 0 0 3px var(--gh-accent);
+  background: rgba(99, 102, 241, 0.22);
+}
+
+.gh-grid__cell--selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 3px var(--gh-accent);
+  pointer-events: none;
+}
+
+.gh-grid__cell--last {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+
+.gh-grid__coord {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 700;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* --- Recorrido y grafo ------------------------------------------------------------------------ */
+
+.gh-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+}
+
+.gh-track__space {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border-radius: var(--gh-radius-sm);
+  background: var(--gh-surface-2);
+  border: 1px solid var(--gh-border);
+}
+
+.gh-track__index {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  font-size: 9px;
+  color: var(--gh-text-muted);
+}
+
+.gh-graph {
+  max-width: 100%;
+  height: auto;
+}
+
+.gh-graph__edge {
+  stroke: var(--gh-border);
+  stroke-width: 3;
+}
+
+.gh-graph__node {
+  fill: var(--gh-surface);
+  stroke: var(--gh-text-muted);
+  stroke-width: 2;
+}
+
+.gh-graph__node--target {
+  stroke: var(--gh-target);
+  stroke-width: 4;
+  cursor: pointer;
+}
+
+.gh-graph__label {
+  font-size: 11px;
+  fill: var(--gh-text-muted);
+}
+
+/* --- Jugadores, marcador, contadores y relojes ------------------------------------------------- */
+
+.gh-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gh-player__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gh-player-color, var(--gh-text-muted));
+  flex: none;
+  box-shadow: 0 0 0 2px var(--gh-surface);
+}
+
+.gh-player--active .gh-player__dot {
+  box-shadow:
+    0 0 0 2px var(--gh-surface),
+    0 0 0 4px var(--gh-player-color, var(--gh-accent));
+  animation: gh-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes gh-pulse {
+  50% {
+    box-shadow:
+      0 0 0 2px var(--gh-surface),
+      0 0 0 6px transparent;
+  }
+}
+
+.gh-player__name {
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-player--away .gh-player__name {
+  opacity: 0.55;
+}
+
+.gh-scoreboard {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.gh-scoreboard th,
+.gh-scoreboard td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--gh-border);
+}
+
+.gh-scoreboard thead th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gh-text-muted);
+}
+
+.gh-scoreboard tbody th {
+  font-weight: 600;
+}
+
+.gh-scoreboard td.gh-num,
+.gh-scoreboard th.gh-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-scoreboard tr.gh-scoreboard--highlight > * {
+  background: var(--gh-accent-soft);
+}
+
+.gh-counter {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.gh-counter__value {
+  font-size: 1.5rem;
+  font-weight: 750;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-counter__label {
+  font-size: 0.75rem;
+  color: var(--gh-text-muted);
+}
+
+.gh-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-chips__icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#c62828 0 30deg, #ffffff 30deg 60deg);
+  box-shadow:
+    inset 0 0 0 4px #c62828,
+    0 1px 2px rgba(0, 0, 0, 0.35);
+  flex: none;
+}
+
+.gh-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--gh-radius-sm);
+  background: var(--gh-surface-2);
+  font-family: var(--gh-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-clock--running {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.gh-clock--low {
+  background: var(--gh-danger-soft);
+  color: var(--gh-danger);
+}
+
+/* --- Barra de acciones ------------------------------------------------------------------------- */
+
+.gh-actionbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius);
+  box-shadow: var(--gh-shadow);
+}
+
+.gh-actionbar__label {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.gh-actionbar__spacer {
+  flex: 1;
+}
+
+.gh-actionbar--sticky {
+  position: sticky;
+  bottom: 8px;
+  z-index: 5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-root *,
+  .gh-root *::before,
+  .gh-root *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: preferencia del sistema, por encima de todo. */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: preferencia del sistema, por encima de todo. */
+    transition-duration: 0.01ms !important;
+  }
+}

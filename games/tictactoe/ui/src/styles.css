@@ -1,0 +1,160 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Tres en raya (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.ttt {
+  --ttt-x: #e53935;
+  --ttt-o: #1e88e5;
+  --ttt-size: min(88vw, 420px);
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 8px 0 16px;
+}
+
+.ttt-status {
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.ttt-status--mine {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: var(--ttt-size);
+  aspect-ratio: 1;
+  padding: 10px;
+  border-radius: 22px;
+  background: var(--gh-surface-3);
+  box-shadow: var(--gh-shadow);
+}
+
+.ttt-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--gh-surface);
+  cursor: pointer;
+  transition:
+    background var(--gh-speed),
+    transform var(--gh-speed);
+}
+
+.ttt-cell:disabled {
+  cursor: default;
+}
+
+.ttt-cell:not(:disabled):hover {
+  background: var(--gh-accent-soft);
+}
+
+.ttt-cell:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.ttt-cell--win {
+  background: color-mix(in srgb, var(--gh-success) 22%, var(--gh-surface));
+}
+
+.ttt-mark {
+  width: 72%;
+  height: 72%;
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.ttt-mark line,
+.ttt-mark circle {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ttt-draw 260ms ease-out forwards;
+}
+
+.ttt-mark line + line {
+  animation-delay: 120ms;
+}
+
+.ttt-mark--X {
+  stroke: var(--ttt-x);
+}
+
+.ttt-mark--O {
+  stroke: var(--ttt-o);
+}
+
+.ttt-mark--ghost {
+  opacity: 0;
+  transition: opacity var(--gh-speed);
+}
+
+.ttt-mark.ttt-mark--ghost line,
+.ttt-mark.ttt-mark--ghost circle {
+  animation: none;
+  stroke-dashoffset: 0;
+}
+
+.ttt-cell:hover .ttt-mark--ghost,
+.ttt-cell:focus-visible .ttt-mark--ghost {
+  opacity: 0.28;
+}
+
+@keyframes ttt-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ttt-players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ttt-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 6px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: var(--gh-surface);
+  font-weight: 600;
+}
+
+.ttt-player--active {
+  border-color: var(--gh-accent);
+}
+
+.ttt-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 800;
+}
+
+.ttt-badge--X {
+  background: var(--ttt-x);
+}
+
+.ttt-badge--O {
+  background: var(--ttt-o);
+}

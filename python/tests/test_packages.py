@@ -18,6 +18,7 @@ from gamehub.packages import (
     PackageError,
     clone,
     fetch,
+    find_files,
     fork,
     load_lock,
     load_manifest,
@@ -161,3 +162,15 @@ def test_package_commands(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     assert main(["check", str(ipd)]) == 0
     assert main(["fork", str(repo), str(tmp_path / "fork")]) == 0
     assert main(["new", "carrera", "--dir", str(tmp_path / "carrera")]) == 1
+
+
+def test_find_files_skips_ui_dependencies_and_hidden_folders(tmp_path: Path) -> None:
+    (tmp_path / "a.game").write_text("", encoding="utf-8")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.game").write_text("", encoding="utf-8")
+    for skipped in ("ui/node_modules/x", "ui/dist", ".git", "node_modules"):
+        folder = tmp_path / skipped
+        folder.mkdir(parents=True)
+        (folder / "z.game").write_text("", encoding="utf-8")
+    found = [p.relative_to(tmp_path).as_posix() for p in find_files(tmp_path, ".game")]
+    assert found == ["a.game", "sub/b.game"]

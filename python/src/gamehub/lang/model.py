@@ -36,6 +36,7 @@ class GameModel:
     tests: list[ast.TestDecl] = field(default_factory=list)
     invariants: list[ast.InvariantDecl] = field(default_factory=list)
     externals: list[External] = field(default_factory=list)
+    ui: list[ast.UiEntry] = field(default_factory=list)
     flow_span: Span = NO_SPAN
 
 

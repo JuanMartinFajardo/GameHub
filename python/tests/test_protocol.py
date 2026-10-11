@@ -19,7 +19,13 @@ from gamehub.protocol import (
     problems,
     schema,
 )
-from gamehub.protocol.codegen import generate, sync_types, types_path
+from gamehub.protocol.codegen import (
+    generate,
+    generate_ts,
+    sync_types,
+    ts_types_path,
+    types_path,
+)
 
 
 def test_schema_is_valid_json_schema() -> None:
@@ -65,6 +71,28 @@ def test_generated_types_cover_every_definition() -> None:
     text = types_path().read_text(encoding="utf-8")
     for name in schema()["$defs"]:
         assert f"class {name}(TypedDict)" in text or f"type {name} = " in text, name
+
+
+def test_typescript_types_are_up_to_date() -> None:
+    path = ts_types_path()
+    assert path is not None, "el repositorio trae web/packages/protocol"
+    text = generate_ts(schema())
+    assert path.read_text(encoding="utf-8") == text
+    for name in schema()["$defs"]:
+        assert f"export interface {name} {{" in text or f"export type {name} =" in text, name
+
+
+def test_typescript_translation() -> None:
+    text = generate_ts(schema())
+    # Objetos cerrados → interface, con `?` en lo opcional; uniones largas, una por línea.
+    assert "export interface Hello {\n  client: ClientInfo;\n  token?: string;" in text
+    assert "export type ClientMessage =\n  | HelloMessage\n  | JoinMessage\n" in text
+    # Abierto con propiedades → firma de índice; sin tipo → unknown; cerrado vacío → never.
+    assert "export interface GameEvent {\n  type: string;\n  [key: string]: Json;\n}" in text
+    assert "export type Json = unknown;" in text
+    assert "export type Empty = Record<string, never>;" in text
+    assert "remaining_ms: (number | null)[];" in text
+    assert "seat: Seat | null;" in text
 
 
 def hello(**data: object) -> str:
@@ -116,4 +144,4 @@ def test_server_messages() -> None:
     assert check_server(error) == []
     assert problems("RoomCode", "K7FQ2P") == []
     assert problems("RoomCode", "K7F-Q2P") != []  # en el protocolo va normalizado
-    assert problems("Number", "-1/3") == [] and problems("Number", 1.5) != []
+    assert problems("ExactNumber", "-1/3") == [] and problems("ExactNumber", 1.5) != []

@@ -9,7 +9,7 @@
 | 20 | ¿Necesitas jugar **por internet** (fuera de la LAN) antes del hub? | Hasta F10, `gamehub serve` en una máquina accesible o un túnel tipo Tailscale; relay propio con el hub (F10) | F4, F10 |
 | 3b | ¿Habrá repo remoto en GitHub (u otro host)? | Cuando quieras; el CI ya está preparado | Todo |
 | 6 | ¿Quién usará el editor visual? ¿Debe poder diseñar un juego alguien que no programa (bloques tipo Scratch para las condiciones)? | Fase 5: expresiones escritas en los nodos con autocompletado; bloques visuales como mejora posterior | F5 |
-| 7 | ¿Te parece bien TypeScript + React para la web? ¿Tienes experiencia con algún framework? | TS + React + React Flow + Monaco | F4–F5 |
+| 7 | ¿Te parece bien TypeScript + React para la web? ¿Tienes experiencia con algún framework? | TS + React + React Flow + Monaco (la Fase 4 ya usa TS + React, ADR-044) | F5 |
 | 8 | ¿Quieres un SDK de **Godot** pronto para hacer UIs de juegos ahí? | Después de TS y Python (F6), salvo que te interese antes | F4–F6 |
 | 9 | Reglas concretas pendientes: **Solitario** (¿Klondike?), **Póker** (¿Hold'em No-Limit?), **Skat** (¿reglas ISkO?), **Parchís** (¿españolas? ¿parejas?), **Wizard** (¿Amigo estándar?) | Los supuestos del [catálogo](catalogo-de-juegos.md) | F6 |
 | 9b | Variantes de **Mentiroso**: ¿el rango sigue la secuencia As, Dos, Tres…, lo elige quien abre ronda o es libre en cada jugada? ¿Puede acusar cualquiera o solo el siguiente? ¿Quién juega tras una acusación? ¿Baraja francesa o española? | Secuencia As→K; acusa cualquiera; sigue el siguiente jugador; francesa de 52. Con Nomos, cada variante es un `extends` de pocas líneas (la española, con `std.cards`) | Mentiroso (cuando quieras) |
@@ -37,3 +37,4 @@
 | 2026-10-09 | — | ¿Fusionar la Fase 1 y arrancar la Fase 2? | Sí: F1 fusionada a `main` y F2 en la rama `f2/compilador-nomos`. |
 | 2026-10-10 | 17 | ¿Apruebas las ADR-027 a 035 de la Fase 2 y fusionas la rama `f2/compilador-nomos`? | Sí: ADR-027 a 035 aceptadas, F2 fusionada a `main` y F3 en la rama `f3/servidor-partidas`. |
 | 2026-10-10 | 18 | ¿Apruebas las ADR-036 a 043 de la Fase 3 y fusionas la rama `f3/servidor-partidas`? | Sí: ADR-036 a 043 aceptadas, F3 fusionada a `main` y F4 en la rama `f4/cliente-web`. |
+| 2026-10-11 | 21 | ¿Apruebas las ADR-044 a 051 de la Fase 4 y fusionas la rama `f4/cliente-web`? | Sí («ve con la fase 5»): ADR-044 a 051 aceptadas, F4 fusionada a `main` y F5 en la rama `f5/studio`. |

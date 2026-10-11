@@ -1,0 +1,30 @@
+{
+  "name": "@gamehub/react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hooks de React sobre el SDK cliente de GameHub: la sala, la partida, la vista, las acciones legales y jugar.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@gamehub/client": "workspace:*",
+    "@gamehub/protocol": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

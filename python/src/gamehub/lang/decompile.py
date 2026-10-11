@@ -17,6 +17,7 @@ from gamehub.lang import ast
 from gamehub.lang.checker import kebab
 from gamehub.lang.layout import render
 from gamehub.lang.printer import Printer, decimal_text, format_file
+from gamehub.lang.ui import entries_from_ir
 
 BINARY = {
     "sub": "-",
@@ -143,6 +144,8 @@ class _Decompiler:
             items.append(self.blank(decl) if first_fn else decl)
             first_fn = False
         items.append(self.blank(self.flow()))
+        if ir.get("ui"):
+            items.append(self.blank(ast.UiBlock(entries=entries_from_ir(ir["ui"]))))
         return ast.GameDecl(name=name, items=items)
 
     @staticmethod

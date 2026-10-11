@@ -252,6 +252,56 @@ class Printer:
             shown = text(quote(str(value)))
         return concat(item.key, ": ", shown)
 
+    def i_UiBlock(self, item: ast.UiBlock) -> Doc:
+        return self.block("ui", list(item.entries), item.end_comments)
+
+    def i_UiEntry(self, item: ast.UiEntry) -> Doc:
+        match item.target:
+            case "action":
+                target = "action " + ".".join(item.path)
+            case "node":
+                target = "node " + item.path[0]
+            case "seats":
+                target = "seats"
+            case _:
+                target = item.path[0]
+        return concat(target, ": ", join(", ", [self.ui_hint(h) for h in item.hints]))
+
+    def ui_hint(self, hint: ast.UiHint) -> Doc:
+        if hint.args is None:
+            return text(hint.name)
+        args = [
+            concat(f"{a.key}: ", self.ui_value(a.value))
+            if a.key is not None
+            else self.ui_value(a.value)
+            for a in hint.args
+        ]
+        return group(
+            f"{hint.name}(",
+            nest(INDENT, SOFTLINE, join(concat(",", LINE), args)),
+            SOFTLINE,
+            ")",
+        )
+
+    def ui_value(self, value: object) -> Doc:
+        match value:
+            case ast.Text():
+                return self.text(value)
+            case ast.UiName(name=name):
+                return text(name)
+            case bool():
+                return text("true" if value else "false")
+            case int():
+                return text(str(value))
+            case Fraction():
+                return text(decimal_text(value) or str(value))
+            case list():
+                items = [self.ui_value(v) for v in value]
+                return group(
+                    "[", nest(INDENT, SOFTLINE, join(concat(",", LINE), items)), SOFTLINE, "]"
+                )
+        raise TypeError(value)
+
     def i_PlayersDecl(self, item: ast.PlayersDecl) -> Doc:
         if item.min == item.max:
             return text(f"players {item.min}")

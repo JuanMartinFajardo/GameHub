@@ -49,11 +49,13 @@ flowchart TB
 
 ## 2. Estructura del monorepo (propuesta)
 
-> **Estado (2026-10-10, Fase 3):** existen `spec/` (IR v0, protocolo v1, trazas de conformidad),
+> **Estado (2026-10-10, Fase 4):** existen `spec/` (IR v0, protocolo v1, trazas de conformidad),
 > `python/` (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor, presentaciones,
-> paquetes, protocolo, servidor de partidas, SDK cliente y CLI),
-> `stdlib/` (biblioteca estándar de Nomos), `games/` (15 paquetes con 16 juegos), `editors/vscode/`
-> (extensión de VS Code) y `docs/`. El resto de directorios se crea en la fase que los necesita.
+> paquetes, protocolo, servidor de partidas, SDK cliente, CLI y plantilla de UIs), `web/` (SDK
+> TypeScript, UI kit, UI genérica y la app para jugar), `stdlib/`, `games/` (15 paquetes con 16
+> juegos; tres con UI propia en `games/<juego>/ui`), `editors/vscode/` y `docs/`. La parte de
+> JavaScript es un workspace de pnpm en la raíz (`package.json`, `pnpm-workspace.yaml`,
+> `biome.json`). El resto de directorios se crea en la fase que los necesita.
 
 ```
 GameHub/
@@ -77,16 +79,20 @@ GameHub/
 │   ├── interop/           # OpenSpiel, Gambit, PettingZoo, PGN…
 │   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|serve|host|join|rooms|bot|loadtest|…
 ├── core/                  # C++20: VM, estado compacto, algoritmos, bindings, WASM
-├── web/                   # Monorepo TypeScript (pnpm)
+├── web/                   # TypeScript (workspace de pnpm en la raíz, F4)
 │   ├── packages/protocol  # tipos generados desde spec/protocol
-│   ├── packages/client    # SDK cliente TS
+│   ├── packages/client    # SDK cliente TS (conexión, estado, REST)
+│   ├── packages/i18n      # español e inglés
+│   ├── packages/react     # hooks de React sobre el SDK
 │   ├── packages/ui-kit    # cartas, manos, mazos, tableros, dados, fichas, relojes
 │   ├── packages/auto-ui   # UI genérica a partir de la IR
-│   ├── apps/studio        # editor visual
-│   ├── apps/play          # lobby + partida + replays
+│   ├── packages/shell     # la experiencia de jugar como librería (salas, lobby, replays…)
+│   ├── apps/play          # la app web (la sirve gamehub serve)
+│   ├── apps/studio        # editor visual (F5)
 │   └── apps/hub           # web del hub (más tarde)
 ├── stdlib/std/            # Módulos .game: std.cards, std.dice, std.grid, std.graph (después: std.tricktaking…)
-├── games/                 # Catálogo oficial: un paquete por juego (game.toml, .game con sus tests, ui/)
+├── games/                 # Catálogo oficial: un paquete por juego (game.toml, .game con sus tests,
+│                          #   ui/ = UI propia de React, opcional)
 ├── editors/vscode/nomos/  # Extensión de VS Code (resaltado, diagnósticos, formato)
 ├── docs/wiki/             # Esta wiki
 └── log.md
@@ -142,12 +148,12 @@ el servidor, el simulador del Studio, el entrenador RL, los torneos).
 |---|---|---|---|
 | Python | 3.12+, `uv`, `ruff`, `pyright`, `pytest`, `hypothesis` | Moderno y rápido de iterar | poetry |
 | Parser | **Lark** (v0) → **tree-sitter** (para editores) | Iteración rápida; luego multi-lenguaje | ANTLR, recursivo descendente a mano |
-| Contratos | JSON Schema → `pydantic` (Py) y tipos TS generados | Una sola definición | protobuf |
+| Contratos | JSON Schema → `TypedDict` (Py) y `interface` (TS), generados ([ADR-045](decisiones.md)) | Una sola definición | protobuf |
 | Servidor | **Starlette + uvicorn + websockets** (F3, [ADR-036](decisiones.md)) | Async y ligero; contratos en JSON Schema | FastAPI, aiohttp |
 | Persistencia local | SQLite | Cero configuración | — |
 | C++ | C++20, CMake, **nanobind**, Catch2 | Velocidad + bindings ligeros | pybind11 |
 | Navegador | Emscripten (core C++ → WASM) | Mismo motor en todas partes | Pyodide (provisional) |
-| Web | TypeScript, React, Vite, pnpm | Ecosistema | Svelte |
+| Web | TypeScript 7, React 19, Vite 8, pnpm, Biome, Vitest (F4, [ADR-044](decisiones.md)) | Ecosistema; Biome es el ruff de JS | Svelte; ESLint + Prettier |
 | Diagramas | React Flow (`@xyflow/react`) + ELK.js | Estándar de editores de nodos + auto-layout | Rete.js, JointJS |
 | Editor de texto | Monaco + LSP (`pygls`) | Experiencia tipo VS Code | CodeMirror 6 |
 | Análisis | NumPy, SciPy (HiGHS), `pygambit`, OpenSpiel | No reinventar solvers | — |

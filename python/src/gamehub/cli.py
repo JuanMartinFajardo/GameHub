@@ -122,6 +122,30 @@ def _parser() -> argparse.ArgumentParser:
     diff.add_argument("--format", choices=("text", "json"), default="text")
     diff.set_defaults(handler=_diff)
 
+    sdk = commands.add_parser("sdk", help="SDK para interfaces propias")
+    sdk_commands = sdk.add_subparsers(dest="sdk_command", required=True)
+    sdk_ts = sdk_commands.add_parser(
+        "ts", help="tipos de TypeScript de un juego: vista, acciones y opciones"
+    )
+    sdk_ts.add_argument("game", type=Path, metavar="JUEGO", help="paquete, .game o .ir.json")
+    sdk_ts.add_argument("--name", help="juego si el archivo .game contiene varios")
+    sdk_ts.add_argument("-o", "--output", type=Path, metavar="SALIDA.ts")
+    sdk_ts.add_argument(
+        "--check", action="store_true", help="falla si SALIDA.ts no está al día (para el CI)"
+    )
+    sdk_ts.set_defaults(handler=_sdk_ts)
+
+    ui = commands.add_parser("ui", help="interfaces propias de los juegos")
+    ui_commands = ui.add_subparsers(dest="ui_command", required=True)
+    ui_new = ui_commands.add_parser(
+        "new", help="crea una UI propia (React) para un juego, desde la plantilla"
+    )
+    ui_new.add_argument("game", type=Path, metavar="JUEGO", help="paquete del juego o su .game")
+    ui_new.add_argument("--template", choices=["react"], default="react")
+    ui_new.add_argument("--name", help="juego si el archivo .game contiene varios")
+    ui_new.add_argument("--dir", type=Path, help="dónde crearla (por defecto, JUEGO/ui)")
+    ui_new.set_defaults(handler=_ui_new)
+
     rules = commands.add_parser("rules", help="reglamento del juego en Markdown, generado")
     rules.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
     rules.add_argument("--name", help="juego si el archivo .game contiene varios")
@@ -291,6 +315,10 @@ def _server_options(parser: argparse.ArgumentParser) -> None:
         "server.sqlite3; ':memory:' para no guardar nada)",
     )
     parser.add_argument("--server-name", default="GameHub", help="nombre visible del servidor")
+    parser.add_argument(
+        "--no-web", action="store_true", help="no servir la app web (jugar en el navegador)"
+    )
+    parser.add_argument("--open", action="store_true", help="abrir el navegador al arrancar")
 
 
 def _store(db: str | None) -> Any:
@@ -309,6 +337,7 @@ def _serve(args: argparse.Namespace) -> int:
     from gamehub.server.lan import base_url
     from gamehub.server.rooms import Rooms
     from gamehub.server.serve import running, until_stopped
+    from gamehub.server.webapp import web_dir
 
     try:
         catalog = Catalog.load(args.games)
@@ -317,11 +346,20 @@ def _serve(args: argparse.Namespace) -> int:
         return 2
     store = _store(args.db)
     rooms = Rooms(catalog, store, allow_upload=args.allow_upload, name=args.server_name)
+    web = None if args.no_web else web_dir()
 
     async def main() -> None:
-        async with running(rooms, args.host, args.port) as (_, server):
+        async with running(rooms, args.host, args.port, web=web) as (_, server):
             url = base_url(args.host, server.port)
             print(f"Servidor de partidas en {url}", flush=True)
+            if web is not None:
+                print(f"  app web: {url} (abre el enlace en un navegador)")
+                if args.open:
+                    import webbrowser
+
+                    webbrowser.open(url)
+            elif not args.no_web:
+                print("  sin app web: compílala con `pnpm build` en la raíz (ver web/README.md)")
             games = ", ".join(sorted(catalog.games)) or "ninguno"
             print(f"  juegos: {games}" + (" · admite subir juegos" if args.allow_upload else ""))
             where = getattr(store, "path", None)
@@ -380,6 +418,7 @@ def _host(args: argparse.Namespace) -> int:
     from gamehub.client import ClientError
     from gamehub.client.play import host
     from gamehub.client.terminal import stdin_lines
+    from gamehub.server.webapp import web_dir
 
     game = _load_game(args.game, args.name)
     settings = {
@@ -406,6 +445,8 @@ def _host(args: argparse.Namespace) -> int:
             bots=args.bots,
             mdns=not args.no_mdns,
             qr=not args.no_qr,
+            web=None if args.no_web else web_dir(),
+            open_browser=args.open,
         )
 
     try:
@@ -666,10 +707,12 @@ def _replay(args: argparse.Namespace) -> int:
 
 
 def _game_files(paths: list[Path]) -> list[Path]:
+    from gamehub.packages import find_files
+
     files: list[Path] = []
     for path in paths:
         if path.is_dir():
-            files.extend(sorted(path.rglob("*.game")))
+            files.extend(find_files(path, ".game"))
         else:
             files.append(path)
     return files
@@ -843,6 +886,72 @@ def _game_ir_at(path: Path, rev: str, name: str | None) -> dict[str, Any] | None
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return None
+
+
+def _package_game(path: Path) -> Path:
+    """El archivo del juego: el mismo, o el principal de un paquete (según su game.toml)."""
+    if not path.is_dir():
+        return path
+    from gamehub.packages import MANIFEST, PackageError, load_manifest
+
+    if not (path / MANIFEST).is_file():
+        raise SystemExit(f"{path} no es un paquete de juego (falta {MANIFEST})")
+    try:
+        return load_manifest(path).entry_path
+    except PackageError as exc:
+        raise SystemExit(f"error: {exc}") from None
+
+
+def _sdk_ts(args: argparse.Namespace) -> int:
+    from gamehub.render.typescript import game_types
+
+    ir = _game_ir(_package_game(args.game), args.name)
+    if ir is None:
+        return 1
+    text = game_types(ir)
+    if args.check:
+        if args.output is None:
+            print("error: --check necesita -o SALIDA.ts", file=sys.stderr)
+            return 2
+        current = args.output.read_text(encoding="utf-8") if args.output.exists() else None
+        if current != text:
+            print(
+                f"{args.output} no está al día → gamehub sdk ts {args.game} -o {args.output}",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"✓ {args.output}")
+        return 0
+    _emit(text, args.output)
+    return 0
+
+
+def _ui_new(args: argparse.Namespace) -> int:
+    from gamehub.packages import PackageError
+    from gamehub.uitemplate import in_workspace, new_ui
+
+    entry = _package_game(args.game)
+    ir = _game_ir(entry, args.name)
+    if ir is None:
+        return 1
+    game_dir = args.game if args.game.is_dir() else entry.parent
+    try:
+        target = new_ui(game_dir, ir, args.dir)
+    except PackageError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"✓ UI propia de {ir['game']['id']} creada en {target}")
+    if not in_workspace(target):
+        print(
+            "  aviso: fuera de <repo>/games/<juego>/ui el workspace de pnpm no la encuentra;"
+            " añade su carpeta a pnpm-workspace.yaml"
+        )
+    print("  Siguientes pasos, desde la raíz del repositorio:")
+    print("    pnpm install                                # la enlaza con los paquetes de GameHub")
+    print("    cd python && uv run gamehub serve ../games  # servidor de partidas (otra terminal)")
+    print(f"    cd {target} && pnpm dev   # http://localhost:5174")
+    print("  y edita src/Board.tsx (los tipos del juego están en src/game.ts).")
+    return 0
 
 
 def _rules(args: argparse.Namespace) -> int:

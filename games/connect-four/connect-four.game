@@ -61,6 +61,27 @@ game ConnectFour {
     terminal Draw { payoff: fill(0) }
   }
 
+  ui {
+    board: grid, label({ es: "Tablero", en: "Board" })
+    turn: hidden
+    Disc: colors(Red: "#e53935", Yellow: "#fdd835"), labels(
+      Red: { es: "Rojas", en: "Red" },
+      Yellow: { es: "Amarillas", en: "Yellow" }
+    )
+    action drop: label({ es: "Soltar ficha", en: "Drop" })
+    action drop.c: column(board), label({ es: "Columna", en: "Column" })
+    node Move: label({ es: "Jugada", en: "Move" })
+    node Win: label({ es: "Victoria", en: "Win" })
+    node Draw: label({ es: "Tablas", en: "Draw" })
+    columns: label({ es: "Columnas", en: "Columns" })
+    rows: label({ es: "Filas", en: "Rows" })
+    connect: label({ es: "Fichas en línea para ganar", en: "Discs in a row to win" })
+    seats: colors("#e53935", "#fdd835"), names(
+      { es: "Rojas", en: "Red" },
+      { es: "Amarillas", en: "Yellow" }
+    )
+  }
+
   test "cuatro en vertical" {
     play drop(0), drop(1), drop(0), drop(1), drop(0), drop(1), drop(0)
     expect at(Win) and payoff == [1, -1]

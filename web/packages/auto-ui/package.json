@@ -1,0 +1,40 @@
+{
+  "name": "@gamehub/auto-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UI genérica de GameHub: dibuja y deja jugar cualquier juego a partir de su IR (tipos, dominios de las acciones y pistas ui).",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@gamehub/client": "workspace:*",
+    "@gamehub/i18n": "workspace:*",
+    "@gamehub/protocol": "workspace:*",
+    "@gamehub/ui-kit": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/ws": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "ws": "catalog:"
+  }
+}

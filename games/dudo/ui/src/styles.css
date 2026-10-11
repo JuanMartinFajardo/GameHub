@@ -1,0 +1,183 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Dudo (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.dudo {
+  --dudo-felt: #1f6f4a;
+  --dudo-felt-2: #17543a;
+  display: grid;
+  gap: 14px;
+}
+
+.dudo-muted {
+  color: var(--gh-text-muted);
+}
+
+.dudo-spacer {
+  flex: 1;
+}
+
+.dudo-status {
+  justify-self: center;
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.dudo-status--mine {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.dudo-table {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  border-radius: var(--gh-radius-lg);
+  background: radial-gradient(120% 120% at 50% 0%, var(--dudo-felt), var(--dudo-felt-2));
+  color: #f1f8f4;
+  box-shadow: inset 0 0 0 6px rgba(0, 0, 0, 0.15);
+}
+
+.dudo-table .dudo-muted {
+  color: rgba(241, 248, 244, 0.75);
+}
+
+.dudo-bid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.dudo-bid__q {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+.dudo-bid__x {
+  font-size: 1.6rem;
+  opacity: 0.8;
+}
+
+.dudo-round {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.dudo-round li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dudo-cups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dudo-cup {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--gh-radius);
+  border: 2px solid var(--gh-border);
+  background: var(--gh-surface);
+}
+
+.dudo-cup header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dudo-cup--active {
+  border-color: var(--gh-accent);
+}
+
+.dudo-cup--out {
+  opacity: 0.5;
+}
+
+.dudo-dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 40px;
+}
+
+.dudo-doubt {
+  padding: 12px 14px;
+  border-radius: var(--gh-radius);
+  background: var(--gh-warning-soft);
+}
+
+.dudo-doubt h4 {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gh-warning);
+}
+
+.dudo-doubt p {
+  margin: 0 0 8px;
+}
+
+.dudo-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.dudo-reveal div {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dudo-actions {
+  position: sticky;
+  bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--gh-radius);
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-border);
+  box-shadow: var(--gh-shadow);
+}
+
+.dudo-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dudo-picker__q {
+  min-width: 2ch;
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.dudo-picker .gh-die:disabled {
+  opacity: 0.3;
+}

@@ -40,6 +40,10 @@ packages = ["src/gamehub"]
 "../spec" = "gamehub/spec"
 "../stdlib" = "gamehub/stdlib"
 
+# La app web compilada, si existe (ver hatch_build.py).
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

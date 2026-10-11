@@ -12,6 +12,8 @@ Suponen un documento que ya pasa el esquema. Comprueban:
 - sin recursión entre funciones (las expresiones deben ser totales)
 - salidas: transiciones incondicionales al final, `$exit` solo dentro de fases, nodos con salida
 - nodos simultáneos sin transiciones por acción; `pass` reservado en ventanas
+- pistas de presentación (`ui`): que nombren variables, opciones, tipos, valores, campos,
+  acciones, parámetros y nodos que existen
 """
 
 from __future__ import annotations
@@ -107,7 +109,64 @@ class _Checker:
             self.function(fn, f"functions/{i}")
         self.flow(doc["flow"])
         self.check_recursion()
+        if "ui" in doc:
+            self.ui(doc["ui"])
         return sorted(set(self.problems))
+
+    def ui(self, ui: dict[str, Any]) -> None:
+        actions: dict[str, set[str]] = {}
+        for node in _walk_nodes(self.doc["flow"]["nodes"]):
+            for action in node.get("actions", []):
+                names = actions.setdefault(action["name"], set())
+                names.update(p["name"] for p in action.get("params", []))
+        known = {
+            "state": self.state,
+            "params": self.params - {"num_players"},
+            "types": set(self.enums) | set(self.structs),
+            "actions": set(actions),
+            "nodes": self.node_ids,
+        }
+        what = {
+            "state": "variable de estado",
+            "params": "opción",
+            "types": "tipo",
+            "actions": "acción",
+            "nodes": "nodo",
+        }
+        for section, names in known.items():
+            for name, spec in ui.get(section, {}).items():
+                path = f"ui/{section}/{name}"
+                if name not in names:
+                    self.error(path, f"{what[section]} desconocida en ui: {name}")
+                    continue
+                if section == "types":
+                    self.ui_type(name, spec, path)
+                elif section == "actions":
+                    for param, pspec in spec.get("params", {}).items():
+                        if param not in actions[name]:
+                            self.error(f"{path}/params/{param}", f"parámetro desconocido: {param}")
+                        if "of" in pspec and pspec["of"] not in self.state:
+                            self.error(
+                                f"{path}/params/{param}/of",
+                                f"variable de estado desconocida: {pspec['of']}",
+                            )
+
+    def ui_type(self, name: str, spec: dict[str, Any], path: str) -> None:
+        values = self.enums.get(name)
+        for key in ("symbols", "colors", "labels"):
+            if key not in spec:
+                continue
+            if values is None:
+                self.error(f"{path}/{key}", f"{key} solo vale para enumerados")
+                continue
+            for value in spec[key]:
+                if value not in values:
+                    self.error(f"{path}/{key}/{value}", f"{name} no tiene el valor {value}")
+        card = spec.get("card", {})
+        fields = self.structs.get(name)
+        for key, field in card.items():
+            if fields is None or field not in fields:
+                self.error(f"{path}/card/{key}", f"{name} no tiene el campo {field}")
 
     def type_ref(self, t: Any, path: str) -> None:
         if isinstance(t, str):
@@ -443,6 +502,12 @@ def _exits(node: dict[str, Any]) -> bool:
     groups = [node.get("transitions", [])]
     groups += [a.get("transitions", []) for a in node.get("actions", [])]
     return any(t["to"] == "$exit" for group in groups for t in group)
+
+
+def _walk_nodes(nodes: list[dict[str, Any]]) -> Any:
+    for node in nodes:
+        yield node
+        yield from _walk_nodes(node.get("nodes", []))
 
 
 def wellformed_problems(doc: dict[str, Any]) -> list[Problem]:

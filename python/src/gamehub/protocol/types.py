@@ -61,7 +61,7 @@ type Seat = int
 
 
 # Número exacto: entero, o racional como texto «n/d».
-type Number = int | str
+type ExactNumber = int | str
 
 
 # Cualquier valor JSON.
@@ -197,7 +197,7 @@ class MatchRef(TypedDict):
 class MatchSummary(TypedDict):
     match: MatchRef
     reason: EndReason
-    payoffs: list[Number] | None
+    payoffs: list[ExactNumber] | None
     ranking: list[int]
 
 
@@ -235,11 +235,11 @@ class View(TypedDict):
     active: list[Seat]
     state: JsonObject
     responded: NotRequired[list[Seat]]
-    payoffs: NotRequired[list[Number]]
+    payoffs: NotRequired[list[ExactNumber]]
 
 
 # Un evento del motor tal como lo ve el destinatario (node, action, move, reveal, emit…).
-type Event = dict[str, Json]
+type GameEvent = dict[str, Json]
 
 
 # Las acciones legales del destinatario cuando le toca.
@@ -423,7 +423,7 @@ class Update(TypedDict):
 
     seq: int
     view: View
-    events: list[Event]
+    events: list[GameEvent]
     legal: NotRequired[Legal]
     clocks: NotRequired[Clocks]
 
@@ -451,7 +451,7 @@ class MatchEnd(TypedDict):
 
     match: MatchRef
     reason: EndReason
-    payoffs: list[Number] | None
+    payoffs: list[ExactNumber] | None
     ranking: list[int]
     forfeited: list[Seat]
     view: View
@@ -469,7 +469,7 @@ class Pong(TypedDict):
     server_time: float
 
 
-class Error(TypedDict):
+class ErrorInfo(TypedDict):
     code: Literal[
         "bad_message",
         "unsupported",
@@ -675,7 +675,7 @@ class ErrorMessage(TypedDict):
     v: Literal[1]
     type: Literal["error"]
     re: NotRequired[MessageId]
-    data: Error
+    data: ErrorInfo
 
 
 class CreateRoom(TypedDict):
@@ -719,4 +719,4 @@ class RoomList(TypedDict):
 class ApiError(TypedDict):
     """Cuerpo de las respuestas de error de la API REST."""
 
-    error: Error
+    error: ErrorInfo

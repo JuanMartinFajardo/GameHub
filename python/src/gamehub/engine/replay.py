@@ -122,3 +122,14 @@ def save(data: dict[str, Any], path: Path) -> None:
 
 def load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def frames(game: Game, data: dict[str, Any], seat: int | None) -> list[dict[str, Any]]:
+    """Cada estado de una partida tal como lo ve `seat` (None = vista omnisciente, `PUBLIC` = un
+    espectador): su vista y los eventos del paso que llevó a él. Para ver replays paso a paso en
+    una interfaz."""
+    final = replay(game, data, verify=False)
+    return [
+        {"step": i, "view": state.view(seat), "events": state.events(seat)}
+        for i, state in enumerate(final.path())
+    ]

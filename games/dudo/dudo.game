@@ -90,6 +90,25 @@ game Dudo {
     terminal End { payoff: [num_players - 1 if dice_left[s] > 0 else -1 for s in seats] }
   }
 
+  ui {
+    cup: dice, label({ es: "Cubilete", en: "Cup" })
+    dice_left: counter, label({ es: "Dados", en: "Dice" })
+    die: hidden
+    quantity: counter, label({ es: "Apuesta: cuántos", en: "Bid: how many" })
+    face: dice, label({ es: "Apuesta: cara", en: "Bid: face" })
+    bidder: seat, label({ es: "Ha apostado", en: "Bid by" })
+    turn: hidden
+    loser: hidden
+    action bid: label({ es: "Apostar", en: "Bid" })
+    action bid.q: label({ es: "Cuántos dados", en: "How many dice" })
+    action bid.f: label({ es: "Cara", en: "Face" })
+    action dudo: label({ es: "¡Dudo!", en: "Doubt!" })
+    node Roll: label({ es: "Tirada", en: "Roll" })
+    node Bid: label({ es: "Apuestas", en: "Bidding" })
+    node End: label({ es: "Final", en: "End" })
+    dice: label({ es: "Dados por jugador", en: "Dice per player" })
+  }
+
   test "la apuesta tiene que subir" {
     play bid(2, 3)
     expect illegal bid(2, 3)

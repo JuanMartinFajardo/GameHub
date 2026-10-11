@@ -16,7 +16,8 @@
     "types": { "type": "array", "items": { "$ref": "#/$defs/typeDecl" } },
     "state": { "type": "array", "items": { "$ref": "#/$defs/stateVar" } },
     "functions": { "type": "array", "items": { "$ref": "#/$defs/function" } },
-    "flow": { "$ref": "#/$defs/flow" }
+    "flow": { "$ref": "#/$defs/flow" },
+    "ui": { "$ref": "#/$defs/ui" }
   },
   "$defs": {
     "ident": { "$ref": "common.schema.json#/$defs/ident" },
@@ -25,6 +26,80 @@
     "type": { "$ref": "type.schema.json" },
     "block": { "$ref": "common.schema.json#/$defs/block" },
     "visibility": { "$ref": "common.schema.json#/$defs/visibility" },
+
+    "ui": {
+      "description": "Pistas de presentación para las interfaces (sección ui { … } de Nomos). No son reglas: no cuentan para el hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": { "type": "object", "additionalProperties": { "$ref": "#/$defs/uiVar" } },
+        "params": { "type": "object", "additionalProperties": { "$ref": "#/$defs/uiLabel" } },
+        "types": { "type": "object", "additionalProperties": { "$ref": "#/$defs/uiType" } },
+        "actions": { "type": "object", "additionalProperties": { "$ref": "#/$defs/uiAction" } },
+        "nodes": { "type": "object", "additionalProperties": { "$ref": "#/$defs/uiLabel" } },
+        "seats": { "$ref": "#/$defs/uiSeats" }
+      }
+    },
+    "uiColor": { "type": "string", "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
+    "uiLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "label": { "$ref": "#/$defs/text" } }
+    },
+    "uiVar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "widget": {
+          "enum": ["grid", "hand", "pile", "deck", "row", "dice", "counter", "chips", "seat", "hidden"]
+        },
+        "place": { "enum": ["table", "seats", "top"] },
+        "label": { "$ref": "#/$defs/text" }
+      }
+    },
+    "uiType": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "$ref": "#/$defs/text" },
+        "symbols": { "type": "object", "additionalProperties": { "type": "string" } },
+        "colors": { "type": "object", "additionalProperties": { "$ref": "#/$defs/uiColor" } },
+        "labels": { "type": "object", "additionalProperties": { "$ref": "#/$defs/text" } },
+        "card": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "rank": { "$ref": "#/$defs/ident" }, "suit": { "$ref": "#/$defs/ident" } }
+        }
+      }
+    },
+    "uiAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "$ref": "#/$defs/text" },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/$defs/text" },
+              "input": { "enum": ["cell", "column", "row", "pick"] },
+              "of": { "$ref": "#/$defs/ident" }
+            },
+            "dependentRequired": { "input": ["of"], "of": ["input"] }
+          }
+        }
+      }
+    },
+    "uiSeats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "colors": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/uiColor" } },
+        "names": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/text" } }
+      }
+    },
 
     "gameId": {
       "type": "object",

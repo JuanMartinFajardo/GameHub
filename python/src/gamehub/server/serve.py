@@ -8,6 +8,7 @@ import asyncio
 import contextlib
 import signal
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 from gamehub.server.app import GameServer, create_app
 from gamehub.server.rooms import Rooms
@@ -16,10 +17,15 @@ from gamehub.server.run import Server, start, stop
 
 @contextlib.asynccontextmanager
 async def running(
-    rooms: Rooms, host: str, port: int, *, public_url: str | None = None
+    rooms: Rooms,
+    host: str,
+    port: int,
+    *,
+    public_url: str | None = None,
+    web: Path | None = None,
 ) -> AsyncIterator[tuple[GameServer, Server]]:
-    """El servidor escuchando mientras dura el bloque."""
-    game_server = GameServer(rooms, public_url=public_url)
+    """El servidor escuchando mientras dura el bloque (con la app web de `web`, si se da)."""
+    game_server = GameServer(rooms, public_url=public_url, web=web)
     server, task = await start(create_app(game_server), host, port)
     try:
         yield game_server, server

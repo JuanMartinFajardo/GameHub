@@ -54,7 +54,7 @@
     },
     "Name": { "type": "string", "minLength": 1, "maxLength": 32 },
     "Seat": { "type": "integer", "minimum": 0 },
-    "Number": {
+    "ExactNumber": {
       "description": "Número exacto: entero, o racional como texto «n/d».",
       "oneOf": [{ "type": "integer" }, { "type": "string", "pattern": "^-?[0-9]+/[0-9]+$" }]
     },
@@ -225,7 +225,7 @@
         "match": { "$ref": "#/$defs/MatchRef" },
         "reason": { "$ref": "#/$defs/EndReason" },
         "payoffs": {
-          "oneOf": [{ "type": "array", "items": { "$ref": "#/$defs/Number" } }, { "type": "null" }]
+          "oneOf": [{ "type": "array", "items": { "$ref": "#/$defs/ExactNumber" } }, { "type": "null" }]
         },
         "ranking": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
       }
@@ -288,10 +288,10 @@
         "active": { "type": "array", "items": { "$ref": "#/$defs/Seat" } },
         "state": { "$ref": "#/$defs/JsonObject" },
         "responded": { "type": "array", "items": { "$ref": "#/$defs/Seat" } },
-        "payoffs": { "type": "array", "items": { "$ref": "#/$defs/Number" } }
+        "payoffs": { "type": "array", "items": { "$ref": "#/$defs/ExactNumber" } }
       }
     },
-    "Event": {
+    "GameEvent": {
       "description": "Un evento del motor tal como lo ve el destinatario (node, action, move, reveal, emit…).",
       "type": "object",
       "required": ["type"],
@@ -544,7 +544,7 @@
       "properties": {
         "seq": { "type": "integer", "minimum": 0 },
         "view": { "$ref": "#/$defs/View" },
-        "events": { "type": "array", "items": { "$ref": "#/$defs/Event" } },
+        "events": { "type": "array", "items": { "$ref": "#/$defs/GameEvent" } },
         "legal": { "$ref": "#/$defs/Legal" },
         "clocks": { "$ref": "#/$defs/Clocks" }
       }
@@ -590,7 +590,7 @@
         "match": { "$ref": "#/$defs/MatchRef" },
         "reason": { "$ref": "#/$defs/EndReason" },
         "payoffs": {
-          "oneOf": [{ "type": "array", "items": { "$ref": "#/$defs/Number" } }, { "type": "null" }]
+          "oneOf": [{ "type": "array", "items": { "$ref": "#/$defs/ExactNumber" } }, { "type": "null" }]
         },
         "ranking": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
         "forfeited": { "type": "array", "items": { "$ref": "#/$defs/Seat" } },
@@ -617,7 +617,7 @@
         "server_time": { "type": "number", "description": "Segundos desde la época Unix." }
       }
     },
-    "Error": {
+    "ErrorInfo": {
       "type": "object",
       "required": ["code", "message"],
       "additionalProperties": false,
@@ -931,7 +931,7 @@
         "v": { "const": 1 },
         "type": { "const": "error" },
         "re": { "$ref": "#/$defs/MessageId" },
-        "data": { "$ref": "#/$defs/Error" }
+        "data": { "$ref": "#/$defs/ErrorInfo" }
       }
     },
 
@@ -986,7 +986,7 @@
       "type": "object",
       "required": ["error"],
       "additionalProperties": false,
-      "properties": { "error": { "$ref": "#/$defs/Error" } }
+      "properties": { "error": { "$ref": "#/$defs/ErrorInfo" } }
     }
   }
 }

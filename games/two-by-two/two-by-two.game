@@ -50,6 +50,16 @@ game TwoByTwo {
     terminal End { payoff: [row_payoffs[outcome()], column_payoffs[outcome()]] }
   }
 
+  ui {
+    choice: label({ es: "Elección", en: "Choice" })
+    action choose: label({ es: "Elegir", en: "Choose" })
+    action choose.c: label({ es: "Elección", en: "Choice" })
+    node Choose: label({ es: "Elegís a la vez", en: "Simultaneous choice" })
+    node End: label({ es: "Final", en: "End" })
+    row_payoffs: label({ es: "Pagos del jugador 1", en: "Player 1 payoffs" })
+    column_payoffs: label({ es: "Pagos del jugador 2", en: "Player 2 payoffs" })
+  }
+
   test "los pagos salen de la casilla elegida" {
     play 0: choose(B), 1: choose(A)
     expect payoff == [5, 0]

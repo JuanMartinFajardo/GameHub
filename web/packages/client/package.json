@@ -1,0 +1,18 @@
+{
+  "name": "@gamehub/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SDK cliente de GameHub en TypeScript: conexión WebSocket, reconexión, estado de la sala y la partida, acciones legales y API REST.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@gamehub/protocol": "workspace:*"
+  }
+}

@@ -23,6 +23,13 @@ game Chicken extends TwoByTwo {
     column_payoffs: List<Real> = [0, 1, -1, -10]
   }
 
+  ui {
+    Choice: symbols(Swerve: "↪️", Straight: "⬆️"), labels(
+      Swerve: { es: "Desviarse", en: "Swerve" },
+      Straight: { es: "Seguir recto", en: "Go straight" }
+    )
+  }
+
   test "apartarse los dos" {
     play 0: choose(Swerve), 1: choose(Swerve)
     expect payoff == [0, 0]

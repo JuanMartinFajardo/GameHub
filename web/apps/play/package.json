@@ -1,0 +1,30 @@
+{
+  "name": "@gamehub/play",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "La app web para jugar a GameHub en el navegador (la sirve `gamehub serve`).",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@gamehub/auto-ui": "workspace:*",
+    "@gamehub/i18n": "workspace:*",
+    "@gamehub/shell": "workspace:*",
+    "@gamehub/ui-kit": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

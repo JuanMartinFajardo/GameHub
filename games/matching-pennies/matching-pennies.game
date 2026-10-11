@@ -23,6 +23,10 @@ game MatchingPennies extends TwoByTwo {
     column_payoffs: List<Real> = [-1, 1, 1, -1]
   }
 
+  ui {
+    Choice: labels(Heads: { es: "Cara", en: "Heads" }, Tails: { es: "Cruz", en: "Tails" })
+  }
+
   test "si coinciden gana el jugador 0" {
     play 0: choose(Tails), 1: choose(Tails)
     expect payoff == [1, -1]

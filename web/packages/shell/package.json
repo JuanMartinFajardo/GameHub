@@ -1,0 +1,43 @@
+{
+  "name": "@gamehub/shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "La experiencia de jugar de GameHub como librería: inicio, salas (crear, unirse, lobby, partida, revancha), replays y partidas en un mismo dispositivo, con la UI genérica o UIs propias.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@gamehub/auto-ui": "workspace:*",
+    "@gamehub/client": "workspace:*",
+    "@gamehub/i18n": "workspace:*",
+    "@gamehub/protocol": "workspace:*",
+    "@gamehub/ui-kit": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@types/ws": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "ws": "catalog:"
+  }
+}

@@ -92,6 +92,41 @@ game Mentiroso {
     terminal End { payoff: [1 if s == winner else 0 for s in seats] }
   }
 
+  ui {
+    deck: hidden
+    hand: hand, label({ es: "Mano", en: "Hand" })
+    pile: pile, label({ es: "Montón", en: "Pile" })
+    turn: hidden
+    rank: place(top), label({ es: "Toca declarar", en: "Rank to claim" })
+    last_by: seat, label({ es: "Última jugada", en: "Last play by" })
+    last_count: counter, label({ es: "Cartas jugadas", en: "Cards played" })
+    winner: hidden
+    Card: card(rank: rank, suit: suit)
+    Rank: labels(
+      Ace: { es: "Ases", en: "Aces" },
+      Two: { es: "Doses", en: "Twos" },
+      Three: { es: "Treses", en: "Threes" },
+      Four: { es: "Cuatros", en: "Fours" },
+      Five: { es: "Cincos", en: "Fives" },
+      Six: { es: "Seises", en: "Sixes" },
+      Seven: { es: "Sietes", en: "Sevens" },
+      Eight: { es: "Ochos", en: "Eights" },
+      Nine: { es: "Nueves", en: "Nines" },
+      Ten: { es: "Dieces", en: "Tens" },
+      Jack: { es: "Jotas", en: "Jacks" },
+      Queen: { es: "Reinas", en: "Queens" },
+      King: { es: "Reyes", en: "Kings" }
+    )
+    action play: label({ es: "Jugar", en: "Play" })
+    action play.cards: label({ es: "Cartas", en: "Cards" })
+    action liar: label({ es: "¡Mentiroso!", en: "Liar!" })
+    node Deal: label({ es: "Reparto", en: "Deal" })
+    node Play: label({ es: "Jugada", en: "Play" })
+    node Challenge: label({ es: "¿Alguien acusa?", en: "Anyone calling it?" })
+    node End: label({ es: "Final", en: "End" })
+    max_play: label({ es: "Máximo de cartas por jugada", en: "Max cards per play" })
+  }
+
   test "el reparto da 18, 17 y 17 cartas con tres jugadores" {
     players 3
     seed 1

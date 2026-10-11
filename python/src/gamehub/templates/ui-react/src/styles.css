@@ -1,0 +1,38 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Estilos de la UI de __TITLE__ (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.__GAME_ID__-board {
+  display: grid;
+  gap: 12px;
+}
+
+.__GAME_ID__-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.__GAME_ID__-state {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.__GAME_ID__-state div {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.__GAME_ID__-state dt {
+  font-weight: 700;
+  color: var(--gh-text-muted);
+}
+
+.__GAME_ID__-state dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

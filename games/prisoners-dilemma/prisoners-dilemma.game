@@ -50,6 +50,22 @@ game PrisonersDilemma {
     terminal End { payoff: [pay(unwrap(choice[s]), unwrap(choice[other(s)])) for s in seats] }
   }
 
+  ui {
+    choice: label({ es: "Elección", en: "Choice" })
+    Choice: symbols(Cooperate: "🤝", Defect: "🗡️"), labels(
+      Cooperate: { es: "Cooperar", en: "Cooperate" },
+      Defect: { es: "Traicionar", en: "Defect" }
+    )
+    action choose: label({ es: "Elegir", en: "Choose" })
+    action choose.c: label({ es: "Elección", en: "Choice" })
+    node Choose: label({ es: "Elegís a la vez", en: "Simultaneous choice" })
+    node End: label({ es: "Final", en: "End" })
+    T: label({ es: "Tentación (T)", en: "Temptation (T)" })
+    R: label({ es: "Recompensa (R)", en: "Reward (R)" })
+    P: label({ es: "Castigo (P)", en: "Punishment (P)" })
+    S: label({ es: "Pago del primo (S)", en: "Sucker's payoff (S)" })
+  }
+
   test "ambos cooperan" {
     play 0: choose(Cooperate), 1: choose(Cooperate)
     expect payoff == [3, 3]

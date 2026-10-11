@@ -1,0 +1,153 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Conecta 4 (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.c4 {
+  --c4-red: #e53935;
+  --c4-yellow: #fdd835;
+  --c4-blue: #1e4fd8;
+  --c4-blue-dark: #163aa3;
+  --c4-columns: 7;
+  --c4-rows: 6;
+  --c4-cell: min(64px, calc((100vw - 64px) / var(--c4-columns)));
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+
+.c4-status {
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.c4-status--mine {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.c4-players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.c4-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 6px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: var(--gh-surface);
+  font-weight: 600;
+}
+
+.c4-player--active {
+  border-color: var(--gh-accent);
+}
+
+.c4-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.c4-board {
+  display: grid;
+  grid-template-columns: repeat(var(--c4-columns), var(--c4-cell));
+  padding: 10px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--c4-blue), var(--c4-blue-dark));
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.2),
+    var(--gh-shadow);
+  overflow: hidden;
+}
+
+.c4-column {
+  display: grid;
+  grid-template-rows: repeat(var(--c4-rows), var(--c4-cell));
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.c4-column:disabled {
+  cursor: default;
+}
+
+.c4-column--hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.c4-hole {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.c4-hole::before {
+  content: "";
+  position: absolute;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  background: var(--gh-bg);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.35);
+}
+
+.c4-disc {
+  position: relative;
+  width: 78%;
+  height: 78%;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.18),
+    inset 0 3px 0 rgba(255, 255, 255, 0.3);
+  animation: c4-fall 320ms cubic-bezier(0.4, 0, 0.9, 1) both;
+}
+
+.c4-disc--Red,
+.c4-chip.c4-disc--Red {
+  background: var(--c4-red);
+}
+
+.c4-disc--Yellow,
+.c4-chip.c4-disc--Yellow {
+  background: var(--c4-yellow);
+}
+
+.c4-disc.c4-disc--ghost {
+  opacity: 0.35;
+  animation: none;
+}
+
+.c4-disc.c4-disc--win {
+  outline: 4px solid #fff;
+  outline-offset: -2px;
+  animation:
+    c4-fall 320ms cubic-bezier(0.4, 0, 0.9, 1) both,
+    c4-pulse 900ms ease-in-out 320ms infinite alternate;
+}
+
+@keyframes c4-fall {
+  from {
+    transform: translateY(calc(-1 * (var(--c4-row, 0) + 1) * var(--c4-cell)));
+  }
+}
+
+@keyframes c4-pulse {
+  to {
+    transform: scale(0.88);
+  }
+}

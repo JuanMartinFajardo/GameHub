@@ -7,15 +7,15 @@
 
 | | |
 |---|---|
-| **Última actualización** | 2026-10-10 |
-| **Fase actual** | F4 en curso (rama `f4/cliente-web`): jugar en el navegador. F0, F1, F2 y F3 están en `main` |
-| **Progreso global** | ≈ 32 % (F0, F1, F2 y F3 completas) |
-| **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`): compilador a GameIR con tipos y errores claros, avisos (alcanzabilidad, exhaustividad, fugas de información…), clasificación, tests e invariantes (`gamehub test`), formateador, módulos y biblioteca estándar, variantes (`extends`) y combinadores (`repeat`, `best_of`), paquetes con dependencias, diagrama (`viz`), reglamento (`rules`), diff semántico y extensión de VS Code. **Se juega en red**: `gamehub host` abre una sala en la LAN (código, enlace, QR, mDNS) y los demás entran con `gamehub join`; servidor de partidas con protocolo WebSocket v1 (JSON Schema), espectadores, bots (también por la red, con la misma interfaz `Agent`), relojes, reconexión, revancha, azar verificable y partidas guardadas en SQLite. |
-| **Código** | [`spec/`](../../spec/README.md) (IR v0, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, servidor, cliente, CLI; 604 tests) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (15 paquetes, 16 juegos) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
-| **Calidad** | Los 16 juegos pasan sus tests e invariantes; aceptación de F3 con procesos reales en la LAN (4 personas en Dudo, reconexión, bot por código); 100 salas simultáneas sin fallos |
-| **Decisiones recientes** | Aceptadas (2026-10-10) las de F3, ADR-036 a 043: Starlette en vez de FastAPI, núcleo de salas puro, actualizaciones y turno vigente, observador público, azar verificable, abandonos, LAN con mDNS y QR, bots en red con la interfaz de siempre |
+| **Última actualización** | 2026-10-11 |
+| **Fase actual** | F5 en curso (rama `f5/studio`): el Studio, editor visual. F0 a F4 están en `main` |
+| **Progreso global** | ≈ 41 % (F0 a F4 completas) |
+| **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`): compilador a GameIR con tipos y errores claros, avisos, clasificación, tests e invariantes, formateador, módulos y biblioteca estándar, variantes y combinadores, paquetes, diagrama, reglamento, diff semántico y extensión de VS Code; con **pistas de presentación** (`ui { … }`). **Se juega en red** (servidor de partidas con protocolo WebSocket v1, salas con código, enlace y QR, LAN con mDNS, espectadores, bots, relojes, reconexión, revancha, azar verificable, partidas en SQLite) y ahora **en el navegador**: `gamehub serve` sirve una app web (también en el móvil) donde cualquier juego se juega con la **UI genérica**, sin escribir interfaz, o con una **UI propia** (`gamehub ui new`, tipos por juego con `gamehub sdk ts`; ejemplos: tres en raya, Conecta 4 y Dudo); replays paso a paso, partidas en un mismo dispositivo, español e inglés. |
+| **Código** | [`spec/`](../../spec/README.md) (IR v0, protocolo v1, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, análisis, motor, servidor, cliente, CLI; 673 tests) · [`web/`](../../web) (SDK TypeScript, UI kit, UI genérica, app para jugar; 85 tests con los de las UIs propias) · [`stdlib/`](../../stdlib/std) · [`games/`](../../games) (15 paquetes, 16 juegos, 3 UIs propias) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
+| **Calidad** | Los 16 juegos pasan sus tests e invariantes; los 15 del catálogo se juegan enteros con la UI genérica contra el servidor (test que solo pulsa la interfaz); partida entre el navegador y la terminal (test de aceptación); aceptación de F3 en la LAN; 100 salas simultáneas sin fallos |
+| **Decisiones recientes** | Aceptadas (2026-10-11) las de F4, ADR-044 a 051: workspace de pnpm en la raíz (TypeScript 7, React 19, Vite, Biome), tipos del protocolo generados una vez, el servidor sirve la app, pistas `ui` fuera del hash, UI genérica guiada por tipos y dominios, partidas locales contra el servidor, UIs propias en `games/<juego>/ui`, sin librerías de estado ni de idiomas |
 | **Pendiente de ti** | El resto de [preguntas abiertas](preguntas-abiertas.md) |
-| **Siguiente paso** | F4: jugar en el navegador (SDK TypeScript, UI genérica a partir de la IR, UI kit, lobby) — **MVP jugable** |
+| **Siguiente paso** | F5: el Studio, editor visual bidireccional (diagrama ↔ texto) con simulador — **MVP de diseño** |
 
 Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.py`](../../structure.py) ([análisis](analisis-structure-py.md)).
 
@@ -32,6 +32,7 @@ Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.p
 - [GameIR](ir.md) — representación intermedia canónica, hashes, versionado, validación ([`spec/`](../../spec/README.md))
 - [Motor de referencia](motor.md) — semántica operacional exacta, azar, eventos, formatos, rendimiento
 - [Protocolo de partidas](protocolo.md) — v1 implementada: salas, mensajes, turnos, espectadores, relojes, LAN, azar verificable, rendimiento
+- [Cliente web](cliente-web.md) — jugar en el navegador: la app, la UI genérica, el kit, las UIs propias y su plantilla
 
 **Componentes**
 - [Arquitectura](arquitectura.md) — monorepo, contrato de motor, pila tecnológica, calidad, seguridad

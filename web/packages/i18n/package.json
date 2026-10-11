@@ -1,0 +1,26 @@
+{
+  "name": "@gamehub/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Idiomas de las interfaces de GameHub (español e inglés): textos traducibles de la IR, catálogos de mensajes y el idioma elegido.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "peerDependencies": {
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

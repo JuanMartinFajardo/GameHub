@@ -11,9 +11,10 @@
    combinatoria, heurísticas, bots, arena y aprendizaje por refuerzo.
 5. **Colaborar**: publicar, clonar, bifurcar y proponer cambios de reglas con diffs semánticos.
 
-> Estado: **Fase 1 — motor de referencia** (≈ 13 % al cerrarla). Ya se puede jugar en la terminal
-> a los 6 juegos de validación (tres en raya, dilema del prisionero, piedra-papel-tijera, Nim, póker
-> de Kuhn y Mentiroso), contra otras personas en el mismo dispositivo o contra bots.
+> Estado: **Fase 4 — se juega en el navegador** (≈ 41 %). Los juegos se escriben en Nomos y se
+> juegan en la terminal, en red (salas con código, enlace y QR en la LAN) y en una app web, también
+> en el móvil: cualquier juego del catálogo con la interfaz genérica, y el tres en raya, Conecta 4
+> y Dudo con la suya propia.
 
 ## Documentación
 
@@ -24,43 +25,57 @@
 ## Desarrollo
 
 ```bash
+pnpm install && pnpm build                       # la app web (Node 22 + pnpm, en la raíz)
 cd python
-uv sync                                                  # entorno (Python 3.12+)
-uv run gamehub play ../spec/ir/examples/mentiroso.ir.json --seats human,random,random
-uv run gamehub play ../spec/ir/examples/tictactoe.ir.json             # dos personas
-uv run gamehub fuzz ../spec/ir/examples/nim.ir.json --games 10000     # partidas aleatorias
-uv run gamehub ir check ../spec/ir/examples/*.ir.json                 # validar juegos en IR
-uv run pytest                                                         # tests
+uv sync                                          # entorno de Python (3.12+)
+uv run gamehub serve ../games --open             # servidor de partidas y la app en el navegador
+uv run gamehub host ../games/dudo --players 4    # una sala en la LAN (los demás: gamehub join)
+uv run gamehub play ../games/nim --seats human,random   # en la terminal, contra un bot
+uv run gamehub check ../games && uv run gamehub test ../games
+uv run pytest                                    # tests de Python (y pnpm test, los de la web)
 ```
 
 Licencias: Apache-2.0 en general; ver [`LICENSING.md`](LICENSING.md).
 
-## Así se verá un juego
+## Así es un juego
 
 ```game
 game TicTacToe {
   players 2
+
   enum Mark { X, O }
-  state { board: Grid[3, 3] of Mark? = none;  turn: Seat = 0 }
-  // funciones mark, wins y full: ver el ejemplo completo en docs/wiki/lenguaje-game.md
+
+  state {
+    board: Grid[3, 3] of Mark? = none
+    turn: Seat = 0
+  }
+
+  fn mark(p: Seat) -> Mark = X if p == 0 else O
+  fn wins(m: Mark) -> Bool = any(line in lines(board, 3) : all(c in line : board[c] == m))
+  fn full() -> Bool = all(c in cells(board) : not is_none(board[c]))
 
   flow {
     start -> Move
+
     decision Move {
       actor: turn
-      action place(c: Cell(board)) requires board[c] == none { board[c] = mark(turn) }
-      -> Win  when wins(mark(turn))
-      -> Draw when full(board)
+      action place(c in cells(board)) requires is_none(board[c]) { board[c] = mark(turn) }
+      -> Win when wins(mark(turn))
+      -> Draw when full()
       -> Move { turn = next(turn) }
     }
-    terminal Win  { payoff: zero_sum(winner: turn) }
-    terminal Draw { payoff: all(0) }
+
+    terminal Win { payoff: win_loss(turn, 1, -1) }
+    terminal Draw { payoff: fill(0) }
+  }
+
+  ui {
+    board: grid
+    turn: hidden
+    Mark: symbols(X: "✕", O: "◯"), colors(X: "#e53935", O: "#1e88e5")
   }
 }
 ```
 
-```bash
-gamehub check tictactoe.game          # tipos, alcanzabilidad, fugas de información
-gamehub analyze tictactoe --solve     # → empate con juego perfecto
-gamehub host tictactoe                # → código de sala K7F-Q2P
-```
+Ejemplo completo, con tests e invariantes: [`games/tictactoe`](games/tictactoe/tictactoe.game).
+Referencia del lenguaje: [Nomos](docs/wiki/lenguaje-game.md).
