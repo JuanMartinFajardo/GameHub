@@ -423,12 +423,35 @@ def _rename(source: Source, op: dict[str, Any]) -> str:
     new_name = op.get("name")
     if not isinstance(key, str) or not isinstance(new_name, str):
         raise EditError("rename necesita key y name")
+    return plan_rename(source, key, new_name).text
+
+
+@dataclass
+class RenamePlan:
+    """Un renombrado comprobado: el nombre viejo, dónde aparece y el texto resultante."""
+
+    old: str
+    spans: list[tuple[int, int]]
+    text: str
+
+
+def plan_rename(
+    source: Source,
+    key: str,
+    new_name: str,
+    *,
+    index: SymbolIndex | None = None,
+    compiled_ok: bool | None = None,
+) -> RenamePlan:
+    """Comprueba y prepara el renombrado de un símbolo del archivo. Se puede pasar el índice (y si
+    el texto compilaba) si ya se tienen, para no compilar otra vez."""
     kind = key.split(":", 1)[0]
     if kind not in RENAMABLE:
         raise EditError("eso no se puede renombrar (es predefinido)")
     _identifier(new_name, "el nombre nuevo", field="name")
-    index = SymbolIndex()
-    before = compile_source(source, index=index, schema=False)
+    if index is None:
+        index = SymbolIndex()
+        compiled_ok = compile_source(source, index=index, schema=False).ok
     symbol = index.symbols.get(key)
     occurrences = index.of(key, source.name)
     if symbol is None or not occurrences:
@@ -437,25 +460,30 @@ def _rename(source: Source, op: dict[str, Any]) -> str:
         raise EditError(
             f"`{symbol.name}` se declara en otro archivo: renómbralo allí (o en su módulo)"
         )
+    spans = sorted(
+        {
+            (o.span.start, o.span.end)
+            for o in occurrences
+            if source.text[o.span.start : o.span.end] == symbol.name
+        }
+    )
     if new_name == symbol.name:
-        return source.text
+        return RenamePlan(symbol.name, spans, source.text)
     clash = _clash(index, kind, new_name, key)
     if clash is not None:
         raise EditError(f"ya hay {clash} que se llama `{new_name}`", field="name")
     text = source.text
-    spans = sorted({(o.span.start, o.span.end) for o in occurrences}, reverse=True)
-    for start, end in spans:
-        if text[start:end] == symbol.name:
-            text = text[:start] + new_name + text[end:]
+    for start, end in reversed(spans):
+        text = text[:start] + new_name + text[end:]
     _parse_text(text, source.name, source.path)
-    if before.ok:
+    if compiled_ok:
         # Un renombrado nunca debe romper un juego que compilaba (p. ej. un `override` tiene que
         # llamarse como lo que sustituye en el juego base).
         after = compile_source(Source(source.name, text, source.path), schema=False)
         if not after.ok:
             first = after.diagnostics.errors[0]
             raise EditError(f"no se puede renombrar así: {first.message}", field="name")
-    return text
+    return RenamePlan(symbol.name, spans, text)
 
 
 #: Clases de símbolo cuyos nombres comparten espacio (no pueden repetirse entre sí).

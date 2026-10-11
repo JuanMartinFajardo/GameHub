@@ -153,6 +153,11 @@ def _parser() -> argparse.ArgumentParser:
     rules.add_argument("-o", "--output", type=Path, metavar="SALIDA.md")
     rules.set_defaults(handler=_rules)
 
+    lsp = commands.add_parser(
+        "lsp", help="servidor de lenguaje de Nomos por la entrada estándar (para editores)"
+    )
+    lsp.set_defaults(handler=_lsp)
+
     test = commands.add_parser("test", help="ejecuta los tests y los invariantes de archivos .game")
     test.add_argument(
         "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
@@ -951,6 +956,13 @@ def _ui_new(args: argparse.Namespace) -> int:
     print("    cd python && uv run gamehub serve ../games  # servidor de partidas (otra terminal)")
     print(f"    cd {target} && pnpm dev   # http://localhost:5174")
     print("  y edita src/Board.tsx (los tipos del juego están en src/game.ts).")
+    return 0
+
+
+def _lsp(args: argparse.Namespace) -> int:
+    from gamehub.lsp.server import run_stdio
+
+    run_stdio()
     return 0
 
 
