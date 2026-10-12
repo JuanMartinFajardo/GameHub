@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>GameHub Studio</title>
+  <rect width="64" height="64" rx="14" fill="#4f46e5" />
+  <rect x="10" y="12" width="20" height="14" rx="4" fill="#fff" />
+  <rect x="34" y="38" width="20" height="14" rx="4" fill="#fff" />
+  <circle cx="44" cy="19" r="7" fill="#c7d2fe" />
+  <path d="M20 26v8a6 6 0 0 0 6 6h8" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" />
+</svg>

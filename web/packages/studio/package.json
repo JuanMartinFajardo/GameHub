@@ -1,0 +1,54 @@
+{
+  "name": "@gamehub/studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "GameHub Studio: editor visual de juegos (diagrama ↔ texto, formularios), simulador y herramientas, como librería de React.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "catalog:",
+    "@codemirror/commands": "catalog:",
+    "@codemirror/language": "catalog:",
+    "@codemirror/lint": "catalog:",
+    "@codemirror/lsp-client": "catalog:",
+    "@codemirror/search": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
+    "@gamehub/auto-ui": "workspace:*",
+    "@gamehub/i18n": "workspace:*",
+    "@gamehub/nomos": "workspace:*",
+    "@gamehub/protocol": "workspace:*",
+    "@gamehub/shell": "workspace:*",
+    "@gamehub/ui-kit": "workspace:*",
+    "@xyflow/react": "catalog:",
+    "elkjs": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@types/ws": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "ws": "catalog:"
+  }
+}
