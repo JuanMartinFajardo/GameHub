@@ -49,6 +49,12 @@ def expr_text(e: ast.Expr | None) -> str | None:
     return render(Printer().expr(e), 10_000).strip()
 
 
+def block_text(e: ast.Expr) -> str:
+    """Una expresión para un campo de varias líneas (un invariante, el cuerpo de una función):
+    con el ancho normal del formateador, así que los bloques `{ let …; … }` salen en líneas."""
+    return render(Printer().expr(e), 80).strip()
+
+
 def type_text(t: ast.TypeExpr | None) -> str | None:
     return None if t is None else Printer().type(t)
 
@@ -57,6 +63,10 @@ def stmts_text(stmts: list[ast.Stmt] | None) -> str | None:
     if stmts is None:
         return None
     return "\n".join(print_item(s) for s in stmts)
+
+
+def steps_text(steps: list[ast.TestStep]) -> str:
+    return "\n".join(print_item(s) for s in steps)
 
 
 def vis_text(v: ast.Visibility | None) -> str | None:
@@ -136,9 +146,12 @@ class _Projector:
                 }
                 for e in model.ui
             ],
-            "tests": [{**self.base(t, None), "name": t.name} for t in model.tests],
+            "tests": [
+                {**self.base(t, None), "name": t.name, "body": steps_text(t.steps)}
+                for t in model.tests
+            ],
             "invariants": [
-                {**self.base(i, None), "expr": expr_text(i.expr)} for i in model.invariants
+                {**self.base(i, None), "expr": block_text(i.expr)} for i in model.invariants
             ],
         }
         return out
@@ -182,7 +195,7 @@ class _Projector:
             "name": f.name,
             "params": [{"name": p.name, "type": type_text(p.type)} for p in f.params],
             "returns": type_text(f.returns),
-            "body": expr_text(f.body),
+            "body": block_text(f.body),
         }
 
     # --- flow -----------------------------------------------------------------------------------

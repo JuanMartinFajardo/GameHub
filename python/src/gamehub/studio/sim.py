@@ -356,6 +356,7 @@ def playouts(
     lengths: list[int] = []
     totals = [Fraction(0)] * n
     wins = [0] * n
+    draws = 0
     errors: list[dict[str, Any]] = []
     finished = truncated = 0
     started = time.perf_counter()
@@ -396,9 +397,13 @@ def playouts(
             lengths.append(steps)
             for s, p in enumerate(state.payoffs):
                 totals[s] += Fraction(p)
-            for s, r in enumerate(state.ranking() or []):
-                if r == 1:
-                    wins[s] += 1
+            ranking = state.ranking() or []
+            if ranking and all(r == 1 for r in ranking):
+                draws += 1  # todos primeros: un empate, no una victoria de cada uno
+            else:
+                for s, r in enumerate(ranking):
+                    if r == 1:
+                        wins[s] += 1
         else:
             truncated += 1
     return {
@@ -410,6 +415,7 @@ def playouts(
         "length": _stats(lengths),
         "payoffMean": [float(t / finished) if finished else None for t in totals],
         "winRate": [w / finished if finished else None for w in wins],
+        "drawRate": draws / finished if finished else None,
         "coverage": coverage.to_json(),
         "seconds": round(time.perf_counter() - started, 3),
     }
@@ -471,18 +477,19 @@ def tree(state: State, path: list[int], *, limit: int = 200) -> dict[str, Any]:
     return info
 
 
-def count_tree(state: State, *, budget: int = 200_000) -> dict[str, Any]:
+def count_tree(state: State, *, budget: int = 200_000, time_limit: float = 3.0) -> dict[str, Any]:
     """Cuenta el árbol completo desde `state` (juegos pequeños): estados, finales y profundidad.
-    `complete: False` si se pasó del presupuesto."""
+    `complete: False` si se pasó del presupuesto de estados o de tiempo."""
     seen = 0
     terminals = 0
     depth = 0
+    deadline = time.perf_counter() + time_limit
     stack: list[tuple[State, int]] = [(state, 0)]
     while stack:
         current, d = stack.pop()
         seen += 1
         depth = max(depth, d)
-        if seen > budget:
+        if seen > budget or (seen % 1000 == 0 and time.perf_counter() > deadline):
             return {"complete": False, "states": seen, "terminals": terminals, "depth": depth}
         if current.is_terminal:
             terminals += 1

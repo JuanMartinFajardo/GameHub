@@ -222,6 +222,45 @@ def test_insert_source_merges_into_existing_blocks() -> None:
     assert text.count("start ->") == 1 and "terminal Other" in text
 
 
+def test_add_import_keeps_the_header_comments_on_top() -> None:
+    text = "// Licencia\n// Mi juego\n\n" + DEMO
+    result = edit(
+        {"op": "addImport", "path": ["std", "cards"], "names": ["Card", "french52"]}, text=text
+    )
+    assert result.startswith(
+        "// Licencia\n// Mi juego\n\nimport std.cards.{Card, french52}\n\ngame Demo {\n"
+    )
+    again = edit({"op": "addImport", "path": ["std", "cards"], "names": ["Rank"]}, text=result)
+    assert "import std.cards.{Card, french52, Rank}\n" in again
+
+
+def test_tests_and_invariants() -> None:
+    body = "play go(), stop()\n// y otra vez\nexpect score[0] == 1"
+    text = edit({"op": "addTest", "name": "un punto", "body": body})
+    assert '  test "un punto" {\n    play go(), stop()\n    // y otra vez\n' in text
+    assert text.rstrip().endswith("expect score[0] == 1\n  }\n}")
+    renamed = edit({"op": "updateTest", "index": 0, "name": "uno"}, text=text)
+    assert 'test "uno" {' in renamed and "// y otra vez" in renamed
+    assert "test" not in edit({"op": "deleteTest", "index": 0}, text=renamed).split("flow")[1]
+    with pytest.raises(EditError, match="ya hay un test") as exc:
+        edit({"op": "addTest", "name": "uno"}, text=renamed)
+    assert exc.value.field == "name"
+    with pytest.raises(EditError, match="al menos un paso"):
+        edit({"op": "updateTest", "index": 0, "body": "// nada"}, text=renamed)
+    with pytest.raises(EditError) as exc:
+        edit({"op": "updateTest", "index": 0, "body": "play go("}, text=renamed)
+    assert exc.value.field == "body" and exc.value.errors
+    with pytest.raises(EditError, match="ningún test en la posición 3"):
+        edit({"op": "deleteTest", "index": 3}, text=renamed)
+    # Un test sin nombre recibe uno libre; los invariantes van al final.
+    text = edit({"op": "addTest"}, {"op": "addInvariant", "expr": "score[0] >= 0"}, text=text)
+    assert 'test "test 2" {\n    expect true\n  }' in text
+    assert text.rstrip().endswith("invariant score[0] >= 0\n}")
+    text = edit({"op": "updateInvariant", "index": 0, "expr": "score[1] >= 0"}, text=text)
+    assert "invariant score[1] >= 0" in text
+    assert "invariant" not in edit({"op": "deleteInvariant", "index": 0}, text=text)
+
+
 # --- Renombrar -----------------------------------------------------------------------------------
 
 
@@ -349,6 +388,16 @@ def candidate_ops(text: str) -> list[dict[str, Any]]:
         ops.append({"op": "deleteNode", "node": node.name})
         ops.append({"op": "rename", "key": f"node:{node.name}", "name": f"{node.name}Nuevo"})
     ops.append({"op": "addState", "type": "Int", "init": "0"})
+    tests = [i for i in game.items if isinstance(i, ast.TestDecl)]
+    invariants = [i for i in game.items if isinstance(i, ast.InvariantDecl)]
+    for i in range(len(tests)):
+        ops.append({"op": "updateTest", "index": i, "body": "expect true"})
+        ops.append({"op": "deleteTest", "index": i})
+    for i in range(len(invariants)):
+        ops.append({"op": "updateInvariant", "index": i, "expr": "true"})
+        ops.append({"op": "deleteInvariant", "index": i})
+    ops.append({"op": "addTest", "body": "expect true"})
+    ops.append({"op": "addInvariant", "expr": "true"})
     return ops
 
 

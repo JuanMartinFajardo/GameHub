@@ -106,6 +106,9 @@ def test_playouts_and_coverage() -> None:
     assert 5 <= stats["length"]["min"] <= stats["length"]["max"] <= 9
     # En las tablas los dos quedan primeros: cada tasa está entre 0 y 1.
     assert all(r is not None and 0 <= r <= 1 for r in stats["winRate"])
+    # Un empate no es una victoria de cada uno: victorias y empates suman 1.
+    assert sum(stats["winRate"]) + stats["drawRate"] == pytest.approx(1)
+    assert stats["drawRate"] > 0
 
 
 def test_rule_errors_are_reported() -> None:

@@ -984,14 +984,14 @@ def _ui_new(args: argparse.Namespace) -> int:
 
 
 def _studio(args: argparse.Namespace) -> int:
+    import asyncio
     import os
-    import webbrowser
     from urllib.parse import quote
 
-    import uvicorn
-
     from gamehub.packages import MANIFEST
-    from gamehub.studio.server import LOCAL_HOSTS, create_app, new_token, studio_dir
+    from gamehub.server.run import start, stop
+    from gamehub.server.serve import until_stopped
+    from gamehub.studio.server import LOCAL_HOSTS, WS_MAX_SIZE, create_app, new_token, studio_dir
     from gamehub.studio.workspace import Workspace
 
     target = args.path.resolve()
@@ -1017,20 +1017,40 @@ def _studio(args: argparse.Namespace) -> int:
         hosts=LOCAL_HOSTS if local else None,
         open_file=open_file,
     )
-    shown = "127.0.0.1" if args.host in ("127.0.0.1", "0.0.0.0", "::") else args.host
-    query = [f"token={token}"] if token else []
-    if open_file:
-        query.append(f"file={quote(open_file)}")
-    url = f"http://{shown}:{args.port}/" + (f"?{'&'.join(query)}" if query else "")
-    print(f"GameHub Studio · {root}")
-    print(f"  ábrelo en: {url}")
-    if web is None:
-        print("  (falta la app web: compílala con `pnpm install && pnpm build` en la raíz)")
-    if not local:
-        print("  aviso: escucha fuera de esta máquina; cualquiera con el enlace puede editar")
-    if args.open:
-        webbrowser.open(url)
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning", ws_max_size=8_000_000)
+
+    async def main() -> None:
+        server, task = await start(app, args.host, args.port, ws_max_size=WS_MAX_SIZE)
+        try:
+            shown = "127.0.0.1" if args.host in ("127.0.0.1", "0.0.0.0", "::") else args.host
+            query = [f"token={token}"] if token else []
+            if open_file:
+                query.append(f"file={quote(open_file)}")
+            url = f"http://{shown}:{server.port}/" + (f"?{'&'.join(query)}" if query else "")
+            print(f"GameHub Studio · {root}")
+            print(f"  ábrelo en: {url}", flush=True)
+            if web is None:
+                print("  (falta la app web: compílala con `pnpm install && pnpm build` en la raíz)")
+            if not local:
+                print(
+                    "  aviso: escucha fuera de esta máquina; cualquiera con el enlace puede editar"
+                )
+            print("  Ctrl+C para parar", flush=True)
+            if args.open:
+                import webbrowser
+
+                webbrowser.open(url)
+            await until_stopped()
+        finally:
+            await stop(server, task)
+        print("Studio parado.")
+
+    try:
+        asyncio.run(main())
+    except OSError as exc:
+        print(
+            f"error: no se puede abrir el Studio en el puerto {args.port}: {exc}", file=sys.stderr
+        )
+        return 1
     return 0
 
 

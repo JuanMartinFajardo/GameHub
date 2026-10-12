@@ -4,22 +4,20 @@ servidor de lenguaje, las ediciones del diagrama y el simulador."""
 
 from __future__ import annotations
 
-import http.client
 import json
 import shutil
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
 
 import pytest
 from websockets.exceptions import InvalidStatus, WebSocketException
 from websockets.sync.client import connect
 
 from gamehub.studio.server import COOKIE, StudioThread
+from studio_harness import TOKEN, Session, apply, call, open_session
 
 ROOT = Path(__file__).resolve().parents[2]
-TOKEN = "secreto-de-prueba"
 TICTACTOE = "tictactoe/tictactoe.game"
 
 
@@ -34,42 +32,6 @@ def workspace(tmp_path: Path) -> Path:
 def studio(workspace: Path) -> Iterator[StudioThread]:
     with StudioThread(workspace, token=TOKEN) as running:
         yield running
-
-
-class Response:
-    def __init__(self, status: int, headers: dict[str, str], body: bytes) -> None:
-        self.status = status
-        self.headers = headers
-        self.text = body.decode("utf-8", "replace")
-
-    def json(self) -> Any:
-        return json.loads(self.text)
-
-
-def call(
-    studio: StudioThread,
-    method: str,
-    path: str,
-    *,
-    body: Any = None,
-    token: str | None = TOKEN,
-    headers: dict[str, str] | None = None,
-) -> Response:
-    conn = http.client.HTTPConnection("127.0.0.1", studio.port, timeout=30)
-    sent = dict(headers or {})
-    if token is not None:
-        sent.setdefault("x-gamehub-token", token)
-    data = None
-    if body is not None:
-        data = json.dumps(body).encode()
-        sent["content-type"] = "application/json"
-    conn.request(method, path, body=data, headers=sent)
-    response = conn.getresponse()
-    out = Response(
-        response.status, {k.lower(): v for k, v in response.getheaders()}, response.read()
-    )
-    conn.close()
-    return out
 
 
 # --- Seguridad ------------------------------------------------------------------------------------
@@ -130,6 +92,7 @@ def test_files_read_write_and_layout(studio: StudioThread, workspace: Path) -> N
     file = call(studio, "GET", f"/api/file?path={TICTACTOE}").json()
     assert file["text"].startswith("// SPDX") and file["layout"] is None
     assert file["uri"] == (workspace / TICTACTOE).as_uri()
+    assert 0 < file["mtime"] < 2**53  # exacto también como número de JavaScript
     saved = call(
         studio,
         "PUT",
@@ -181,61 +144,10 @@ def test_git_history(studio: StudioThread, workspace: Path) -> None:
 # --- Sesión por WebSocket -------------------------------------------------------------------------
 
 
-class Session:
-    def __init__(self, ws: Any) -> None:
-        self.ws = ws
-        self.next_id = 0
-        self.notes: list[dict[str, Any]] = []
-
-    def request(self, method: str, params: Any = None) -> Any:
-        self.next_id += 1
-        rid = self.next_id
-        self.ws.send(json.dumps({"jsonrpc": "2.0", "id": rid, "method": method, "params": params}))
-        while True:
-            message = json.loads(self.ws.recv(timeout=60))
-            if message.get("id") == rid:
-                if "error" in message:
-                    raise RuntimeError(json.dumps(message["error"], ensure_ascii=False))
-                return message["result"]
-            if "method" in message:
-                self.notes.append(message)
-
-    def notify(self, method: str, params: Any) -> None:
-        self.ws.send(json.dumps({"jsonrpc": "2.0", "method": method, "params": params}))
-
-    def open(self, path: Path) -> str:
-        uri = path.as_uri()
-        text = path.read_text(encoding="utf-8")
-        document = {"uri": uri, "languageId": "nomos", "version": 1, "text": text}
-        self.notify("textDocument/didOpen", {"textDocument": document})
-        return uri
-
-    def wait(self, method: str, test: Any = lambda p: True) -> dict[str, Any]:
-        while True:
-            for note in self.notes:
-                if note["method"] == method and test(note["params"]):
-                    self.notes.remove(note)
-                    return note["params"]
-            message = json.loads(self.ws.recv(timeout=60))
-            if "method" in message:
-                self.notes.append(message)
-
-
 @pytest.fixture
 def session(studio: StudioThread, workspace: Path) -> Iterator[Session]:
-    url = f"ws://127.0.0.1:{studio.port}/lsp?token={TOKEN}"
-    with connect(url, max_size=None) as ws:
-        s = Session(ws)
-        init = {"processId": None, "rootUri": workspace.as_uri(), "capabilities": {}}
-        s.request("initialize", init)
-        s.notify("initialized", {})
+    with open_session(studio, workspace) as s:
         yield s
-
-
-def apply(text: str, edits: list[dict[str, Any]]) -> str:
-    for e in sorted(edits, key=lambda e: e["from"], reverse=True):
-        text = text[: e["from"]] + e["insert"] + text[e["to"] :]
-    return text
 
 
 def test_diagram_edits_round_trip_through_the_editor(session: Session, workspace: Path) -> None:

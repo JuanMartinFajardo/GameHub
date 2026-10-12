@@ -392,17 +392,23 @@ class _Renderer:
         olds = {id(o) for o in old_items}
         parts: list[str] = []
         prev: ast.Item | None = None
+        prev_new = False
         for n in new_items:
             o = self.origin.get(id(n))
-            if isinstance(o, ast.Item) and id(o) in olds:
+            reused = isinstance(o, ast.Item) and id(o) in olds
+            if isinstance(o, ast.Item) and reused:
                 piece = self.item(o, n, indent)
             else:
                 piece = print_item(n, indent)
             if prev is not None:
-                blank = n.trivia.blank_before or (top and o is None and Printer._separate(prev, n))
+                # En el archivo, junto a algo nuevo, la línea en blanco que pondría el formateador
+                # entre declaraciones de distinto tipo.
+                separate = top and (prev_new or not reused) and Printer._separate(prev, n)
+                blank = n.trivia.blank_before or separate
                 parts.append("\n" + ("\n" if blank else "") + indent)
             parts.append(piece)
             prev = n
+            prev_new = not reused
         return "".join(parts)
 
 
@@ -1437,6 +1443,34 @@ class _Ops:
         if not ui.entries:
             self.game.items.remove(ui)
 
+    def op_addImport(self, op: dict[str, Any]) -> None:
+        """`import a.b.{X, Y}` al principio del archivo (o añade los nombres a uno que ya hay)."""
+        path = op.get("path")
+        names = op.get("names")
+        if not isinstance(path, list) or not path or not isinstance(names, list) or not names:
+            raise EditError("addImport necesita path y names")
+        path = [_identifier(x, "cada parte del módulo", field="path") for x in path]
+        names = [_identifier(x, "cada nombre", field="names") for x in names]
+        imports = [i for i in self.tree.items if isinstance(i, ast.Import)]
+        existing = next((i for i in imports if i.path == path and i.names is not None), None)
+        if existing is not None:
+            assert existing.names is not None
+            existing.names.extend(n for n in names if n not in existing.names)
+            return
+        if any(i.path == path and i.names is None for i in imports):
+            return  # ya se importa todo el módulo
+        new = ast.Import(path=path, names=names)
+        if imports:
+            self.tree.items.insert(self.tree.items.index(imports[-1]) + 1, new)
+            return
+        # Los comentarios del principio (licencia, descripción) van con el primer elemento: el
+        # import se pone delante de él y se los queda.
+        first = self.tree.items[0] if self.tree.items else None
+        if first is not None:
+            new.trivia.leading, first.trivia.leading = first.trivia.leading, []
+            first.trivia.blank_before = True
+        self.tree.items.insert(0, new)
+
     def op_insertSource(self, op: dict[str, Any]) -> None:
         """Añade declaraciones escritas en Nomos (lo que generan las plantillas y el diseñador de
         componentes): se mezclan con los bloques que ya existan."""
@@ -1474,6 +1508,88 @@ class _Ops:
                 case _:
                     self.add_game_item(item)
             taken = self.names()
+
+    # --- tests e invariantes ----------------------------------------------------------------
+
+    def tests(self) -> list[ast.TestDecl]:
+        return [i for i in self.game.items if isinstance(i, ast.TestDecl)]
+
+    def invariants(self) -> list[ast.InvariantDecl]:
+        return [i for i in self.game.items if isinstance(i, ast.InvariantDecl)]
+
+    def test_steps(self, value: Any) -> tuple[list[ast.TestStep], list[Comment]]:
+        steps, end = _fragment(F.test_steps, value, "body")
+        if not steps:
+            raise EditError(
+                "un test necesita al menos un paso (`play …`, `expect …`)", field="body"
+            )
+        return steps, end
+
+    def op_addTest(self, op: dict[str, Any]) -> None:
+        """`{"op": "addTest", "name": "X gana", "body": "play place((0, 0))\nexpect …"}`."""
+        taken = {t.name for t in self.tests()}
+        name = op.get("name")
+        if name is None:
+            n = len(taken) + 1
+            while f"test {n}" in taken:
+                n += 1
+            name = f"test {n}"
+        elif not isinstance(name, str) or not name.strip():
+            raise EditError("falta el nombre del test", field="name")
+        elif name in taken:
+            raise EditError(f"ya hay un test que se llama «{name}»", field="name")
+        steps, end = self.test_steps(op.get("body") or "expect true")
+        test = ast.TestDecl(name=name, steps=steps, end_comments=end)
+        self.add_game_item(test)
+        self.focus = {"test": self.tests().index(test)}
+
+    def op_updateTest(self, op: dict[str, Any]) -> None:
+        tests = self.tests()
+        index = _index(op, tests, "ningún test")
+        test = tests[index]
+        if "name" in op:
+            name = op["name"]
+            if not isinstance(name, str) or not name.strip():
+                raise EditError("falta el nombre del test", field="name")
+            if any(t.name == name for t in tests if t is not test):
+                raise EditError(f"ya hay un test que se llama «{name}»", field="name")
+            test.name = name
+        if "body" in op:
+            test.steps, test.end_comments = self.test_steps(op["body"])
+        self.focus = {"test": index}
+
+    def op_deleteTest(self, op: dict[str, Any]) -> None:
+        tests = self.tests()
+        self.game.items.remove(tests[_index(op, tests, "ningún test")])
+
+    def op_addInvariant(self, op: dict[str, Any]) -> None:
+        invariant = ast.InvariantDecl(expr=_fragment(F.expression, op.get("expr"), "expr"))
+        if op.get("doc"):
+            invariant.doc = _text_value(op["doc"], "la documentación")
+        self.add_game_item(invariant)
+        self.focus = {"invariant": self.invariants().index(invariant)}
+
+    def op_updateInvariant(self, op: dict[str, Any]) -> None:
+        invariants = self.invariants()
+        index = _index(op, invariants, "ningún invariante")
+        invariant = invariants[index]
+        if "expr" in op:
+            invariant.expr = _fragment(F.expression, op.get("expr"), "expr")
+        if "doc" in op:
+            doc = op.get("doc")
+            invariant.doc = _text_value(doc, "la documentación") if doc else None
+        self.focus = {"invariant": index}
+
+    def op_deleteInvariant(self, op: dict[str, Any]) -> None:
+        invariants = self.invariants()
+        self.game.items.remove(invariants[_index(op, invariants, "ningún invariante")])
+
+
+def _index(op: dict[str, Any], items: list[Any], what: str) -> int:
+    index = op.get("index")
+    if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(items):
+        raise EditError(f"no hay {what} en la posición {index}")
+    return index
 
 
 def _ui_target(entry: ast.UiEntry) -> str:

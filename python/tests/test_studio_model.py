@@ -74,6 +74,23 @@ def test_tictactoe_model_texts() -> None:
     assert {"target": "board", "hints": 'grid, label({ es: "Tablero", en: "Board" })'}.items() <= (
         game["ui"][0].items()
     )
+    assert [t["name"] for t in game["tests"]] == [
+        "X gana en diagonal",
+        "no se puede repetir casilla",
+        "tablero lleno sin línea: empate",
+    ]
+    assert game["tests"][1]["body"] == (
+        "play place((1, 1))\nexpect illegal place((1, 1))\nexpect legal place((0, 0))"
+    )
+    assert game["invariants"][0]["doc"].startswith("X mueve primero")
+    # Un bloque `{ let …; … }` sale en líneas, como en el texto (para editarlo en un campo).
+    assert game["invariants"][0]["expr"].splitlines() == [
+        "{",
+        "  let xs = count(c in cells(board) : board[c] == X)",
+        "  let os = count(c in cells(board) : board[c] == O)",
+        "  xs - os in 0..1",
+        "}",
+    ]
 
 
 def test_variants_show_their_base_as_not_local() -> None:

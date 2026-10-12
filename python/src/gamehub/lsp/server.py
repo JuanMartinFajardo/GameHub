@@ -47,6 +47,9 @@ class NomosServer(LanguageServer):
         self.pending: dict[str, asyncio.Task[None]] = {}
         #: Funciones a las que avisar tras cada análisis (el Studio).
         self.listeners: list[Callable[[Analysis], None]] = []
+        #: Versiones que llegarán de una edición del Studio (no de teclear): se analizan sin
+        #: esperar, para que el diagrama se ponga al día enseguida.
+        self.immediate: dict[str, int] = {}
 
     # --- análisis -------------------------------------------------------------------------------
 
@@ -113,7 +116,8 @@ def create_server() -> NomosServer:
 
     @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
     def did_change(params: types.DidChangeTextDocumentParams) -> None:
-        server.schedule(params.text_document.uri)
+        uri, version = params.text_document.uri, params.text_document.version
+        server.schedule(uri, 0 if server.immediate.pop(uri, None) == version else DEBOUNCE)
 
     @server.feature(types.TEXT_DOCUMENT_DID_SAVE)
     def did_save(params: types.DidSaveTextDocumentParams) -> None:

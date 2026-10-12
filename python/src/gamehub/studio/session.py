@@ -7,6 +7,7 @@
   cambios de texto (en UTF-16) que el editor tiene que hacer.
 - `gamehub/modelOf`: el modelo de un texto cualquiera (otra versión, para comparar).
 - `gamehub/sim.*`: el simulador (ver `gamehub.studio.sim`).
+- `gamehub/tests`: ejecuta los tests del juego y comprueba sus invariantes en partidas aleatorias.
 
 Las posiciones van en desplazamientos UTF-16 (los de las cadenas de JavaScript).
 """
@@ -24,9 +25,11 @@ from gamehub.engine import Game
 from gamehub.engine.errors import EngineError
 from gamehub.lang import ast
 from gamehub.lang.compiler import compile_source
-from gamehub.lang.diagnostics import Diagnostics, Severity
+from gamehub.lang.diagnostics import Diagnostic, Diagnostics, Severity
+from gamehub.lang.model import CompiledGame
 from gamehub.lang.parser import parse
-from gamehub.lang.source import Source
+from gamehub.lang.source import Source, Span
+from gamehub.lang.testing import DEFAULT_SEED, GameTester
 from gamehub.lsp.analysis import Analysis, uri_to_path
 from gamehub.lsp.server import Handler, NomosServer, RpcError, create_server
 from gamehub.studio import sim as S
@@ -43,22 +46,28 @@ MAX_SIMULATIONS = 8
 
 def problems_json(diagnostics: Diagnostics, source: Source) -> list[dict[str, Any]]:
     utf16 = Utf16(source.text)
-    out = []
-    for d in diagnostics.items:
-        span = d.span
-        item: dict[str, Any] = {
-            "severity": "error" if d.severity is Severity.ERROR else "warning",
-            "code": d.code,
-            "message": d.message,
-        }
-        if span is not None and span.source is not None and span.source.name == source.name:
-            item["from"], item["to"] = utf16(span.start), utf16(span.end)
-        if d.help:
-            item["help"] = d.help
-        if d.notes:
-            item["notes"] = list(d.notes)
-        out.append(item)
-    return out
+    return [problem_json(d, source, utf16) for d in diagnostics.items]
+
+
+def problem_json(d: Diagnostic, source: Source, utf16: Utf16) -> dict[str, Any]:
+    item: dict[str, Any] = {
+        "severity": "error" if d.severity is Severity.ERROR else "warning",
+        "code": d.code,
+        "message": d.message,
+    }
+    item.update(_where(d.span, source, utf16))
+    if d.help:
+        item["help"] = d.help
+    if d.notes:
+        item["notes"] = list(d.notes)
+    return item
+
+
+def _where(span: Span | None, source: Source, utf16: Utf16) -> dict[str, int]:
+    """`from`/`to` (UTF-16) si la posición es del propio documento."""
+    if span is None or span.source is None or span.source.name != source.name:
+        return {}
+    return {"from": utf16(span.start), "to": utf16(span.end)}
 
 
 def analysis_json(analysis: Analysis, game: str | None = None) -> dict[str, Any]:
@@ -157,6 +166,7 @@ class StudioSession:
             "gamehub/sim.playouts": self.playouts,
             "gamehub/sim.estimate": self.estimate,
             "gamehub/sim.condition": self.condition,
+            "gamehub/tests": self.tests,
         }
 
     # --- documento --------------------------------------------------------------------------
@@ -186,6 +196,9 @@ class StudioSession:
             )
         except EditError as exc:
             raise RpcError(INVALID, exc.message, exc.to_json()) from None
+        if result.changes and doc.version is not None:
+            # El editor mandará el texto nuevo como la versión siguiente: se analiza en seguida.
+            self.server.immediate[uri] = doc.version + 1
         utf16 = Utf16(doc.source)
         return {
             "edits": [
@@ -208,6 +221,13 @@ class StudioSession:
     # --- simulador --------------------------------------------------------------------------
 
     def game_of(self, uri: str, game: str | None) -> Game:
+        compiled = self.compiled_of(uri, game)
+        try:
+            return Game(compiled.ir)
+        except EngineError as exc:
+            raise RpcError(FAILED, str(exc)) from None
+
+    def compiled_of(self, uri: str, game: str | None) -> CompiledGame:
         analysis = self.document(uri)
         result = analysis.result
         if result is None:
@@ -220,10 +240,7 @@ class StudioSession:
             compiled = next(iter(result.games.values()), None)
         if compiled is None:
             raise RpcError(FAILED, "el archivo no tiene ningún juego")
-        try:
-            return Game(compiled.ir)
-        except EngineError as exc:
-            raise RpcError(FAILED, str(exc)) from None
+        return compiled
 
     def simulation(self, params: Any) -> tuple[dict[str, Any], S.Simulation]:
         p = _require(params, "session")
@@ -354,8 +371,9 @@ class StudioSession:
         p, sim = self.simulation(params)
         state = sim.state(int(p.get("index", len(sim.states) - 1)))
         budget = min(int(p.get("budget", 200_000)), 2_000_000)
+        limit = min(float(p.get("timeLimit", 3)), 30)
         try:
-            return await asyncio.to_thread(S.count_tree, state, budget=budget)
+            return await asyncio.to_thread(S.count_tree, state, budget=budget, time_limit=limit)
         except EngineError as exc:
             raise RpcError(FAILED, str(exc)) from None
 
@@ -374,6 +392,38 @@ class StudioSession:
             )
         except EngineError as exc:
             raise RpcError(FAILED, str(exc)) from None
+
+    async def tests(self, params: Any) -> dict[str, Any]:
+        p = _require(params, "uri")
+        compiled = self.compiled_of(p["uri"], p.get("game"))
+        source = self.document(p["uri"]).source
+        playouts = max(0, min(int(p.get("playouts", 0)), 10_000))
+        seed = int(p.get("seed", DEFAULT_SEED))
+        try:
+            report = await asyncio.to_thread(
+                lambda: GameTester(compiled).run_all(playouts=playouts, seed=seed)
+            )
+        except EngineError as exc:
+            raise RpcError(FAILED, str(exc)) from None
+        utf16 = Utf16(source.text)
+        failure = report.playouts.failure
+        return {
+            "tests": [
+                {
+                    "name": t.name,
+                    "ok": t.ok,
+                    **_where(t.span, source, utf16),
+                    "failure": problem_json(t.failure, source, utf16) if t.failure else None,
+                }
+                for t in report.tests
+            ],
+            "invariants": report.invariants,
+            "playouts": {
+                "games": report.playouts.playouts,
+                "states": report.playouts.states,
+                "failure": problem_json(failure, source, utf16) if failure else None,
+            },
+        }
 
     async def estimate(self, params: Any) -> dict[str, Any]:
         p = _require(params, "uri")

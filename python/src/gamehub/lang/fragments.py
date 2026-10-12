@@ -146,6 +146,15 @@ def action_body(text: str) -> tuple[list[ast.Item], list[Comment]]:
     return _block(text, "la acción", lambda p: p.action_body_item())
 
 
+def test_steps(text: str) -> tuple[list[ast.TestStep], list[Comment]]:
+    """Los pasos de un test (`play …`, `expect …`…), uno por línea, y los comentarios que quedan
+    tras el último."""
+    if not text.strip():
+        return [], []
+    items, end = _block(text, "el test", lambda p: p.test_step())
+    return [s for s in items if isinstance(s, ast.TestStep)], end
+
+
 def ui_entries(text: str) -> tuple[list[ast.UiEntry], list[Comment]]:
     """Entradas de `ui { … }` (`board: grid, label("Tablero")`)."""
     items, end = _block(text, "las pistas", lambda p: p.ui_entry())

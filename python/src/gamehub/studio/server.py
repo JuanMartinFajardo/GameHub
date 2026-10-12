@@ -40,6 +40,9 @@ from gamehub.studio.workspace import Workspace, WorkspaceError
 
 DEFAULT_PORT = 7421
 COOKIE = "gamehub_studio"
+# Por el WebSocket llega el texto entero de cada archivo abierto (didOpen): sin el límite de los
+# mensajes de partida (64 KB).
+WS_MAX_SIZE = 8 * 1024 * 1024
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 ASGIApp = Callable[[dict[str, Any], Any, Any], Awaitable[None]]
@@ -287,7 +290,7 @@ class StudioThread:
         self.token = token
         self.host = host
         app = create_app(Workspace(root), token=token, web=web)
-        self.server = Server(config(app, host, port))  # type: ignore[arg-type]
+        self.server = Server(config(app, host, port, ws_max_size=WS_MAX_SIZE))
         self.thread = threading.Thread(target=self.server.run, daemon=True)
 
     def __enter__(self) -> StudioThread:

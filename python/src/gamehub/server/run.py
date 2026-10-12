@@ -7,26 +7,30 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import threading
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from pathlib import Path
 
 import uvicorn
-from starlette.applications import Starlette
 
 from gamehub.protocol import MAX_MESSAGE_BYTES
 from gamehub.server import DEFAULT_PORT as DEFAULT_PORT
 from gamehub.server.app import GameServer, create_app
 from gamehub.server.rooms import Rooms
 
+#: Una app ASGI (la de Starlette o un middleware que la envuelve, como el del Studio).
+ASGIApp = Callable[..., Awaitable[None]]
 
-def config(app: Starlette, host: str, port: int) -> uvicorn.Config:
+
+def config(
+    app: ASGIApp, host: str, port: int, *, ws_max_size: int = MAX_MESSAGE_BYTES + 1024
+) -> uvicorn.Config:
     return uvicorn.Config(
         app,
         host=host,
         port=port,
         log_level="warning",
         access_log=False,
-        ws_max_size=MAX_MESSAGE_BYTES + 1024,
+        ws_max_size=ws_max_size,
         ws_ping_interval=15.0,
         ws_ping_timeout=15.0,
         lifespan="on",
@@ -45,9 +49,11 @@ class Server(uvicorn.Server):
         return self.servers[0].sockets[0].getsockname()[1]
 
 
-async def start(app: Starlette, host: str, port: int) -> tuple[Server, asyncio.Task[None]]:
+async def start(
+    app: ASGIApp, host: str, port: int, *, ws_max_size: int = MAX_MESSAGE_BYTES + 1024
+) -> tuple[Server, asyncio.Task[None]]:
     """Arranca el servidor en el bucle actual y espera a que escuche."""
-    server = Server(config(app, host, port))
+    server = Server(config(app, host, port, ws_max_size=ws_max_size))
     task = asyncio.create_task(server.serve())
     while not server.started:
         if task.done():

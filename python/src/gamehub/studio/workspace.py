@@ -72,7 +72,7 @@ class Workspace:
             "path": self.relative(path),
             "uri": path.as_uri(),
             "text": text,
-            "mtime": path.stat().st_mtime_ns,
+            "mtime": stamp(path),
             "layout": self.read_layout(relative),
         }
 
@@ -82,14 +82,14 @@ class Workspace:
             raise WorkspaceError("solo se guardan archivos .game")
         if len(text.encode("utf-8")) > MAX_FILE:
             raise WorkspaceError("el archivo es demasiado grande")
-        changed = path.exists() and path.stat().st_mtime_ns != expected_mtime
+        changed = path.exists() and stamp(path) != expected_mtime
         if expected_mtime is not None and changed:
             raise WorkspaceError("el archivo ha cambiado en el disco desde que se abrió", 409)
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".game.tmp")
         tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, path)
-        return {"path": self.relative(path), "mtime": path.stat().st_mtime_ns}
+        return {"path": self.relative(path), "mtime": stamp(path)}
 
     def layout_path(self, relative: str) -> Path:
         path = self.resolve(relative)
@@ -152,6 +152,12 @@ class Workspace:
         if text is None:
             raise WorkspaceError(f"{relative} no existe en {rev}", 404)
         return text
+
+
+def stamp(path: Path) -> int:
+    """La hora de la última modificación en microsegundos: la versión del archivo que se manda a
+    la app (en nanosegundos no cabe exacta en un número de JavaScript y nunca coincidiría)."""
+    return path.stat().st_mtime_ns // 1000
 
 
 def _package_of(path: Path, root: Path) -> str | None:
