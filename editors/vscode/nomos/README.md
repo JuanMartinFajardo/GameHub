@@ -30,3 +30,11 @@ ln -s "$PWD" ~/.vscode/extensions/gamehub.nomos-0.1.0
 | `nomos.checkOnSave` | `true` | Comprueba el archivo al abrirlo y al guardarlo. |
 
 El comando **Nomos: comprobar el juego** lo comprueba en cualquier momento.
+
+## Servidor de lenguaje
+
+`gamehub lsp` es un servidor de lenguaje completo (autocompletado, hover, ir a la definición,
+referencias, renombrar, formato, arreglos rápidos…) por la entrada estándar. Esta extensión aún no
+lo usa; mientras tanto, cualquier editor con cliente LSP genérico (Neovim, Helix, Zed, o VS Code
+con una extensión de LSP genérica) puede usarlo con el comando `gamehub lsp` para los archivos
+`.game`.

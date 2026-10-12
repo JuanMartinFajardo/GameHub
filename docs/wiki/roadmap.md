@@ -1,8 +1,8 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 41 % (F0 a F4 completadas y en
-> `main`; F5 en curso).**
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 51 % (F0 a F4 en `main`; F5
+> completa en su rama, pendiente de tu visto bueno para fusionarla).**
 
 ## Resumen
 
@@ -173,20 +173,32 @@ móvil. Ver el [log](../../log.md) del 2026-10-11 y el [cliente web](cliente-web
 **Objetivo:** diseñar un juego completo sin escribir texto (o escribiéndolo, a elegir), y
 probarlo en el mismo sitio. Ver [Studio](studio-editor-visual.md).
 
-- [ ] `gamehub studio`: servidor local + app web
-- [ ] LSP de GameHub (`pygls`): diagnósticos, autocompletado, *hover*, ir a definición, renombrar
-- [ ] Monaco con el LSP; lienzo React Flow + ELK; *sidecar* `.layout.json`
-- [ ] **Sincronización bidireccional** texto ↔ diagrama vía IR de autor (tests de propiedad)
-- [ ] Paleta de nodos, conexiones, fases plegables, inspector de nodos/acciones/transiciones
-- [ ] Editor del esquema de estado con visibilidad; diseñador de componentes (barajas, tableros de grafo)
-- [ ] Panel de problemas en vivo + clasificación + tamaño estimado
-- [ ] Simulador: jugar como cualquier asiento, vistas lado a lado, vista omnisciente, paso a paso,
-      playouts, puntos de ruptura, **viaje en el tiempo**, cobertura de reglas en el diagrama
-- [ ] Explorador de árbol (juegos pequeños)
-- [ ] Plantillas de juego; exportar diagrama SVG/PNG; diff visual entre dos versiones
+- [x] `gamehub studio`: servidor local + app web (token, Host y Origin comprobados; la rueda la lleva)
+- [x] LSP de GameHub (`pygls`): diagnósticos, autocompletado, *hover*, ir a definición, renombrar
+      (y referencias, formato, esquema, plegado, firmas, arreglos rápidos; `gamehub lsp`)
+- [x] ~~Monaco~~ **CodeMirror 6** con el LSP (ADR-054); lienzo React Flow + ELK; *sidecar* `.layout.json`
+- [x] **Sincronización bidireccional** texto ↔ diagrama vía IR de autor (tests de propiedad)
+- [x] Paleta de nodos, conexiones, fases plegables, inspector de nodos/acciones/transiciones
+- [x] Editor del esquema de estado con visibilidad; diseñador de componentes (barajas, tableros de
+      rejilla y de grafo, dados); tests e invariantes editables y ejecutables
+- [x] Panel de problemas en vivo + clasificación + tamaño estimado (Knuth)
+- [x] Simulador: jugar como cualquier asiento, vistas lado a lado, vista omnisciente, paso a paso,
+      playouts, puntos de ruptura (nodos y condiciones), **viaje en el tiempo**, cobertura de reglas
+      en el diagrama
+- [x] Explorador de árbol (juegos pequeños)
+- [x] Plantillas de juego; exportar diagrama SVG/PNG; diff visual entre dos versiones
 
 **Aceptación:** crear el tres en raya desde cero solo con el diagrama y jugarlo; modificar el flow de
 Dudo en el diagrama y ver el texto actualizado (y viceversa) sin perder comentarios.
+Resultado: ✅ el tres en raya se construye desde la plantilla vacía solo con las operaciones de
+la paleta, las flechas y el inspector (24 gestos), pasa sus tests, se juega en el simulador y es
+el mismo juego que el del catálogo (mismas jugadas legales y pagos en partidas al azar); en Dudo,
+añadir un nodo, reconectar una flecha (cambia una línea), reordenar acciones y meter la ronda en
+una fase no pierde ningún comentario (los 16 del archivo, `///` incluidos, y 4 más repartidos por
+el flow para la prueba), y lo escrito en el texto (también roto y arreglado) llega al diagrama. Tests de aceptación contra el servidor del Studio de verdad
+(`python/tests/test_studio_acceptance.py`), la app entera manejada en jsdom (paleta, inspector,
+texto y simulador) y revisión en el navegador. Ver el [log](../../log.md) del 2026-10-12 y el
+[Studio](studio-editor-visual.md).
 
 ## F6 — Catálogo ola 2 + stdlib madura (51 → 59 %) · XL
 

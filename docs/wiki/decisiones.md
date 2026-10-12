@@ -17,7 +17,7 @@
 | 009 | Protocolo WebSocket + JSON, contratos en JSON Schema | Aceptada (2026-10-09, sin objeciones) |
 | 010 | Interoperar con OpenSpiel / Gambit / PettingZoo antes de reimplementar | Aceptada (2026-10-09, sin objeciones) |
 | 011 | Monorepo (spec, python, core, web, stdlib, games, docs) | Aceptada (2026-10-09, sin objeciones) |
-| 012 | Web en TypeScript + React (+ React Flow, Monaco) | Aceptada (2026-10-09, sin objeciones) |
+| 012 | Web en TypeScript + React (+ React Flow, Monaco; Monaco → CodeMirror en ADR-054) | Aceptada (2026-10-09, sin objeciones) |
 | 013 | Software en Python 3 y C++ (C++ para cálculo pesado) | **Aceptada** (decisión del usuario) |
 | 014 | Extensión de archivo `.game` | **Aceptada** (decisión del usuario) |
 | 015 | Documentación en español; código e identificadores en inglés | Aceptada (2026-10-09, sin objeciones) |
@@ -57,6 +57,14 @@
 | 049 | Partidas en un mismo dispositivo con una conexión por asiento contra el servidor | Aceptada (2026-10-11, usuario) |
 | 050 | UIs propias como paquetes en games/<juego>/ui, registradas solas; plantilla y tipos por juego | Aceptada (2026-10-11, usuario) |
 | 051 | Sin dependencias de estado ni de idiomas: reductor puro + useSyncExternalStore, catálogos propios | Aceptada (2026-10-11, usuario) |
+| 052 | Studio: el `.game` es lo único que se guarda; diagrama y formularios editan el árbol con operaciones y reescritura mínima comprobada | **Propuesta** (F5) |
+| 053 | Servidor de lenguaje con pygls: `gamehub lsp` por stdio y el mismo servidor, con métodos `gamehub/…`, por el WebSocket del Studio | **Propuesta** (F5) |
+| 054 | Editor de texto y campos con CodeMirror 6 y su cliente LSP, no Monaco | **Propuesta** (F5) |
+| 055 | Diagrama con React Flow + ELK (por capas, ciclos por el orden del texto); disposición en `<juego>.layout.json` | **Propuesta** (F5) |
+| 056 | Índice de símbolos del comprobador (posiciones de nombres, usos resueltos, tipos) para el LSP y para renombrar | **Propuesta** (F5) |
+| 057 | Seguridad del Studio: solo local, token, Host y Origin comprobados, archivos `.game` del directorio de trabajo | **Propuesta** (F5) |
+| 058 | Simulador en el servidor sobre el motor de referencia: historia inmutable, traza de transiciones y estimador de Knuth | **Propuesta** (F5) |
+| 059 | Tests e invariantes editables y ejecutables desde el Studio; plantillas compartidas con `gamehub new --template` | **Propuesta** (F5) |
 
 ---
 
@@ -439,3 +447,107 @@
 - **Alternativas:** Redux o Zustand; i18next.
 - **Consecuencias:** el SDK sirve igual fuera de React (bots en Node, otros frameworks); menos
   dependencias que mantener.
+
+### ADR-052 — Studio: el texto es lo que se guarda; el diagrama edita el árbol
+- **Contexto:** el Studio edita el mismo juego como diagrama, con formularios y como texto. El
+  `.game` lleva comentarios, formato y orden que importan a quien lo escribe, y es lo que se
+  versiona con git (ADR-008).
+- **Decisión:** el archivo `.game` es lo único que se guarda; el diagrama y los formularios son
+  proyecciones de su árbol sintáctico (la IR de autor, ADR-001/021). Cada gesto es una lista de
+  **operaciones** (`addNode`, `addTransition`, `updateAction`…) que el servidor aplica a una
+  copia del árbol; el texto se reescribe **solo donde cambió** (lo igual conserva su texto, con
+  formato y comentarios; lo nuevo, con el formateador) y el resultado se comprueba volviendo a
+  analizarlo (mismo árbol y mismos comentarios); si la reescritura parcial no sabe, se formatea el
+  archivo entero. Al editor llegan los cambios mínimos, que se deshacen como cualquier edición.
+- **Alternativas:** generar el texto entero desde la IR (perdería comentarios y formato); un
+  modelo propio del diagrama sincronizado con el texto (dos fuentes que divergen); editar
+  directamente el texto desde el navegador con plantillas (frágil ante cualquier formato).
+- **Consecuencias:** los diffs de git de un cambio en el diagrama son de una o pocas líneas;
+  tests de propiedad (ediciones al azar en todos los juegos del catálogo conservan los
+  comentarios y dejan un texto válido) vigilan la garantía; las operaciones viven en Python
+  (`gamehub.studio.edits`) y cualquier cliente puede usarlas.
+
+### ADR-053 — Servidor de lenguaje con pygls, también para el Studio
+- **Decisión:** el servidor de lenguaje de Nomos se escribe con **pygls** sobre el compilador de
+  referencia: diagnósticos, autocompletado (con los tokens hasta el cursor, funciona con el texto
+  a medias), hover, definición, referencias, resaltado, renombrar, formato, esquema, plegado,
+  ayuda de firmas y arreglos rápidos. Dos transportes: entrada estándar (`gamehub lsp`, para
+  editores) y el WebSocket del Studio, donde los métodos propios (`gamehub/edit`,
+  `gamehub/analysis`, `gamehub/sim.*`, `gamehub/tests`…) se atienden antes de pygls. Cada
+  documento se analiza en un hilo 150 ms después del último cambio (al momento si el cambio viene
+  de una edición del Studio).
+- **Alternativas:** un servidor de lenguaje en TypeScript (duplicaría el compilador); un
+  protocolo propio para el Studio (otro cliente que mantener; el LSP ya resuelve la
+  sincronización de documentos y las versiones).
+- **Consecuencias:** un solo compilador para todo; cualquier editor con LSP sirve
+  (`gamehub lsp`); el Studio habla un único protocolo por un único WebSocket.
+
+### ADR-054 — CodeMirror 6 en vez de Monaco
+- **Contexto:** ADR-012 preveía Monaco. El Studio necesita un editor principal y decenas de
+  editores pequeños en los formularios (cada condición, efecto o tipo), con resaltado,
+  autocompletado y errores en el sitio.
+- **Decisión:** **CodeMirror 6** con `@codemirror/lsp-client` (el cliente LSP oficial) para el
+  editor y para los campos; Nomos como lenguaje de CodeMirror en `@gamehub/nomos`.
+- **Alternativas:** Monaco (unos 5 MB y trabajadores web; pensado para un editor por página, no
+  para decenas de campos; el puente LSP es de terceros).
+- **Consecuencias:** una app más ligera (el Studio pesa ~1 MB sin ELK); los campos y el editor
+  comparten tema y lenguaje; las versiones van en el catálogo de pnpm, con una sola copia de
+  `@codemirror/state`, `@codemirror/view` y `@lezer/highlight` (con dos, el editor se rompe).
+
+### ADR-055 — Diagrama con React Flow + ELK; disposición aparte
+- **Decisión:** el lienzo es **React Flow** (`@xyflow/react`): cajas por tipo de nodo, fases como
+  contenedores plegables, flechas con orden. La disposición automática la calcula **ELK**
+  (`elkjs`, algoritmo por capas, los ciclos se rompen por el orden del texto para que el flujo
+  empiece arriba), cargado aparte la primera vez; lo que mueve el usuario se guarda en
+  `<juego>.layout.json` junto al juego, con los nodos por nombre.
+- **Alternativas:** dagre (sin subgrafos, peor con fases); posiciones dentro del `.game` (mezcla
+  presentación con reglas y ensucia los diffs).
+- **Consecuencias:** el `.game` y el hash de reglas no cambian al mover cajas; elkjs es
+  **EPL-2.0** (se distribuye sin modificar dentro de la app compilada; ver `LICENSING.md`).
+
+### ADR-056 — Índice de símbolos del comprobador
+- **Decisión:** el árbol guarda la posición de cada nombre (`name_spans`) y el comprobador, si se
+  le pasa un índice, anota cada declaración, cada uso resuelto (estado, opción, local, valor de
+  enumerado, campo, nodo, acción y sus parámetros, también en `ui` y en los tests) y el tipo de
+  cada expresión. Hover, definición, referencias y **renombrar** salen de ahí; renombrar
+  recompila y se rechaza si choca con otro nombre o el juego deja de compilar. Para el editor, el
+  compilador se salta el JSON Schema (`schema=False`), que era el 90 % del tiempo.
+- **Alternativas:** buscar por texto (falla con locales, campos y nombres repetidos en ámbitos
+  distintos).
+- **Consecuencias:** renombrar cada símbolo de cada juego del catálogo ida y vuelta deja el archivo
+  igual (test); compilar un juego del catálogo para el editor tarda milisegundos.
+
+### ADR-057 — Seguridad del Studio
+- **Decisión:** `gamehub studio` escucha solo en 127.0.0.1 por defecto; exige un **token**
+  aleatorio (en el enlace; la app lo pasa a una cookie de este origen o a la cabecera
+  `x-gamehub-token`); comprueba la cabecera **Host** (contra el *DNS rebinding*) y el **Origin**
+  de los WebSocket; solo abre y guarda archivos `.game` dentro del directorio de trabajo, con
+  detección de conflictos al guardar. Con `--host` fuera de la máquina, avisa.
+- **Alternativas:** sin token en local (cualquier página abierta en el navegador podría escribir
+  archivos a través de localhost).
+- **Consecuencias:** abrir el Studio es abrir el enlace que imprime; `GAMEHUB_STUDIO_TOKEN` lo fija
+  (para el servidor de desarrollo de Vite y los tests).
+
+### ADR-058 — Simulador en el servidor
+- **Decisión:** el simulador usa el motor de referencia en el servidor del Studio. La historia
+  completa se conserva (estados inmutables, ADR-004): viaje en el tiempo, ramas que recortan la
+  historia, recargar las reglas repitiéndola. Cada transición del motor sabe quién es
+  (`TransitionDef.key`) y se puede **trazar** (`engine.state.TRACE`), lo que da las flechas del
+  último paso y la **cobertura** de las partidas masivas, sin cambiar la semántica (las trazas de
+  conformidad no cambian). El tamaño del árbol se estima con el **estimador de Knuth** (paseos al
+  azar ponderados por 1/P); el recuento exacto, con límites de estados y de tiempo.
+- **Alternativas:** simular en el navegador (no hay motor hasta el WASM de F8).
+- **Consecuencias:** las reglas que se simulan son exactamente las que compila el servidor; sin
+  servidor, no hay simulador hasta F8.
+
+### ADR-059 — Tests e invariantes en el Studio; plantillas compartidas
+- **Decisión:** los tests y los invariantes del juego se editan desde el inspector (operaciones
+  `addTest`, `updateTest`, `deleteTest` y las de invariantes) y se ejecutan con
+  `gamehub/tests` (tests más invariantes en partidas al azar). Las plantillas de juego (vacío,
+  carrera, tablero, cartas, dados, matriz 2×2) viven en el paquete de Python y las usan
+  `gamehub new --template` y el Studio; todas compilan sin avisos y pasan sus tests.
+- **Contexto:** sin poder tocar los tests desde el diagrama, la plantilla vacía dejaba de compilar
+  en cuanto se cambiaba su acción (su test la nombra) y no se podía diseñar un juego solo con el
+  diagrama.
+- **Consecuencias:** el tres en raya se crea desde cero solo con el diagrama y los formularios,
+  con sus tests (test de aceptación).

@@ -148,7 +148,8 @@ cartas = { git = "https://…", rev = "v1.0" }    # rama, etiqueta o commit
 `gamehub fetch` descarga las dependencias git (también las de las dependencias) en la caché
 (`~/.cache/gamehub/git`) y escribe `game.lock` con el commit exacto de cada una; con el lock, la
 compilación es reproducible (`--update` vuelve a resolver). `gamehub new` crea un paquete con un
-juego mínimo que compila y pasa su test; `gamehub clone` clona y descarga dependencias;
+juego que compila y pasa sus tests, a partir de una plantilla (`--template`: vacío, carrera
+—la de por defecto—, tablero, cartas, dados o matriz 2×2; las mismas que el Studio); `gamehub clone` clona y descarga dependencias;
 `gamehub fork` copia y anota el origen (`forked_from`, y el remoto original pasa a `upstream`).
 
 ## 5. Un juego por dentro
@@ -403,11 +404,17 @@ sustituye a la del mismo hueco en la base.
 | `gamehub viz JUEGO` | Diagrama del flow (Mermaid o `--format dot`) |
 | `gamehub rules JUEGO` | Reglamento en Markdown (`--lang en`) |
 | `gamehub diff A B` · `gamehub diff REV1..REV2 archivo` | Diff semántico (texto o JSON) |
-| `gamehub new` · `fetch` · `clone` · `fork` | Paquetes |
+| `gamehub new` · `fetch` · `clone` · `fork` | Paquetes (`new --template vacio\|carrera\|tablero\|cartas\|dados\|matriz`) |
 | `gamehub play` · `fuzz` · `replay` | Jugar en la terminal, partidas aleatorias, replays (aceptan `.game`) |
+| `gamehub studio [RUTA]` | El [Studio](studio-editor-visual.md): diseñar con el diagrama y el texto a la vez y simular (`--open`, `--port`) |
+| `gamehub lsp` | Servidor de lenguaje por la entrada estándar, para cualquier editor con LSP |
 
-Extensión de VS Code: [`editors/vscode/nomos`](../../editors/vscode/nomos) (resaltado,
-diagnósticos al guardar y formato).
+El servidor de lenguaje da diagnósticos, autocompletado según dónde está el cursor (también con
+el texto a medias), hover con tipos y firmas, ir a la definición (también en la biblioteca
+estándar), referencias, renombrar (comprobando choques y que el juego siga compilando), formato,
+esquema del documento, plegado, ayuda de firmas y arreglos rápidos. Extensión de VS Code:
+[`editors/vscode/nomos`](../../editors/vscode/nomos) (resaltado, diagnósticos al guardar y
+formato; todavía con `gamehub check` y `gamehub fmt`, no con el LSP).
 
 ## 14. Traducción a la IR
 
