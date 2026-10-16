@@ -1,0 +1,294 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Solitario Klondike: el solitario clásico de siete columnas, con robo de una o de tres cartas.
+
+import std.cards.{Card, Rank, Suit, french52, is_red}
+
+/// Las cartas del as al rey: 0 el as … 12 el rey (en el solitario el as es la más baja).
+fn rank_order(c: Card) -> Int = 0 if c.rank == Rank.Ace else ord(c.rank) + 1
+
+/// Se reparten siete columnas de una a siete cartas, con la de arriba boca arriba; el resto forma
+/// el mazo. Hay que subir las 52 cartas a cuatro montones, uno por palo, del as al rey. En las
+/// columnas se colocan cartas en orden descendente y alternando rojas y negras, y se pueden mover
+/// tramos enteros de cartas boca arriba; en una columna vacía solo puede ir un rey. Del mazo se
+/// roban una o tres cartas al descarte, y la de arriba del descarte se puede jugar; cuando el mazo
+/// se acaba, se le da la vuelta al descarte (las veces que permitan las opciones). La partida
+/// acaba al completar los montones o al llegar al máximo de jugadas, y se puntúa con las cartas
+/// que se han subido.
+game Solitaire {
+  meta {
+    title: { es: "Solitario", en: "Solitaire (Klondike)" }
+    version: "1.0.0"
+    description: {
+      es: "El solitario Klondike: un jugador, azar e información oculta (las cartas boca abajo).",
+      en: "Klondike solitaire: one player, chance and hidden information (the face-down cards)."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["cards", "solitaire", "single-player", "imperfect-information"]
+  }
+  players 1
+
+  params {
+    /// Cartas que se roban cada vez: 1 o 3
+    draw: Int = 1
+    /// Vueltas que se le pueden dar al descarte (0 = sin límite)
+    passes: Int = 0
+    /// Jugadas como mucho (la partida acaba ahí)
+    max_moves: Int = 1000
+    assert draw == 1 or draw == 3, "se roba de una en una o de tres en tres"
+    assert passes >= 0 and max_moves >= 1, "las vueltas no pueden ser negativas"
+  }
+
+  state {
+    @visible(none) @size_visible(all)
+    stock: Zone<Card> = french52()
+    waste: Zone<Card>
+    /// Las siete columnas; las cartas boca abajo no se ven
+    @visible(face_up)
+    tableau: List<Zone<Card>> = [[] for i in 0..6]
+    /// Cuántas cartas boca abajo quedan debajo de cada columna
+    hidden: List<Int> = [0 for i in 0..6]
+    /// Un montón por palo, en el orden de `Suit`
+    foundation: List<Zone<Card>> = [[] for i in 0..3]
+    /// Vueltas dadas al descarte
+    recycled: Int = 0
+    moves: Int = 0
+  }
+
+  fn opposite(a: Card, b: Card) -> Bool = is_red(a) != is_red(b)
+
+  /// ¿Se puede subir la carta `c` a su montón?
+  fn fits_foundation(c: Card) -> Bool = size(foundation[ord(c.suit)]) == rank_order(c)
+
+  /// ¿Se puede poner la carta `c` sobre la columna `t`? (un rey en una vacía, o una carta de rango
+  /// uno menos y de otro color que la de arriba)
+  fn fits_tableau(c: Card, t: Int) -> Bool = case {
+    size(tableau[t]) == 0 => rank_order(c) == 12
+    else => opposite(c, top(tableau[t])) and rank_order(top(tableau[t])) == rank_order(c) + 1
+  }
+
+  /// Las columnas en las que se puede poner la carta `c`.
+  fn fitting(c: Card) -> List<Int> = [t for t in 0..6 if fits_tableau(c, t)]
+
+  /// Cuántas cartas boca arriba hay en la columna `t`.
+  fn face_up_count(t: Int) -> Int = size(tableau[t]) - hidden[t]
+
+  fn foundation_cards() -> Int = sum(f in foundation : size(f))
+
+  /// ¿Queda alguna jugada? (si no, la partida acaba: se ha atascado)
+  fn any_move() -> Bool =
+    size(stock) > 0 or
+      size(waste) > 0 and (passes == 0 or recycled < passes) or
+      size(waste) > 0 and
+        (fits_foundation(top(waste)) or any(t in 0..6 : fits_tableau(top(waste), t))) or
+      any(
+        f in 0..6 :
+        face_up_count(f) > 0 and
+          (
+            fits_foundation(top(tableau[f])) or
+              any(
+                k in 1..face_up_count(f) :
+                any(t in 0..6 : t != f and fits_tableau(items(tableau[f])[k - 1], t))
+              )
+          )
+      ) or
+      any(
+        c in Suit.values :
+        size(foundation[ord(c)]) > 0 and any(t in 0..6 : fits_tableau(top(foundation[ord(c)]), t))
+      )
+
+  flow {
+    start -> Deal
+
+    chance Deal {
+      shuffle stock
+      for i in 0..6 {
+        for j in 0..i {
+          move top 1 from stock to tableau[i]
+        }
+        flip top 1 of tableau[i] face_up
+      }
+      hidden = [i for i in 0..6]
+      -> Play
+    }
+
+    decision Play {
+      actor: 0
+      /// Robar del mazo al descarte.
+      action draw_cards() requires size(stock) > 0 {
+        for i in 1..min(draw, size(stock)) {
+          move top 1 from stock to waste
+        }
+      }
+      /// Dar la vuelta al descarte cuando el mazo se ha acabado.
+      action recycle() requires
+          size(stock) == 0 and size(waste) > 0 and (passes == 0 or recycled < passes) {
+        for i in 1..size(waste) {
+          move top 1 from waste to stock
+        }
+        recycled += 1
+      }
+      /// Subir la carta del descarte a su montón.
+      action waste_up() requires size(waste) > 0 and fits_foundation(top(waste)) {
+        let c = top(waste)
+        move top 1 from waste to foundation[ord(c.suit)]
+      }
+      /// Poner la carta del descarte en una columna.
+      action waste_down(t in ([] if size(waste) == 0 else fitting(top(waste)))) {
+        move top 1 from waste to tableau[t]
+        flip top 1 of tableau[t] face_up
+      }
+      /// Subir la carta de arriba de una columna a su montón.
+      action pile_up(from in 0..6) requires
+          face_up_count(from) > 0 and fits_foundation(top(tableau[from])) {
+        let c = top(tableau[from])
+        move top 1 from tableau[from] to foundation[ord(c.suit)]
+        if size(tableau[from]) > 0 and face_up_count(from) == 0 {
+          flip top 1 of tableau[from] face_up
+          hidden[from] -= 1
+        }
+      }
+      /// Mover las `count` cartas de arriba de una columna a otra.
+      action shift(
+        from in 0..6,
+        count in 1..face_up_count(from),
+        to in fitting(items(tableau[from])[count - 1])
+      ) requires
+          from != to {
+        move top count from tableau[from] to tableau[to]
+        if size(tableau[from]) > 0 and face_up_count(from) == 0 {
+          flip top 1 of tableau[from] face_up
+          hidden[from] -= 1
+        }
+      }
+      /// Bajar una carta de un montón a una columna.
+      action pile_down(s: Suit, to in 0..6) requires
+          size(foundation[ord(s)]) > 0 and fits_tableau(top(foundation[ord(s)]), to) {
+        move top 1 from foundation[ord(s)] to tableau[to]
+        flip top 1 of tableau[to] face_up
+      }
+      -> Won when foundation_cards() == 52
+      -> Stopped when moves + 1 >= max_moves { moves += 1 }
+      -> Stuck when not any_move()
+      -> Play { moves += 1 }
+    }
+
+    terminal Won { payoff: [52] }
+    terminal Stopped { payoff: [foundation_cards()] }
+    terminal Stuck { payoff: [foundation_cards()] }
+  }
+
+  ui {
+    stock: deck, label({ es: "Mazo", en: "Stock" })
+    waste: pile, label({ es: "Descarte", en: "Waste" })
+    tableau: row, label({ es: "Columnas", en: "Tableau" })
+    hidden: hidden
+    foundation: row, label({ es: "Montones", en: "Foundations" })
+    recycled: counter, label({ es: "Vueltas al mazo", en: "Passes" })
+    moves: counter, place(top), label({ es: "Jugadas", en: "Moves" })
+    Card: card(rank: rank, suit: suit)
+    action draw_cards: label({ es: "Robar", en: "Draw" })
+    action recycle: label({ es: "Dar la vuelta al descarte", en: "Turn the waste over" })
+    action waste_up: label({ es: "Subir del descarte", en: "Waste to foundation" })
+    action waste_down: label({ es: "Bajar del descarte", en: "Waste to tableau" })
+    action waste_down.t: label({ es: "Columna", en: "Column" })
+    action pile_up: label({ es: "Subir de una columna", en: "Tableau to foundation" })
+    action pile_up.from: label({ es: "Columna", en: "Column" })
+    action shift: label({ es: "Mover entre columnas", en: "Move between columns" })
+    action shift.from: label({ es: "De la columna", en: "From column" })
+    action shift.count: label({ es: "Cartas", en: "Cards" })
+    action shift.to: label({ es: "A la columna", en: "To column" })
+    action pile_down: label({ es: "Bajar de un montón", en: "Foundation to tableau" })
+    action pile_down.s: label({ es: "Palo", en: "Suit" })
+    action pile_down.to: label({ es: "Columna", en: "Column" })
+    node Deal: label({ es: "Reparto", en: "Deal" })
+    node Play: label({ es: "Jugada", en: "Move" })
+    node Won: label({ es: "¡Resuelto!", en: "Solved!" })
+    node Stopped: label({ es: "Fin", en: "End" })
+    node Stuck: label({ es: "Sin jugadas", en: "Stuck" })
+    draw: label({ es: "Cartas por robo", en: "Cards per draw" })
+    passes: label({ es: "Vueltas al mazo", en: "Passes" })
+    max_moves: label({ es: "Jugadas como mucho", en: "Move limit" })
+  }
+
+  test "el reparto: de una a siete cartas, solo la de arriba boca arriba" {
+    expect all(i in 0..6 : size(tableau[i]) == i + 1 and face_up_count(i) == 1)
+    expect size(stock) == 24 and size(waste) == 0
+  }
+
+  test "robar de tres en tres y dar la vuelta" {
+    params { draw: 3, passes: 1 }
+    play draw_cards()
+    expect size(stock) == 21 and size(waste) == 3
+    set stock = []
+    expect legal recycle()
+    play recycle()
+    expect size(stock) == 3 and size(waste) == 0 and recycled == 1
+    set stock = []
+    set waste = [Card { suit: Clubs, rank: Two }]
+    expect illegal recycle()
+  }
+
+  test "al robar de tres, la última carta queda arriba" {
+    params { draw: 3 }
+    set stock =
+      [
+        Card { suit: Clubs, rank: Two },
+        Card { suit: Clubs, rank: Three },
+        Card { suit: Clubs, rank: Four }
+      ]
+    play draw_cards()
+    expect top(waste) == Card { suit: Clubs, rank: Four }
+    play recycle()
+    expect top(stock) == Card { suit: Clubs, rank: Two }
+  }
+
+  test "los montones van del as al rey" {
+    set waste = [Card { suit: Hearts, rank: Ace }]
+    expect legal waste_up()
+    play waste_up()
+    expect size(foundation[2]) == 1
+    set waste = [Card { suit: Hearts, rank: Three }]
+    expect illegal waste_up()
+  }
+
+  test "en las columnas, de mayor a menor y alternando colores; un rey en una vacía" {
+    set tableau =
+      [
+        [Card { suit: Spades, rank: Nine }],
+        [Card { suit: Hearts, rank: Eight }, Card { suit: Clubs, rank: Two }],
+        [],
+        [Card { suit: Diamonds, rank: Nine }],
+        [Card { suit: Clubs, rank: King }],
+        [Card { suit: Hearts, rank: Ten }],
+        [Card { suit: Clubs, rank: Ten }]
+      ]
+    set hidden = [0, 1, 0, 0, 0, 0, 0]
+    expect legal shift(1, 1, 0)
+    expect illegal shift(1, 1, 3)
+    expect legal shift(4, 1, 2)
+    expect illegal shift(0, 1, 2)
+    expect legal shift(0, 1, 5)
+    expect illegal shift(1, 2, 0)
+  }
+
+  test "al vaciar la parte visible, se vuelve la siguiente carta" {
+    set tableau =
+      [
+        [Card { suit: Spades, rank: Nine }],
+        [Card { suit: Hearts, rank: Eight }, Card { suit: Clubs, rank: Two }],
+        [],
+        [],
+        [],
+        [],
+        []
+      ]
+    set hidden = [0, 1, 0, 0, 0, 0, 0]
+    play shift(1, 1, 0)
+    expect face_up_count(1) == 1 and hidden[1] == 0 and size(tableau[0]) == 2
+  }
+
+  invariant size(stock) + size(waste) + sum(t in tableau : size(t)) + foundation_cards() == 52
+
+  invariant all(i in 0..6 : hidden[i] >= 0 and hidden[i] <= size(tableau[i]) and hidden[i] <= i)
+}

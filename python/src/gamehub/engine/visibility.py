@@ -80,7 +80,16 @@ def redact(value: Any, t: Type, policy: Policy, size_policy: Policy, env: Env) -
         ]
     if t.kind in ("zone", "bag"):
         return redact_zone(value, policy, size_policy, env)
+    if t.kind == "list" and _holds_zones(t):
+        # Una lista de zonas (las columnas de un solitario): cada una con su visibilidad.
+        return [redact(v, t.inner, policy, size_policy, env) for v in value]
     return to_json(value) if policy.allows(env) else HIDDEN
+
+
+def _holds_zones(t: Type) -> bool:
+    while t.kind == "list":
+        t = t.inner
+    return t.kind in ("zone", "bag")
 
 
 def redact_zone(zone: Zone, policy: Policy, size_policy: Policy, env: Env) -> Any:

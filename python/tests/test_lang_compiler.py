@@ -63,7 +63,8 @@ def test_nomos_games_are_playable(path: Path) -> None:
     game_ = load_nomos(path)
     # Los juegos largos son lentos en el motor de referencia (Mentiroso y el ajedrez, ≈ 1 s por
     # partida): unas pocas partidas aquí; las 10⁵ de la aceptación, con `gamehub fuzz --jobs`.
-    games = {"mentiroso": 3, "chess": 4, "connect-four": 60, "dudo": 100}.get(path.stem, 300)
+    budget = {"mentiroso": 3, "chess": 4, "solitaire": 3, "wizard": 20, "parchis": 30, "skat": 100}
+    games = {**budget, "connect-four": 60, "dudo": 100}.get(path.stem, 300)
     report = fuzz(game_, games, seed=1, num_players=game_.players[0])
     assert not report.errors and report.completed == games
 
