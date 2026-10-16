@@ -142,3 +142,11 @@ def test_every_template_compiles_and_passes_its_tests(template: str, tmp_path: P
     assert report.tests and report.failures == 0, report
     text = manifest.entry_path.read_text(encoding="utf-8")
     assert 'title: "Mi juego"' in text and "game Juego {" in text
+
+
+def test_sizes_are_written_in_scientific_notation() -> None:
+    from gamehub.studio.sim import _scientific
+
+    assert _scientific(3) == "1 000"
+    assert _scientific(516.9999) == "1.0·10^517"
+    assert _scientific(756.97) == "9.3·10^756"

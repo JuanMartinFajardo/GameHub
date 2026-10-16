@@ -568,5 +568,7 @@ def _scientific(log10: float) -> str:
     if log10 < 6:
         return f"{round(10**log10):,}".replace(",", " ")
     exponent = math.floor(log10)
-    mantissa = 10 ** (log10 - exponent)
+    mantissa = round(10 ** (log10 - exponent), 1)
+    if mantissa >= 10:  # 9,96 se redondea a 10,0: es 1,0 con un exponente más
+        mantissa, exponent = mantissa / 10, exponent + 1
     return f"{mantissa:.1f}·10^{exponent}"

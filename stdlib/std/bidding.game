@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: Apache-2.0
+// Subastas y apuestas de contratos: lo que se puede decir en una subasta ascendente (el Skat, el
+// tute subastado), la suma de las apuestas de bazas (Wizard, Oh Hell) y la regla «hook».
+//
+//   import std.bidding.{above, total_bid, hook_ok}
+
+/// Los valores de `values` que superan a `current`: lo que se puede decir en una subasta en la
+/// que cada valor tiene que ser más alto que el anterior.
+fn above(values: List<Int>, current: Int) -> List<Int> = [v for v in values if v > current]
+
+/// La suma de las apuestas que ya se han dicho (`none`: aún no ha apostado).
+fn total_bid(bids: List<Int?>) -> Int = sum(b in bids : 0 if is_none(b) else unwrap(b))
+
+/// ¿Han apostado ya todos?
+fn all_bid(bids: List<Int?>) -> Bool = all(b in bids : not is_none(b))
+
+/// La regla «hook»: quien apuesta el último (`last`) no puede hacer que la suma de las apuestas
+/// sea igual al número de bazas, para que no puedan acertar todos.
+fn hook_ok(bids: List<Int?>, bid: Int, tricks: Int, last: Bool) -> Bool =
+  not last or total_bid(bids) + bid != tricks
+
+/// Quién queda en una subasta cuando todos los demás han pasado (`none` si queda más de uno).
+fn sole_bidder(passed: List<Bool>) -> Int? {
+  let left = [i for i in 0..<len(passed) if not passed[i]]
+  left[0] if len(left) == 1 else none
+}

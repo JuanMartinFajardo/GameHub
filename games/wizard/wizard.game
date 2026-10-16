@@ -3,6 +3,7 @@
 // cuántas se van a ganar.
 
 import std.cards.{Suit, WizardCard, WizardRank, is_jester, is_wizard, wizard60}
+import std.bidding.{hook_ok, total_bid}
 import std.tricktaking.{can_play, trick_key, trick_winner}
 
 /// Se juegan tantas rondas como cartas tocan a cada uno (20 con tres jugadores, 15 con cuatro…):
@@ -85,8 +86,6 @@ game Wizard {
     trick_by[trick_winner(keys)]
   }
 
-  fn bids_so_far() -> Int = sum(s in seats : 0 if is_none(bid[s]) else unwrap(bid[s]))
-
   fn round_score(s: Seat) -> Int =
     20 + 10 * won[s] if unwrap(bid[s]) == won[s] else -10 * abs(unwrap(bid[s]) - won[s])
 
@@ -128,7 +127,7 @@ game Wizard {
       decision Bidding {
         actor: turn
         action bid(n in 0..round) requires
-            not hook or actor != dealer or bids_so_far() + n != round {
+            not hook or hook_ok([bid[s] for s in seats], n, round, actor == dealer) {
           bid[actor] = n
         }
         -> Play when turn == dealer { turn = next(dealer) }

@@ -2,6 +2,7 @@
 // Skat con las reglas de la Skatordnung internacional (ISkO): subasta, skat, juegos de palo,
 // Grand y Null, Hand, Schneider, Schwarz y Ouvert.
 
+import std.bidding.{above}
 import std.cards.{Card, Rank, Suit, skat32}
 import std.tricktaking.{can_play, trick_key, trick_winner}
 
@@ -267,7 +268,7 @@ game Skat {
       /// primero; después, el tercero al que queda.
       decision Speak {
         actor: speaker
-        action say(v in bid_values()) requires v > bid {
+        action say(v in above(bid_values(), bid)) {
           bid = v
           -> Listen
         }

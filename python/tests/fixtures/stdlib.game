@@ -10,6 +10,7 @@ import std.boards.*
 import std.tricktaking.*
 import std.poker.*
 import std.betting.*
+import std.bidding.*
 
 game StdlibTests {
   players 1
@@ -62,6 +63,14 @@ game StdlibTests {
     // Fichas impares: la que sobra, al primero según el orden.
     expect winnings([3, 3, 1], [true, true, false], [1, 1, 0], [1, 0, 2]) == [3, 4, 0]
     expect to_call([10, 40, 0], 0, 100) == 30 and to_call([10, 40, 0], 2, 25) == 25
+  }
+
+  test "std.bidding" {
+    expect above([18, 20, 22, 23], 20) == [22, 23] and above([18], 18) == []
+    expect total_bid([2, none, 1]) == 3 and not all_bid([2, none]) and all_bid([0, 1])
+    expect hook_ok([1, 0, none], 1, 3, true) and not hook_ok([1, 1, none], 1, 3, true)
+    expect hook_ok([1, 1, none], 1, 3, false)
+    expect sole_bidder([true, false, true]) == 1 and is_none(sole_bidder([false, false]))
   }
 
   test "std.tricktaking" {
