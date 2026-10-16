@@ -219,10 +219,16 @@ class Checker:
         return ir
 
     def global_names(self) -> list[str]:
-        """Nombres que un local no puede ocultar. Dentro de una función de módulo, el estado y
-        las opciones del juego no existen, así que sus nombres quedan libres."""
-        game = [] if self.in_module else [*self.state, *self.params]
-        return [*game, *self.functions, *self.types, *self.enum_values, *CONTEXT_VALUES]
+        """Nombres que un local no puede ocultar. Dentro de una función de módulo, lo que declara
+        el juego (estado, opciones, funciones y tipos) no existe, así que sus nombres quedan
+        libres: un módulo no puede romperse por cómo llame sus cosas el juego que lo importa."""
+        if not self.in_module:
+            names = [*self.state, *self.params, *self.functions, *self.types, *self.enum_values]
+            return [*names, *CONTEXT_VALUES]
+        functions = [n for n, f in self.functions.items() if f.external]
+        types = [n for n, t in self.types.items() if t.external]
+        values = [v for v, owners in self.enum_values.items() if any(o in types for o in owners)]
+        return [*functions, *types, *values, *CONTEXT_VALUES]
 
     # --- programa -------------------------------------------------------------------------------
 

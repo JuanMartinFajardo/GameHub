@@ -41,3 +41,36 @@ fn spanish40() -> List<SpanishCard> =
 
 /// Número impreso en una carta española: del 1 al 9, la sota 10, el caballo 11 y el rey 12.
 fn spanish_number(r: SpanishRank) -> Int = ord(r) + 1
+
+/// Las 32 cartas del Skat (y del Piquet): las francesas del siete al as, palo a palo.
+fn skat32() -> List<Card> = [c for c in french52() if ord(c.rank) >= ord(Rank.Seven)]
+
+/// Rangos de la baraja de Wizard: el bufón (el más bajo), del 2 al as y el mago (el más alto).
+enum WizardRank {
+  Jester,
+  Two,
+  Three,
+  Four,
+  Five,
+  Six,
+  Seven,
+  Eight,
+  Nine,
+  Ten,
+  Jack,
+  Queen,
+  King,
+  Ace,
+  Wizard
+}
+
+/// Una carta de Wizard. Cada mago y cada bufón lleva un palo, pero solo de adorno: no tienen palo
+/// a efectos del juego.
+struct WizardCard { suit: Suit, rank: WizardRank }
+
+/// Las 60 cartas de Wizard: 52 francesas, 4 magos y 4 bufones, palo a palo.
+fn wizard60() -> List<WizardCard> =
+  [WizardCard { suit: s, rank: r } for s in Suit.values for r in WizardRank.values]
+
+fn is_wizard(c: WizardCard) -> Bool = c.rank == WizardRank.Wizard
+fn is_jester(c: WizardCard) -> Bool = c.rank == WizardRank.Jester

@@ -142,3 +142,13 @@ def test_module_functions_have_their_own_scope(tmp_path: Path) -> None:
     )
     [error] = compile_file(game).diagnostics.errors
     assert error.message == "una función de módulo no ve el estado del juego (`score`)"
+
+
+def test_a_game_can_reuse_the_names_of_module_parameters() -> None:
+    """std.tricktaking tiene un parámetro `led`; un juego que lo importa puede tener su propia
+    función `led` (dentro del módulo, lo que declara el juego no existe)."""
+    text = "import std.tricktaking.{can_play}\n\n" + GAME.format(state="x: Int = 0").replace(
+        "  flow {",
+        "  fn led() -> Int = 0\n  fn ok() -> Bool = can_play([led()], 0, led())\n  flow {",
+    )
+    assert compile_text(text).ok

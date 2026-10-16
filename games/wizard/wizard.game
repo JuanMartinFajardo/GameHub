@@ -1,0 +1,307 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Wizard (Ken Fisher, 1984; edición de Amigo): un juego de bazas en el que hay que acertar
+// cuántas se van a ganar.
+
+import std.cards.{Suit, WizardCard, WizardRank, is_jester, is_wizard, wizard60}
+import std.tricktaking.{can_play, trick_key, trick_winner}
+
+/// Se juegan tantas rondas como cartas tocan a cada uno (20 con tres jugadores, 15 con cuatro…):
+/// en la primera se reparte una carta a cada jugador, en la segunda dos, y así. La carta de
+/// encima del mazo marca el triunfo (si es un mago, lo elige quien reparte; si es un bufón o no
+/// quedan cartas, no hay triunfo). Cada jugador dice cuántas bazas va a ganar y después se
+/// juegan las bazas: hay que asistir al palo que se pide si se puede, salvo con magos y bufones,
+/// que se pueden jugar siempre. Gana la baza el primer mago; si no hay, el triunfo más alto, y si
+/// no, la carta más alta del palo pedido. Quien acierta su apuesta suma 20 puntos y 10 por baza;
+/// quien falla pierde 10 por cada baza de diferencia.
+game Wizard {
+  meta {
+    title: { es: "Wizard", en: "Wizard" }
+    version: "1.0.0"
+    description: {
+      es: "Bazas, triunfos, magos y bufones: acierta cuántas bazas vas a ganar. De 3 a 6 jugadores.",
+      en: "Tricks, trumps, wizards and jesters: predict how many tricks you will take. 3 to 6 players."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["cards", "trick-taking", "bidding", "imperfect-information"]
+  }
+  players 3..6
+
+  params {
+    /// Rondas que se juegan (0 = todas: 60 cartas entre el número de jugadores)
+    rounds: Int = 0
+    /// Variante: la suma de las apuestas no puede ser igual al número de bazas (lo cuida quien
+    /// reparte, que apuesta el último)
+    hook: Bool = false
+    assert rounds >= 0 and rounds * num_players <= 60, "como mucho 60 cartas en una ronda"
+  }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<WizardCard> = wizard60()
+    @visible(owner) @size_visible(all)
+    hand: per_player Bag<WizardCard>
+    /// La carta vuelta que marca el triunfo
+    trump_card: Zone<WizardCard>
+    trump: Suit? = none
+    round: Int = 1
+    dealer: Seat = 0
+    bid: per_player Int? = none
+    won: per_player Int = 0
+    score: per_player Int = 0
+    /// La baza en juego, en el orden en que se jugaron las cartas, y quién jugó cada una
+    trick: Zone<WizardCard>
+    trick_by: List<Seat>
+    /// Quién se llevó la última baza
+    last_winner: Seat? = none
+    @visible(none) @size_visible(all)
+    discard: Zone<WizardCard>
+    turn: Seat = 1
+  }
+
+  fn total_rounds() -> Int = rounds if rounds > 0 else 60 div num_players
+
+  /// El palo de una carta en la baza: los magos y los bufones no tienen.
+  fn suit_of(c: WizardCard) -> Int = -1 if is_wizard(c) or is_jester(c) else ord(c.suit)
+
+  /// El palo que se pide: el de la primera carta que no es un bufón, salvo que sea un mago (−1:
+  /// entonces no se pide ninguno).
+  fn led() -> Int {
+    let lead = [c for c in items(trick) if not is_jester(c)]
+    -1 if len(lead) == 0 or is_wizard(lead[0]) else ord(lead[0].suit)
+  }
+
+  fn trump_suit() -> Int = -1 if is_none(trump) else ord(unwrap(trump))
+
+  /// Quién gana la baza: el primer mago; si no hay, el triunfo más alto o la carta más alta del
+  /// palo pedido; si todo son bufones, el primero.
+  fn trick_taker() -> Seat {
+    let keys = [
+      3000 if is_wizard(c) else (
+        0 if is_jester(c) else trick_key(ord(c.suit), ord(c.rank), led(), trump_suit())
+      )
+      for c in items(trick)
+    ]
+    trick_by[trick_winner(keys)]
+  }
+
+  fn bids_so_far() -> Int = sum(s in seats : 0 if is_none(bid[s]) else unwrap(bid[s]))
+
+  fn round_score(s: Seat) -> Int =
+    20 + 10 * won[s] if unwrap(bid[s]) == won[s] else -10 * abs(unwrap(bid[s]) - won[s])
+
+  flow {
+    start -> Round
+
+    /// Una ronda: reparto, triunfo, apuestas y tantas bazas como cartas en la mano.
+    phase Round {
+      start -> Deal
+
+      chance Deal {
+        move all from discard to deck
+        move all from trump_card to deck
+        shuffle deck
+        deal round from deck to each hand
+        trump = none
+        if size(deck) > 0 {
+          move top 1 from deck to trump_card
+          if not is_wizard(top(trump_card)) and not is_jester(top(trump_card)) {
+            trump = top(trump_card).suit
+          }
+        }
+        bid = [none for s in seats]
+        won = [0 for s in seats]
+        turn = next(dealer)
+        -> ChooseTrump when size(trump_card) > 0 and is_wizard(top(trump_card))
+        -> Bidding
+      }
+
+      /// Ha salido un mago: quien reparte elige el triunfo.
+      decision ChooseTrump {
+        actor: dealer
+        action choose(s: Suit) { trump = s }
+        -> Bidding
+      }
+
+      /// Cada jugador, empezando por el de la izquierda de quien reparte, dice cuántas bazas va a
+      /// ganar.
+      decision Bidding {
+        actor: turn
+        action bid(n in 0..round) requires
+            not hook or actor != dealer or bids_so_far() + n != round {
+          bid[actor] = n
+        }
+        -> Play when turn == dealer { turn = next(dealer) }
+        -> Bidding { turn = next(turn) }
+      }
+
+      decision Play {
+        actor: turn
+        action play(c in items(hand[actor])) requires
+            can_play([suit_of(h) for h in items(hand[actor])], suit_of(c), led()) {
+          move c from hand[actor] to trick at bottom
+          trick_by += [actor]
+        }
+        -> Trick when size(trick) == num_players
+        -> Play { turn = next(turn) }
+      }
+
+      /// Quien gana la baza se la lleva y sale en la siguiente.
+      auto Trick {
+        let w = trick_taker()
+        won[w] += 1
+        last_winner = w
+        move all from trick to discard
+        trick_by = []
+        turn = w
+        -> exit when size(hand[turn]) == 0
+        -> Play
+      }
+
+      on_exit {
+        for s in seats {
+          score[s] += round_score(s)
+        }
+      }
+      -> End when round == total_rounds()
+      -> Round {
+        round += 1
+        dealer = next(dealer)
+      }
+    }
+
+    terminal End { payoff: [score[s] for s in seats] }
+  }
+
+  ui {
+    deck: deck, label({ es: "Mazo", en: "Deck" })
+    hand: hand, label({ es: "Mano", en: "Hand" })
+    trump_card: pile, label({ es: "Carta de triunfo", en: "Trump card" })
+    trump: place(top), label({ es: "Triunfo", en: "Trump" })
+    round: counter, place(top), label({ es: "Ronda", en: "Round" })
+    dealer: seat, label({ es: "Reparte", en: "Dealer" })
+    bid: place(seats), label({ es: "Apuesta", en: "Bid" })
+    won: counter, place(seats), label({ es: "Bazas", en: "Tricks" })
+    score: counter, place(seats), label({ es: "Puntos", en: "Score" })
+    trick: row, label({ es: "Baza", en: "Trick" })
+    trick_by: hidden
+    last_winner: seat, label({ es: "Última baza", en: "Last trick" })
+    discard: hidden
+    turn: hidden
+    WizardCard: card(rank: rank, suit: suit)
+    WizardRank: labels(Jester: { es: "Bufón", en: "Jester" }, Wizard: { es: "Mago", en: "Wizard" })
+    action choose: label({ es: "Elegir triunfo", en: "Choose trump" })
+    action choose.s: label({ es: "Palo", en: "Suit" })
+    action bid: label({ es: "Apostar", en: "Bid" })
+    action bid.n: label({ es: "Bazas", en: "Tricks" })
+    action play: label({ es: "Jugar", en: "Play" })
+    action play.c: pick(hand), label({ es: "Carta", en: "Card" })
+    node Deal: label({ es: "Reparto", en: "Deal" })
+    node ChooseTrump: label({ es: "Elección del triunfo", en: "Choosing trump" })
+    node Bidding: label({ es: "Apuestas", en: "Bidding" })
+    node Play: label({ es: "Bazas", en: "Tricks" })
+    node Trick: label({ es: "Fin de la baza", en: "Trick won" })
+    node End: label({ es: "Final", en: "End" })
+    rounds: label({ es: "Rondas", en: "Rounds" })
+    hook: label({ es: "La suma de apuestas no puede cuadrar", en: "Hook rule" })
+  }
+
+  test "en la primera ronda, una carta a cada uno y otra para el triunfo" {
+    players 3
+    expect all(s in seats : size(hand[s]) == 1) and size(trump_card) == 1 and size(deck) == 56
+    expect turn == 1
+  }
+
+  test "el primer mago gana la baza" {
+    players 3
+    params { rounds: 2 }
+    seed 3
+    set round = 2
+    play bid(1), bid(0), bid(1)
+    set hand[0] = [WizardCard { suit: Clubs, rank: Two }, WizardCard { suit: Hearts, rank: Wizard }]
+    set hand[1] = [WizardCard { suit: Spades, rank: Wizard }, WizardCard { suit: Clubs, rank: Ace }]
+    set hand[2] =
+      [WizardCard { suit: Hearts, rank: King }, WizardCard { suit: Diamonds, rank: Three }]
+    set trump = Diamonds
+    set turn = 1
+    play 1: play(WizardCard { suit: Clubs, rank: Ace })
+    play 2: play(WizardCard { suit: Diamonds, rank: Three })
+    play 0: play(WizardCard { suit: Hearts, rank: Wizard })
+    expect won == [1, 0, 0] and turn == 0
+  }
+
+  test "hay que asistir al palo, salvo con magos y bufones" {
+    players 3
+    params { rounds: 2 }
+    seed 3
+    set round = 2
+    play bid(1), bid(0), bid(1)
+    set hand[0] = [WizardCard { suit: Clubs, rank: Two }, WizardCard { suit: Hearts, rank: Jester }]
+    set hand[1] = [WizardCard { suit: Clubs, rank: Five }, WizardCard { suit: Hearts, rank: Ace }]
+    set hand[2] =
+      [WizardCard { suit: Clubs, rank: King }, WizardCard { suit: Diamonds, rank: Three }]
+    set turn = 1
+    play 1: play(WizardCard { suit: Clubs, rank: Five })
+    expect illegal play(WizardCard { suit: Diamonds, rank: Three })
+    play 2: play(WizardCard { suit: Clubs, rank: King })
+    expect legal play(WizardCard { suit: Hearts, rank: Jester })
+    expect legal play(WizardCard { suit: Clubs, rank: Two })
+  }
+
+  test "si sale un bufón, pide palo la siguiente carta" {
+    players 3
+    params { rounds: 2 }
+    seed 3
+    set round = 2
+    play bid(1), bid(0), bid(1)
+    set hand[0] = [WizardCard { suit: Spades, rank: Two }, WizardCard { suit: Hearts, rank: Ace }]
+    set hand[1] = [WizardCard { suit: Clubs, rank: Jester }, WizardCard { suit: Hearts, rank: Two }]
+    set hand[2] =
+      [WizardCard { suit: Spades, rank: Four }, WizardCard { suit: Diamonds, rank: Three }]
+    set trump = none
+    set turn = 1
+    play 1: play(WizardCard { suit: Clubs, rank: Jester })
+    play 2: play(WizardCard { suit: Spades, rank: Four })
+    expect illegal play(WizardCard { suit: Hearts, rank: Ace })
+    play 0: play(WizardCard { suit: Spades, rank: Two })
+    expect won == [0, 0, 1]
+  }
+
+  test "puntos: 20 y 10 por baza si se acierta, -10 por baza de diferencia si no" {
+    players 3
+    params { rounds: 1 }
+    set hand[0] = [WizardCard { suit: Clubs, rank: Two }]
+    set hand[1] = [WizardCard { suit: Clubs, rank: Ace }]
+    set hand[2] = [WizardCard { suit: Hearts, rank: King }]
+    set trump = Spades
+    play 1: bid(1), 2: bid(1), 0: bid(0)
+    play 1: play(WizardCard { suit: Clubs, rank: Ace })
+    play 2: play(WizardCard { suit: Hearts, rank: King })
+    play 0: play(WizardCard { suit: Clubs, rank: Two })
+    expect at(End) and payoff == [20, 30, -10]
+  }
+
+  test "con la variante hook, quien reparte no puede cuadrar las apuestas" {
+    players 3
+    params { rounds: 2, hook: true }
+    play bid(1), bid(0)
+    expect illegal bid(0)
+    expect legal bid(1)
+  }
+
+  test "el repartidor elige el triunfo si sale un mago" {
+    players 4
+    seed 0
+    chance where size(trump_card) == 1 and is_wizard(top(trump_card))
+    expect at(ChooseTrump)
+    play choose(Hearts)
+    expect trump == Hearts and at(Bidding)
+  }
+
+  /// Las 60 cartas están siempre en algún sitio.
+  invariant size(deck) + size(trump_card) + size(trick) + size(discard) +
+    sum(s in seats : size(hand[s])) ==
+    60
+
+  invariant len(trick_by) == size(trick) and all(s in seats : won[s] <= round)
+}
