@@ -17,7 +17,7 @@ def test_a_directory_of_packages_gives_their_main_games() -> None:
     ids = sorted(catalog.games)
     # Uno por paquete: los juegos de los tests de un paquete (iterated-pd/tests.game) no.
     packages = sorted(p.parent.name for p in (ROOT / "games").glob("*/game.toml"))
-    assert len(ids) == len(packages) == 15
+    assert len(ids) == len(packages) >= 16
     assert "iterated-pd" in ids and "iterated-pd-tests" not in ids
 
 

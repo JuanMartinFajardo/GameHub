@@ -46,7 +46,9 @@ def test_stdlib_modules_check_and_are_formatted(path: Path) -> None:
 def test_stdlib_behaves_as_documented() -> None:
     report = GameTester(compile_file(FIXTURES / "stdlib.game").game()).run_all()
     assert [str(t.failure) for t in report.tests if t.failure] == []
-    assert len(report.tests) == 4
+    # Un test por módulo de la biblioteca estándar.
+    modules = sorted(f"std.{p.stem}" for p in (stdlib_dir() / "std").glob("*.game"))
+    assert sorted(t.name for t in report.tests) == modules
 
 
 def test_only_what_is_used_reaches_the_ir() -> None:

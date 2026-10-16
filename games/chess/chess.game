@@ -1,0 +1,611 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Ajedrez con las reglas de la FIDE: jaque, enroque, captura al paso, promoción y tablas por
+// ahogado, material insuficiente, repetición y la regla de las 50 jugadas.
+
+import std.boards.{bishop_directions, hops_within, knight_jumps, queen_directions, ray_within}
+import std.boards.{rook_directions}
+
+enum Color { White, Black }
+
+enum Kind { Pawn, Knight, Bishop, Rook, Queen, King }
+
+/// Las doce piezas: el color y el tipo en un solo valor (así cada una tiene su símbolo).
+enum Piece {
+  WhitePawn,
+  WhiteKnight,
+  WhiteBishop,
+  WhiteRook,
+  WhiteQueen,
+  WhiteKing,
+  BlackPawn,
+  BlackKnight,
+  BlackBishop,
+  BlackRook,
+  BlackQueen,
+  BlackKing
+}
+
+fn color_of(p: Piece) -> Color = Color.White if ord(p) < 6 else Color.Black
+fn kind_of(p: Piece) -> Kind = Kind.values[ord(p) % 6]
+fn piece(c: Color, k: Kind) -> Piece = Piece.values[ord(c) * 6 + ord(k)]
+fn opponent(c: Color) -> Color = Color.Black if c == Color.White else Color.White
+
+/// Sentido en que avanzan los peones de cada color (la fila 0 es la octava).
+fn forward(c: Color) -> Int = -1 if c == Color.White else 1
+
+/// Fila de las piezas de cada color al empezar (la de los peones está al lado).
+fn home_row(c: Color) -> Int = 7 if c == Color.White else 0
+
+fn king_steps() -> List<Cell> = queen_directions()
+
+// Tablas que solo dependen de la casilla: el motor las calcula una vez y las guarda.
+
+/// Las casillas del tablero en la dirección `d` desde `c`, de la más cercana a la más lejana.
+fn ray(c: Cell, d: Cell) -> List<Cell> = ray_within(c, d, 8, 8)
+
+/// Las casillas del tablero a un salto de `c` (de caballo, de rey, de peón).
+fn hops(c: Cell, ds: List<Cell>) -> List<Cell> = hops_within(c, ds, 8, 8)
+
+/// Las casillas desde las que un peón del color `by` atacaría `c`.
+fn pawn_sources(c: Cell, by: Color) -> List<Cell> =
+  hops(c, [(0 - forward(by), -1), (0 - forward(by), 1)])
+
+fn back_rank(c: Color) -> List<Piece> = [
+  piece(c, Kind.Rook),
+  piece(c, Kind.Knight),
+  piece(c, Kind.Bishop),
+  piece(c, Kind.Queen),
+  piece(c, Kind.King),
+  piece(c, Kind.Bishop),
+  piece(c, Kind.Knight),
+  piece(c, Kind.Rook)
+]
+
+fn initial_board() -> List<List<Piece?>> =
+  [back_rank(Color.Black), [Piece.BlackPawn for i in 0..7]] + [[none for i in 0..7] for r in 0..3] +
+    [[Piece.WhitePawn for i in 0..7], back_rank(Color.White)]
+
+/// Por turnos mueven las blancas y las negras. Gana quien da jaque mate; el ahogado, el material
+/// insuficiente, la quíntuple repetición y 75 jugadas sin mover un peón ni capturar son tablas
+/// automáticas, y la triple repetición y las 50 jugadas, tablas que puede reclamar el jugador al
+/// que le toca.
+game Chess {
+  meta {
+    title: { es: "Ajedrez", en: "Chess" }
+    version: "1.0.0"
+    description: {
+      es: "El ajedrez de la FIDE: información perfecta, determinista y de suma cero.",
+      en: "FIDE chess: perfect information, deterministic and zero-sum."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["classic", "board", "perfect-information"]
+  }
+  players 2
+
+  state {
+    /// La fila 0 es la octava (la de las negras) y la columna 0, la «a».
+    board: Grid[8, 8] of Piece? = initial_board()
+    /// 0 = blancas, 1 = negras
+    turn: Seat = 0
+    /// Derechos de enroque: blancas corto y largo, negras corto y largo
+    castling: List<Bool> = [true, true, true, true]
+    /// Casilla a la que se puede capturar al paso (solo si hay una captura legal)
+    en_passant: Cell? = none
+    /// Dónde está el rey de cada color
+    kings: List<Cell> = [(7, 4), (0, 4)]
+    /// Medias jugadas desde la última captura o jugada de peón (reglas de las 50 y 75 jugadas)
+    halfmove: Int = 0
+    /// Número de la jugada, como en la notación: empieza en 1 y sube tras jugar las negras
+    fullmove: Int = 1
+    /// Posiciones desde la última jugada irreversible, para contar repeticiones
+    history: List<(Grid[8, 8] of Piece?, Cell?)>
+    /// La jugada elegida, que aplica el nodo `Apply`
+    from_cell: Cell = (0, 0)
+    to_cell: Cell = (0, 0)
+    promotion: Kind? = none
+  }
+
+  fn side() -> Color = Color.White if turn == 0 else Color.Black
+  /// ¿Hay en `c` una pieza del color `col`? (las blancas son las seis primeras del enumerado)
+  fn own(c: Cell, col: Color) -> Bool =
+    not is_none(board[c]) and ord(unwrap(board[c])) div 6 == ord(col)
+  fn enemy(c: Cell, col: Color) -> Bool =
+    not is_none(board[c]) and ord(unwrap(board[c])) div 6 != ord(col)
+
+  // --- Jugadas posibles sin mirar el jaque ------------------------------------------------------
+
+  /// Casillas a las que llega una pieza que se desliza desde `f` en la dirección `d`.
+  fn slide(f: Cell, d: Cell, col: Color) -> List<Cell> {
+    let r = ray(f, d)
+    let stop = first([i for i in 0..<len(r) if not is_none(board[r[i]])] + [len(r)])
+    r[0:stop] + ([r[stop]] if stop < len(r) and enemy(r[stop], col) else [])
+  }
+
+  fn steps(f: Cell, ds: List<Cell>, col: Color) -> List<Cell> =
+    [c for c in hops(f, ds) if not own(c, col)]
+
+  fn pawn_targets(f: Cell, col: Color) -> List<Cell> {
+    let d = forward(col)
+    let one = cell(f[0] + d, f[1])
+    let two = cell(f[0] + 2 * d, f[1])
+    let pushes = (
+      [] if not is_none(board[one]) else (
+        [one, two] if f[0] == home_row(col) + d and is_none(board[two]) else [one]
+      )
+    )
+    let diagonals = hops(f, [(d, -1), (d, 1)])
+    pushes +
+      [c for c in diagonals if enemy(c, col) or not is_none(en_passant) and c == unwrap(en_passant)]
+  }
+
+  /// El enroque se anota como la jugada del rey dos casillas hacia su torre. El rey no puede
+  /// estar en jaque ni pasar por una casilla atacada (la de llegada la mira `legal`).
+  fn castle_targets(col: Color) -> List<Cell> {
+    let r = home_row(col)
+    let i = 0 if col == Color.White else 2
+    let short = castling[i] and
+      is_none(board[(r, 5)]) and
+      is_none(board[(r, 6)]) and
+      cell(r, 5) not in danger()
+    let long = castling[i + 1] and
+      is_none(board[(r, 1)]) and
+      is_none(board[(r, 2)]) and
+      is_none(board[(r, 3)]) and
+      cell(r, 3) not in danger()
+    [] if in_check() else ([cell(r, 6)] if short else []) + ([cell(r, 2)] if long else [])
+  }
+
+  fn targets(f: Cell) -> List<Cell> {
+    let p = unwrap(board[f])
+    let col = color_of(p)
+    match kind_of(p) {
+      Kind.Pawn => pawn_targets(f, col)
+      Kind.Knight => steps(f, knight_jumps(), col)
+      Kind.Bishop => flat_map(d in bishop_directions() : slide(f, d, col))
+      Kind.Rook => flat_map(d in rook_directions() : slide(f, d, col))
+      Kind.Queen => flat_map(d in king_steps() : slide(f, d, col))
+      Kind.King => steps(f, king_steps(), col) + castle_targets(col)
+    }
+  }
+
+  // --- Ataques y jaque ---------------------------------------------------------------------------
+
+  fn king_cell(col: Color) -> Cell = kings[ord(col)]
+
+  /// Las casillas que ataca la pieza de `c`, como si la casilla `ignore` estuviera vacía (el rey
+  /// que se aparta de un ataque en línea sigue atacado en la casilla de detrás).
+  fn attacks_from(c: Cell, ignore: Cell) -> List<Cell> {
+    let p = unwrap(board[c])
+    match kind_of(p) {
+      Kind.Pawn => hops(c, [(forward(color_of(p)), -1), (forward(color_of(p)), 1)])
+      Kind.Knight => hops(c, knight_jumps())
+      Kind.Bishop => flat_map(d in bishop_directions() : reach(c, d, ignore))
+      Kind.Rook => flat_map(d in rook_directions() : reach(c, d, ignore))
+      Kind.Queen => flat_map(d in king_steps() : reach(c, d, ignore))
+      Kind.King => hops(c, king_steps())
+    }
+  }
+
+  /// Las casillas que alcanza una pieza que se desliza desde `c` en la dirección `d`, incluida
+  /// la primera ocupada (salvo `ignore`, que cuenta como vacía).
+  fn reach(c: Cell, d: Cell, ignore: Cell) -> List<Cell> {
+    let r = ray(c, d)
+    let stop = first(
+      [i for i in 0..<len(r) if not is_none(board[r[i]]) and r[i] != ignore] + [len(r) - 1]
+    )
+    r[0:stop + 1]
+  }
+
+  /// Casillas atacadas por el rival, sin contar al propio rey: a ellas no puede ir el rey.
+  fn danger() -> List<Cell> {
+    let by = opponent(side())
+    let k = king_cell(side())
+    flat_map(c in cells(board) : attacks_from(c, k) if own(c, by) else [])
+  }
+
+  /// La pieza que habría en `x` tras llevar la de `f` a `t` y retirar la de `cap` (la capturada al
+  /// paso).
+  fn after(x: Cell, f: Cell, t: Cell, cap: Cell) -> Piece? =
+    board[f] if x == t else (none if x == f or x == cap else board[x])
+
+  /// La primera pieza en la dirección `d` desde `x` tras la jugada (`none` si no hay ninguna).
+  fn first_piece(x: Cell, d: Cell, f: Cell, t: Cell, cap: Cell) -> Piece? {
+    let hits = [y for y in ray(x, d) if not is_none(after(y, f, t, cap))]
+    after(hits[0], f, t, cap) if len(hits) > 0 else none
+  }
+
+  /// ¿Atacaría alguna pieza del color `by` la casilla `x` tras la jugada? (Solo hace falta para la
+  /// captura al paso, que vacía dos casillas a la vez.)
+  fn attacked_after(x: Cell, by: Color, f: Cell, t: Cell, cap: Cell) -> Bool {
+    let queen = piece(by, Kind.Queen)
+    let rooks = [piece(by, Kind.Rook), queen]
+    let bishops = [piece(by, Kind.Bishop), queen]
+    let knight = piece(by, Kind.Knight)
+    let king = piece(by, Kind.King)
+    let pawn = piece(by, Kind.Pawn)
+    any(y in hops(x, knight_jumps()) : after(y, f, t, cap) == knight) or
+      any(y in hops(x, king_steps()) : after(y, f, t, cap) == king) or
+      any(y in pawn_sources(x, by) : after(y, f, t, cap) == pawn) or
+      any(d in rook_directions() : first_piece(x, d, f, t, cap) in rooks) or
+      any(d in bishop_directions() : first_piece(x, d, f, t, cap) in bishops)
+  }
+
+  /// Lo que da jaque al rey del jugador al que le toca: por cada pieza que da jaque, las
+  /// casillas donde hay que poner una pieza para pararlo (la suya y, si ataca en línea, las de
+  /// en medio). Vacía si no hay jaque; con dos, solo vale mover el rey.
+  fn checks() -> List<List<Cell>> {
+    let k = king_cell(side())
+    let by = opponent(side())
+    [[y] for y in hops(k, knight_jumps()) if board[y] == piece(by, Kind.Knight)] +
+      [[y] for y in pawn_sources(k, by) if board[y] == piece(by, Kind.Pawn)] +
+      [line for line in [check_line(k, d, by) for d in king_steps()] if len(line) > 0]
+  }
+
+  /// Si la primera pieza en la dirección `d` desde el rey `k` es una del color `by` que ataca en
+  /// esa línea, las casillas hasta ella (incluida); si no, ninguna.
+  fn check_line(k: Cell, d: Cell, by: Color) -> List<Cell> {
+    let r = ray(k, d)
+    let hits = [i for i in 0..<len(r) if not is_none(board[r[i]])]
+    let slider = piece(by, Kind.Rook) if d[0] == 0 or d[1] == 0 else piece(by, Kind.Bishop)
+    (
+      r[0:hits[0] + 1] if len(hits) > 0 and
+        board[r[hits[0]]] in [slider, piece(by, Kind.Queen)] else []
+    )
+  }
+
+  fn in_check() -> Bool = len(checks()) > 0
+
+  /// Piezas propias clavadas: la casilla de cada una y la dirección del rey hacia ella.
+  fn pins() -> List<(Cell, Cell)> {
+    let k = king_cell(side())
+    [(unwrap(pinned_on(k, d)), d) for d in king_steps() if not is_none(pinned_on(k, d))]
+  }
+
+  /// La pieza propia clavada en la dirección `d` desde el rey `k`, si la hay.
+  fn pinned_on(k: Cell, d: Cell) -> Cell? {
+    let col = side()
+    let occupied = [c for c in ray(k, d) if not is_none(board[c])]
+    let sliders = [
+      piece(opponent(col), Kind.Rook) if d[0] == 0 or d[1] == 0 else piece(
+        opponent(col),
+        Kind.Bishop
+      ),
+      piece(opponent(col), Kind.Queen)
+    ]
+    (
+      occupied[0] if len(occupied) >= 2 and
+        own(occupied[0], col) and
+        unwrap(board[occupied[1]]) in sliders else none
+    )
+  }
+
+  /// ¿Está `t` en la línea que sale del rey `k` en la dirección `d`?
+  fn on_line(k: Cell, d: Cell, t: Cell) -> Bool {
+    let m = max(abs(t[0] - k[0]), abs(t[1] - k[1]))
+    t[0] - k[0] == m * d[0] and t[1] - k[1] == m * d[1]
+  }
+
+  fn is_en_passant(f: Cell, t: Cell) -> Bool =
+    not is_none(en_passant) and t == unwrap(en_passant) and kind_of(unwrap(board[f])) == Kind.Pawn
+
+  /// ¿Deja la jugada al propio rey sin jaque? El rey no puede ir a una casilla atacada; las demás
+  /// piezas no pueden salirse de su clavada y, si hay jaque, tienen que pararlo. La captura al
+  /// paso, que vacía dos casillas, se comprueba entera.
+  fn legal(f: Cell, t: Cell) -> Bool {
+    let k = king_cell(side())
+    let current = checks()
+    case {
+      f == k => t not in danger()
+      is_en_passant(f, t) => not attacked_after(k, opponent(side()), f, t, cell(f[0], t[1]))
+      else => all(p in pins() : p[0] != f or on_line(k, p[1], t)) and
+        (len(current) == 0 or len(current) == 1 and t in current[0])
+    }
+  }
+
+  fn own_cells() -> List<Cell> = [c for c in cells(board) if own(c, side())]
+  fn promotes(f: Cell, t: Cell) -> Bool =
+    t[0] == home_row(opponent(side())) and kind_of(unwrap(board[f])) == Kind.Pawn
+  fn has_moves() -> Bool = any(f in own_cells() : any(t in targets(f) : legal(f, t)))
+
+  // --- Tablas ------------------------------------------------------------------------------------
+
+  /// Veces que se ha dado la posición actual (con el mismo jugador al turno).
+  fn repetitions() -> Int {
+    let n = len(history)
+    count(i in 0..<n : (n - 1 - i) % 2 == 0 and history[i] == history[n - 1])
+  }
+
+  fn square_color(c: Cell) -> Int = (c[0] + c[1]) % 2
+
+  /// Material insuficiente: ningún jugador puede dar mate (rey contra rey, rey y una pieza menor
+  /// contra rey, o solo alfiles, todos en casillas del mismo color).
+  fn dead_position() -> Bool {
+    let others = [
+      c
+      for c in cells(board)
+      if not is_none(board[c]) and kind_of(unwrap(board[c])) != Kind.King
+    ]
+    let bishops = [c for c in others if kind_of(unwrap(board[c])) == Kind.Bishop]
+    len(others) == 0 or
+      len(others) == 1 and kind_of(unwrap(board[others[0]])) in [Kind.Bishop, Kind.Knight] or
+      len(bishops) == len(others) and
+        all(c in bishops : square_color(c) == square_color(bishops[0]))
+  }
+
+  fn can_claim_draw() -> Bool = halfmove >= 100 or repetitions() >= 3
+
+  /// ¿Puede el jugador al que le toca capturar al paso en `c`?
+  fn en_passant_possible(c: Cell) -> Bool = any(
+    f in pawn_sources(c, side()) :
+    board[f] == piece(side(), Kind.Pawn) and
+      not attacked_after(king_cell(side()), opponent(side()), f, c, cell(f[0], c[1]))
+  )
+
+  flow {
+    start {
+      history = [(board, none)]
+    } -> Move
+
+    decision Move {
+      actor: turn
+      /// Mover una pieza de `from` a `to` (el enroque es la jugada del rey dos casillas).
+      action play(from in own_cells(), to in targets(from)) requires
+          not promotes(from, to) and legal(from, to) {
+        from_cell = from
+        to_cell = to
+        promotion = none
+        -> Apply
+      }
+      /// Llevar un peón a la última fila y cambiarlo por otra pieza.
+      action promote(
+        from in own_cells(),
+        to in targets(from),
+        into in [Kind.Queen, Kind.Rook, Kind.Bishop, Kind.Knight]
+      ) requires
+          promotes(from, to) and legal(from, to) {
+        from_cell = from
+        to_cell = to
+        promotion = into
+        -> Apply
+      }
+      /// Reclamar tablas por triple repetición o por 50 jugadas sin capturas ni jugadas de peón.
+      action claim_draw() requires can_claim_draw() {
+        -> Draw
+      }
+    }
+
+    /// Se aplica la jugada elegida y se mira cómo queda la partida.
+    auto Apply {
+      let p = unwrap(board[from_cell])
+      let irreversible = kind_of(p) == Kind.Pawn or not is_none(board[to_cell])
+      let rights = castling
+      if is_en_passant(from_cell, to_cell) {
+        board[cell(from_cell[0], to_cell[1])] = none
+      }
+      if kind_of(p) == Kind.King and abs(to_cell[1] - from_cell[1]) == 2 {
+        let r = from_cell[0]
+        let rook_from = cell(r, 7) if to_cell[1] == 6 else cell(r, 0)
+        let rook_to = cell(r, 5) if to_cell[1] == 6 else cell(r, 3)
+        board[rook_to] = board[rook_from]
+        board[rook_from] = none
+      }
+      if kind_of(p) == Kind.King {
+        kings = [to_cell if i == turn else kings[i] for i in 0..1]
+      }
+      board[to_cell] = p if is_none(promotion) else piece(color_of(p), unwrap(promotion))
+      board[from_cell] = none
+      castling =
+        [castling[i] and all(c in castle_cells(i) : c != from_cell and c != to_cell) for i in 0..3]
+      halfmove = 0 if irreversible else halfmove + 1
+      en_passant = none
+      if kind_of(p) == Kind.Pawn and abs(to_cell[0] - from_cell[0]) == 2 {
+        en_passant = cell((from_cell[0] + to_cell[0]) div 2, from_cell[1])
+      }
+      if turn == 1 {
+        fullmove += 1
+      }
+      turn = other(turn)
+      if not is_none(en_passant) and not en_passant_possible(unwrap(en_passant)) {
+        en_passant = none
+      }
+      if irreversible or castling != rights {
+        history = []
+      }
+      history += [(board, en_passant)]
+      -> Checkmate when in_check() and not has_moves()
+      -> Stalemate when not has_moves()
+      -> Draw when halfmove >= 150 or repetitions() >= 5 or dead_position()
+      -> Move
+    }
+
+    terminal Checkmate { payoff: win_loss(other(turn), 1, -1) }
+    terminal Stalemate { payoff: fill(0) }
+    terminal Draw { payoff: fill(0) }
+  }
+
+  /// Las casillas que, si se mueve o se captura algo en ellas, quitan el derecho de enroque `i`
+  /// (la del rey y la de su torre).
+  fn castle_cells(i: Int) -> List<Cell> =
+    [[(7, 4), (7, 7)], [(7, 4), (7, 0)], [(0, 4), (0, 7)], [(0, 4), (0, 0)]][i]
+
+  ui {
+    board: grid, label({ es: "Tablero", en: "Board" })
+    turn: hidden
+    castling: hidden
+    en_passant: hidden
+    kings: hidden
+    halfmove: counter, label({ es: "Jugadas sin captura ni peón (medias)", en: "Halfmove clock" })
+    fullmove: counter, place(top), label({ es: "Jugada", en: "Move" })
+    history: hidden
+    from_cell: hidden
+    to_cell: hidden
+    promotion: hidden
+    Piece: symbols(
+      WhitePawn: "♙",
+      WhiteKnight: "♘",
+      WhiteBishop: "♗",
+      WhiteRook: "♖",
+      WhiteQueen: "♕",
+      WhiteKing: "♔",
+      BlackPawn: "♟",
+      BlackKnight: "♞",
+      BlackBishop: "♝",
+      BlackRook: "♜",
+      BlackQueen: "♛",
+      BlackKing: "♚"
+    )
+    Kind: labels(
+      Pawn: { es: "Peón", en: "Pawn" },
+      Knight: { es: "Caballo", en: "Knight" },
+      Bishop: { es: "Alfil", en: "Bishop" },
+      Rook: { es: "Torre", en: "Rook" },
+      Queen: { es: "Dama", en: "Queen" },
+      King: { es: "Rey", en: "King" }
+    )
+    action play: label({ es: "Mover", en: "Move" })
+    action play.from: cell(board), label({ es: "Desde", en: "From" })
+    action play.to: cell(board), label({ es: "Hasta", en: "To" })
+    action promote: label({ es: "Coronar", en: "Promote" })
+    action promote.from: cell(board), label({ es: "Desde", en: "From" })
+    action promote.to: cell(board), label({ es: "Hasta", en: "To" })
+    action promote.into: label({ es: "Pieza", en: "Piece" })
+    action claim_draw: label({ es: "Reclamar tablas", en: "Claim a draw" })
+    node Move: label({ es: "Jugada", en: "Move" })
+    node Apply: label({ es: "Aplicar la jugada", en: "Apply the move" })
+    node Checkmate: label({ es: "Jaque mate", en: "Checkmate" })
+    node Stalemate: label({ es: "Rey ahogado", en: "Stalemate" })
+    node Draw: label({ es: "Tablas", en: "Draw" })
+    seats: colors("#f5f5f5", "#212121"), names(
+      { es: "Blancas", en: "White" },
+      { es: "Negras", en: "Black" }
+    )
+  }
+
+  // Casillas: (fila, columna), con la fila 0 en la octava y la columna 0 en la «a»: e2 = (6, 4).
+
+  test "el mate del loco, el más rápido" {
+    play play((6, 5), (5, 5)), play((1, 4), (3, 4)), play((6, 6), (4, 6)), play((0, 3), (4, 7))
+    expect at(Checkmate) and payoff == [-1, 1]
+  }
+
+  test "veinte jugadas al empezar" {
+    expect legal play((6, 4), (4, 4))
+    expect legal play((7, 6), (5, 5))
+    expect illegal play((7, 5), (5, 3))
+    expect illegal play((6, 4), (3, 4))
+  }
+
+  test "enroque corto y largo" {
+    play play((6, 4), (4, 4)), play((1, 4), (3, 4)), play((7, 6), (5, 5)), play((0, 1), (2, 2))
+    play play((7, 5), (4, 2)), play((1, 3), (2, 3)), play((7, 4), (7, 6))
+    expect board[(7, 6)] == WhiteKing and board[(7, 5)] == WhiteRook and is_none(board[(7, 7)])
+    expect castling == [false, false, true, true]
+    play play((0, 2), (4, 6)), play((6, 3), (5, 3)), play((0, 3), (1, 3))
+    play play((7, 1), (5, 2)), play((0, 4), (0, 2))
+    expect board[(0, 2)] == BlackKing and board[(0, 3)] == BlackRook
+    expect castling == [false, false, false, false]
+  }
+
+  test "no se enroca a través de una casilla atacada" {
+    set board[(7, 5)] = none
+    set board[(7, 6)] = none
+    set board[(6, 5)] = none
+    set board[(2, 5)] = BlackRook
+    expect illegal play((7, 4), (7, 6))
+    expect illegal play((7, 4), (7, 5))
+  }
+
+  test "captura al paso" {
+    play play((6, 4), (4, 4)), play((1, 0), (2, 0)), play((4, 4), (3, 4)), play((1, 3), (3, 3))
+    expect en_passant == (2, 3)
+    play play((3, 4), (2, 3))
+    expect is_none(board[(3, 3)]) and board[(2, 3)] == WhitePawn and halfmove == 0
+  }
+
+  test "la captura al paso solo vale justo después" {
+    play play((6, 4), (4, 4)), play((1, 0), (2, 0)), play((4, 4), (3, 4)), play((1, 3), (3, 3))
+    play play((6, 0), (5, 0)), play((2, 0), (3, 0))
+    expect illegal play((3, 4), (2, 3))
+  }
+
+  test "coronar" {
+    set board[(1, 0)] = WhitePawn
+    set board[(0, 0)] = none
+    expect illegal play((1, 0), (0, 0))
+    expect legal promote((1, 0), (0, 0), Knight)
+    play promote((1, 0), (0, 1), Queen)
+    expect board[(0, 1)] == WhiteQueen and is_none(board[(1, 0)])
+  }
+
+  test "una pieza clavada no se mueve fuera de la línea" {
+    play play((6, 3), (4, 3)), play((1, 4), (2, 4)), play((6, 2), (4, 2)), play((0, 5), (4, 1))
+    play play((7, 1), (5, 2)), play((0, 6), (2, 5))
+    expect illegal play((5, 2), (3, 4))
+    expect legal play((7, 2), (6, 3))
+  }
+
+  test "rey ahogado" {
+    set board =
+      [
+        [BlackKing, none, none, none, none, none, none, none],
+        [none, none, WhiteQueen, none, none, none, none, none],
+        [none, WhiteKing, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, WhitePawn],
+        [none, none, none, none, none, none, none, none]
+      ]
+    set kings = [(2, 1), (0, 0)]
+    set castling = [false, false, false, false]
+    play play((6, 7), (5, 7))
+    expect at(Stalemate) and payoff == [0, 0]
+  }
+
+  test "tablas por material insuficiente" {
+    set board =
+      [
+        [BlackKing, none, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, BlackKnight, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, none, none, WhiteBishop, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, none, none, none, none, none, none, none],
+        [none, none, none, none, WhiteKing, none, none, none]
+      ]
+    set kings = [(7, 4), (0, 0)]
+    set castling = [false, false, false, false]
+    play play((4, 3), (2, 1))
+    expect at(Draw)
+  }
+
+  test "triple repetición: se pueden reclamar tablas" {
+    play play((7, 6), (5, 5)), play((0, 6), (2, 5)), play((5, 5), (7, 6)), play((2, 5), (0, 6))
+    expect illegal claim_draw()
+    play play((7, 6), (5, 5)), play((0, 6), (2, 5)), play((5, 5), (7, 6)), play((2, 5), (0, 6))
+    expect repetitions() == 3
+    expect legal claim_draw()
+    play claim_draw()
+    expect at(Draw) and payoff == [0, 0]
+  }
+
+  test "quíntuple repetición: tablas automáticas" {
+    play play((7, 6), (5, 5)), play((0, 6), (2, 5)), play((5, 5), (7, 6)), play((2, 5), (0, 6))
+    play play((7, 6), (5, 5)), play((0, 6), (2, 5)), play((5, 5), (7, 6)), play((2, 5), (0, 6))
+    play play((7, 6), (5, 5)), play((0, 6), (2, 5)), play((5, 5), (7, 6)), play((2, 5), (0, 6))
+    play play((7, 6), (5, 5)), play((0, 6), (2, 5)), play((5, 5), (7, 6))
+    expect not at(Draw)
+    play play((2, 5), (0, 6))
+    expect at(Draw)
+  }
+
+  /// Un rey de cada color, donde dice `kings`
+  invariant count(c in cells(board) : board[c] == WhiteKing) == 1 and
+    count(c in cells(board) : board[c] == BlackKing) == 1 and
+    board[kings[0]] == WhiteKing and
+    board[kings[1]] == BlackKing
+
+  invariant halfmove >= 0 and halfmove <= 150 and len(history) >= 1
+}

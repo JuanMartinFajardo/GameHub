@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: Apache-2.0
+// Tableros: lo que se mueve por ellos. Direcciones de las piezas, rayos y saltos que no se salen
+// de un tablero de `rows` filas y `cols` columnas, y recorridos: la lista de casillas por las que
+// pasa una ficha (Parchís, Oca, Ludo).
+//
+// Ninguna función mira el estado de un juego, así que el motor guarda sus resultados: una tabla
+// como `ray_within(c, d, 8, 8)` se calcula una sola vez por casilla y dirección.
+//
+//   import std.boards.{ray_within, queen_directions}
+
+/// Las cuatro direcciones de la torre: arriba, abajo, izquierda y derecha.
+fn rook_directions() -> List<Cell> = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+/// Las cuatro direcciones del alfil (las diagonales).
+fn bishop_directions() -> List<Cell> = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+/// Las ocho direcciones de la dama y del rey.
+fn queen_directions() -> List<Cell> = rook_directions() + bishop_directions()
+
+/// Los ocho saltos del caballo.
+fn knight_jumps() -> List<Cell> =
+  [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]
+
+/// ¿Está la casilla `c` en un tablero de `rows` × `cols`?
+fn within(c: Cell, rows: Int, cols: Int) -> Bool =
+  c[0] >= 0 and c[0] < rows and c[1] >= 0 and c[1] < cols
+
+/// Las casillas del tablero en la dirección `d` desde `c`, de la más cercana a la más lejana.
+fn ray_within(c: Cell, d: Cell, rows: Int, cols: Int) -> List<Cell> = [
+  cell(c[0] + k * d[0], c[1] + k * d[1])
+  for k in 1..max(rows, cols)
+  if within(cell(c[0] + k * d[0], c[1] + k * d[1]), rows, cols)
+]
+
+/// Las casillas del tablero a un salto de `c` (cada salto, un desplazamiento de `jumps`).
+fn hops_within(c: Cell, jumps: List<Cell>, rows: Int, cols: Int) -> List<Cell> = [
+  cell(c[0] + d[0], c[1] + d[1])
+  for d in jumps
+  if within(cell(c[0] + d[0], c[1] + d[1]), rows, cols)
+]
+
+/// Un recorrido circular de `length` casillas numeradas 0, 1, …: las `count` casillas que se
+/// pisan saliendo de `first` (la primera es la de salida).
+fn loop_path(first: Int, length: Int, count: Int) -> List<Int> =
+  [(first + i) % length for i in 0..<count]
+
+/// Dónde acaba una ficha que está en la posición `at` de un recorrido de `length` casillas y
+/// avanza `steps`: la posición nueva o, si se pasaría del final, `none` (hay que llegar justo).
+fn advance_on(at: Int, steps: Int, length: Int) -> Int? =
+  at + steps if at + steps < length else none
+
+/// Las posiciones por las que pasa una ficha al avanzar de `at` a `at + steps` (sin la de salida,
+/// con la de llegada), para mirar si algo le cierra el paso.
+fn passes(at: Int, steps: Int) -> List<Int> = (at + 1)..(at + steps)

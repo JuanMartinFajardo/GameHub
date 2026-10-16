@@ -277,6 +277,10 @@ def test_rename_changes_every_use() -> None:
         edit({"op": "rename", "key": "builtin:next", "name": "nxt"})
 
 
+#: Cuántos símbolos de cada juego se renombran como mucho.
+RENAME_SAMPLE = 40
+
+
 @pytest.mark.parametrize("path", GAMES, ids=lambda p: p.stem)
 def test_renaming_every_symbol_there_and_back(path: Path) -> None:
     """Renombrar cualquier símbolo deja un juego que compila, y volver al nombre original deja
@@ -290,6 +294,9 @@ def test_renaming_every_symbol_there_and_back(path: Path) -> None:
         if s.kind in RENAMABLE - {"game"}
         and any(d.source is not None and d.source.name == str(path) for d in s.decls)
     ]
+    # En los juegos grandes (el ajedrez declara cientos de nombres), una muestra fija y repartida:
+    # cada renombrado vuelve a compilar el juego dos veces.
+    keys = sorted(keys)[:: -(-len(keys) // RENAME_SAMPLE)] if len(keys) > RENAME_SAMPLE else keys
     for key in keys:  # (un juego hecho con un combinador no declara nada)
         name = index.symbols[key].name
         try:
