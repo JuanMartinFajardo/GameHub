@@ -71,6 +71,8 @@ class TransitionDef:
     to: str
     when: Compiled | None
     effects: Runner
+    #: Qué transición es: ("node", nodo, i) o ("action", nodo, acción, i). Para trazas.
+    key: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -166,7 +168,7 @@ class GameDef:
 
     def _node(self, raw: dict[str, Any], ancestors: tuple[str, ...]) -> NodeDef:
         c, s = self.exprs, self.stmts
-        actions = tuple(self._action(a) for a in raw.get("actions", []))
+        actions = tuple(self._action(a, raw["id"]) for a in raw.get("actions", []))
         optional = {
             "actor": c.compile,
             "actors": c.compile,
@@ -184,7 +186,7 @@ class GameDef:
             id=raw["id"],
             kind=raw["kind"],
             ancestors=ancestors,
-            transitions=self._transitions(raw.get("transitions", [])),
+            transitions=self._transitions(raw.get("transitions", []), ("node", raw["id"])),
             actions=actions,
             mode=raw.get("mode", ""),
             start=raw.get("start", ""),
@@ -192,17 +194,20 @@ class GameDef:
             **compiled,
         )
 
-    def _transitions(self, raw: list[dict[str, Any]]) -> tuple[TransitionDef, ...]:
+    def _transitions(
+        self, raw: list[dict[str, Any]], owner: tuple[str, ...]
+    ) -> tuple[TransitionDef, ...]:
         return tuple(
             TransitionDef(
                 to=t["to"],
                 when=self.exprs.compile(t["when"]) if "when" in t else None,
                 effects=self.stmts.block(t.get("effects", [])),
+                key=(*owner, str(i)),
             )
-            for t in raw
+            for i, t in enumerate(raw)
         )
 
-    def _action(self, raw: dict[str, Any]) -> ActionDef:
+    def _action(self, raw: dict[str, Any], node: str) -> ActionDef:
         params = tuple(
             ActionParam(
                 name=p["name"],
@@ -219,7 +224,9 @@ class GameDef:
             params=params,
             requires=self.exprs.compile(raw["requires"]) if "requires" in raw else None,
             effects=self.stmts.block(raw.get("effects", [])),
-            transitions=self._transitions(raw.get("transitions", [])),
+            transitions=self._transitions(
+                raw.get("transitions", []), ("action", node, raw["name"])
+            ),
             policy=compile_policy(raw.get("visibility"), self.exprs, default=ALL),
         )
 

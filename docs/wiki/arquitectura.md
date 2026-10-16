@@ -14,7 +14,7 @@ flowchart TB
   end
   IR[(GameIR + hash)]
   TXT --> IR
-  STU <--> IR
+  STU <--> TXT
   PYB --> IR
   subgraph Ejecutar
     REF["Motor de referencia (Python)"]
@@ -76,8 +76,12 @@ GameHub/
 │   ├── protocol/          # protocolo v1: validación de mensajes y tipos generados (F3)
 │   ├── server/            # salas (núcleo puro), transporte Starlette, LAN/mDNS, SQLite (F3)
 │   ├── client/            # SDK cliente Python, bots en red, cliente de terminal (F3)
+│   ├── lsp/               # servidor de lenguaje de Nomos (pygls): gamehub lsp y el del Studio (F5)
+│   ├── studio/            # el Studio: servidor, sesión, ediciones sobre el árbol, modelo,
+│   │                      #   simulador, espacio de trabajo (F5)
+│   ├── templates/games/   # plantillas de juego (gamehub new --template y el Studio)
 │   ├── interop/           # OpenSpiel, Gambit, PettingZoo, PGN…
-│   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|serve|host|join|rooms|bot|loadtest|…
+│   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|serve|host|join|rooms|bot|studio|lsp|…
 ├── core/                  # C++20: VM, estado compacto, algoritmos, bindings, WASM
 ├── web/                   # TypeScript (workspace de pnpm en la raíz, F4)
 │   ├── packages/protocol  # tipos generados desde spec/protocol
@@ -87,8 +91,10 @@ GameHub/
 │   ├── packages/ui-kit    # cartas, manos, mazos, tableros, dados, fichas, relojes
 │   ├── packages/auto-ui   # UI genérica a partir de la IR
 │   ├── packages/shell     # la experiencia de jugar como librería (salas, lobby, replays…)
+│   ├── packages/nomos     # Nomos para CodeMirror (resaltado, sangría, plegado, tema)
+│   ├── packages/studio    # el Studio como librería (diagrama, editores, inspector, simulador)
 │   ├── apps/play          # la app web (la sirve gamehub serve)
-│   ├── apps/studio        # editor visual (F5)
+│   ├── apps/studio        # la app del Studio (la sirve gamehub studio, F5)
 │   └── apps/hub           # web del hub (más tarde)
 ├── stdlib/std/            # Módulos .game: std.cards, std.dice, std.grid, std.graph (después: std.tricktaking…)
 ├── games/                 # Catálogo oficial: un paquete por juego (game.toml, .game con sus tests,
@@ -154,8 +160,8 @@ el servidor, el simulador del Studio, el entrenador RL, los torneos).
 | C++ | C++20, CMake, **nanobind**, Catch2 | Velocidad + bindings ligeros | pybind11 |
 | Navegador | Emscripten (core C++ → WASM) | Mismo motor en todas partes | Pyodide (provisional) |
 | Web | TypeScript 7, React 19, Vite 8, pnpm, Biome, Vitest (F4, [ADR-044](decisiones.md)) | Ecosistema; Biome es el ruff de JS | Svelte; ESLint + Prettier |
-| Diagramas | React Flow (`@xyflow/react`) + ELK.js | Estándar de editores de nodos + auto-layout | Rete.js, JointJS |
-| Editor de texto | Monaco + LSP (`pygls`) | Experiencia tipo VS Code | CodeMirror 6 |
+| Diagramas | React Flow (`@xyflow/react`) + ELK.js (F5, [ADR-055](decisiones.md)) | Estándar de editores de nodos + auto-layout | Rete.js, JointJS, dagre |
+| Editor de texto | **CodeMirror 6** + LSP (`pygls`) (F5, [ADR-053](decisiones.md), [054](decisiones.md)) | Ligero, decenas de campos por página, cliente LSP oficial | Monaco |
 | Análisis | NumPy, SciPy (HiGHS), `pygambit`, OpenSpiel | No reinventar solvers | — |
 | RL | PyTorch, Gymnasium, PettingZoo | Estándar | JAX |
 | Hub | FastAPI + PostgreSQL + S3/MinIO + **Forgejo** (git) | No reinventar git | Gitea, git propio |
@@ -180,4 +186,7 @@ el servidor, el simulador del Studio, el entrenador RL, los torneos).
   preferentemente en **WASM** (sandbox en servidor, navegador y C++), siempre con una
   implementación de referencia en el lenguaje para verificarlos.
 - **Servidor autoritativo:** el cliente solo recibe su vista redactada; nunca el estado completo.
+- **Studio local** ([ADR-057](decisiones.md)): solo en 127.0.0.1 por defecto, token aleatorio,
+  Host y Origin comprobados (contra el *DNS rebinding* y otras páginas del navegador), y solo
+  archivos `.game` del directorio de trabajo.
 - Bots de terceros: en proceso separado / contenedor / WASM, con límites de CPU, memoria y tiempo.

@@ -15,6 +15,7 @@
 | Biblioteca estándar | standard library | Módulos `std.…` que vienen con GameHub (`std.cards`, `std.dice`, `std.grid`, `std.graph`). |
 | Bolsa | bag | Zona sin orden (multiconjunto), típica de las manos; quien no ve su contenido solo ve su tamaño. |
 | Catálogo de operadores | operator catalog | `spec/ir/v0/ops.json`: lista cerrada de expresiones, sentencias y selectores de la IR. |
+| Cobertura de reglas | rule coverage | Cuántas veces se pasó por cada nodo, acción y transición en las partidas masivas del simulador; lo que nunca se usó se marca en el diagrama. |
 | Código de sala | room code | 6 caracteres de Crockford base32 (`K7F-Q2P`) para entrar en una sala. |
 | Combinador | combinator | Juego construido a partir de otro transformando su IR: `repeat(G, rounds: n)`, `best_of(G, rounds: n)`. |
 | Configuración | configuration | Estado completo del motor: valores + nodos activos + envíos pendientes + historial + relojes. |
@@ -22,6 +23,7 @@
 | Construcción progresiva | progressive action building | Elegir los parámetros de una acción uno a uno, consultando los legales en cada paso. |
 | Constructor de acciones | action builder | Parte de la UI genérica que compone una acción argumento a argumento con los valores que permiten las acciones legales (enumeradas o con `query_actions`). |
 | Diagnóstico | diagnostic | Error o aviso del compilador con código, posición, explicación y ayuda (al estilo de rustc). |
+| Disposición (del diagrama) | layout | Dónde va cada caja del diagrama del Studio: la calcula ELK y la ajusta el usuario; se guarda en `<juego>.layout.json`, fuera de las reglas. |
 | Efecto | effect | Sentencia que modifica el estado (`assign`, `move`, `reveal`…). Solo en bloques de efectos. |
 | En este dispositivo | hot-seat | Varias personas jugando por turnos en la misma pantalla; en la app web, con una conexión por asiento y la pantalla tapada entre turnos si hay información oculta. |
 | Espectador | spectator | Participante sin asiento: ve la vista pública (u omnisciente, si la sala lo permite), con retardo opcional. |
@@ -44,6 +46,7 @@
 | Nomos | Nomos | El lenguaje de descripción de juegos de GameHub (archivos `.game`). |
 | Observación | observation | Lo que un jugador recibe tras un paso: vista redactada + eventos visibles (pública + privada). |
 | Observador público | public observer | Quien no ocupa ningún asiento (`PUBLIC` en el motor): ve lo que la visibilidad permite a quien no es dueño de nada. |
+| Operación (del Studio) | edit operation | Un cambio del diagrama o de un formulario (`addNode`, `addTransition`, `updateAction`…) que se aplica al árbol del `.game`; el texto se reescribe solo donde cambió. |
 | Pagos | payoffs | Vector de utilidades en un nodo terminal. |
 | Paquete | package | Directorio de un juego con su `game.toml` (nombre, versión, dependencias). |
 | Participante | participant | Persona o bot en una sala: jugador (sentado) o espectador. |
@@ -54,8 +57,10 @@
 | Replay | replay | Tupla (hash de reglas, parámetros, semilla, acciones) que reproduce una partida exacta. |
 | Revancha | rematch | Otra partida en la misma sala y con los mismos asientos, cuando todos vuelven a declararse listos. |
 | Sala | room | Instancia alojada de un juego con su código, asientos, configuración y partidas encadenadas. |
+| Servidor de lenguaje | language server (LSP) | `gamehub lsp`: diagnósticos, autocompletado, hover, definición, renombrar… para cualquier editor; el Studio usa el mismo por WebSocket. |
 | Sesión | session | La participación de alguien en una sala, identificada por un token secreto que permite reconectarse. |
 | Statechart | statechart | Máquina de estados jerárquica (Harel); el modelo del flow. |
+| Studio | Studio | El editor visual de GameHub (`gamehub studio`): diagrama y texto a la vez, inspector, simulador y herramientas. |
 | Test | test | Bloque `test "…" { … }` de un juego: una partida guionizada con comprobaciones (`play`, `expect`, `chance where`, `set`). |
 | Traza de conformidad | conformance trace | Replay con semilla fija que todo motor debe reproducir bit a bit (`spec/conformance`). |
 | Turno vigente | current turn | Desde la actualización en que un asiento puede actuar hasta que actúa o se llega a otro nodo; un `act` decidido antes se rechaza (`stale_seq`). |

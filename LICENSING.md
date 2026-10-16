@@ -13,4 +13,12 @@
   (recomendada: CC-BY-4.0).
 - Decisión registrada en [ADR-016](docs/wiki/decisiones.md).
 
+## Dependencias de terceros en las apps web
+
+Las apps compiladas (`web/apps/*/dist`, que también viajan en la rueda de Python) incluyen
+dependencias con sus propias licencias, sin modificar: React, React Flow (`@xyflow/react`),
+CodeMirror y `marked` (MIT), y **elkjs (EPL-2.0)**, la disposición automática del Studio, cuyo
+código fuente está en <https://github.com/kieler/elkjs>. Las versiones exactas están en
+`pnpm-lock.yaml`.
+
 Copyright 2026 Juan Martin Fajardo y colaboradores de GameHub.

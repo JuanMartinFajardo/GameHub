@@ -31,7 +31,13 @@ game.decode_action(s.node, {"name": "bet", "args": {}})    # acción desde JSON 
 
 `evaluate`, `edited` e `illegal_reason` (Fase 2) sirven a `gamehub test` y a las herramientas; no
 forman parte de las reglas ni de las trazas de conformidad. `PUBLIC`, `iter_legal_actions`,
-`ranking` y `Game.decode_action` (Fase 3) los usan el servidor de partidas y los clientes. Un juego también se carga desde Nomos:
+`ranking` y `Game.decode_action` (Fase 3) los usan el servidor de partidas y los clientes. Para el
+simulador del Studio (Fase 5), `s.outcome_probability(resultado)` da la probabilidad de un
+resultado de azar concreto, y cada transición sabe quién es (`TransitionDef.key`:
+`("node", "Move", "0")` o `("action", "Bid", "dudo", "1")`): con una lista en
+`gamehub.engine.state.TRACE` (un `ContextVar`), el motor apunta las que recorre, lo que da las
+flechas del último paso y la cobertura de reglas. Ninguna de las dos cambia la semántica ni las
+trazas de conformidad. Un juego también se carga desde Nomos:
 `gamehub.lang.compiler.load_nomos(Path("games/nim/nim.game"))`.
 
 ```bash

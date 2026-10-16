@@ -21,6 +21,14 @@ from gamehub.lang.source import NO_SPAN, Span
 @dataclass(kw_only=True)
 class Node:
     span: Span = field(default=NO_SPAN, compare=False, repr=False)
+    #: Posición de cada nombre que el nodo declara o al que se refiere fuera de sus
+    #: subexpresiones, en el orden del texto (lo usan renombrar, ir a la definición y el Studio).
+    #: Qué nombre es cada una lo dice la clase (ver `name_span`); vacío en nodos sintetizados.
+    name_spans: list[Span] = field(default_factory=list, compare=False, repr=False)
+
+    def name_span(self, i: int = 0) -> Span:
+        """Posición del i-ésimo nombre del nodo, o la del nodo entero si no se conoce."""
+        return self.name_spans[i] if i < len(self.name_spans) else self.span
 
 
 @dataclass(kw_only=True)

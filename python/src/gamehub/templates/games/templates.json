@@ -1,0 +1,50 @@
+[
+  {
+    "id": "vacio",
+    "title": { "es": "Vacío", "en": "Empty" },
+    "description": {
+      "es": "Un turno y un final: lo mínimo para empezar a diseñar.",
+      "en": "One turn and an end: the bare minimum to start designing."
+    }
+  },
+  {
+    "id": "carrera",
+    "title": { "es": "Carrera", "en": "Race" },
+    "description": {
+      "es": "Por turnos se suma 1 o 2; gana quien llega exactamente a la meta. Con opciones, test e invariante.",
+      "en": "Players take turns adding 1 or 2; reaching the target exactly wins. With options, a test and an invariant."
+    }
+  },
+  {
+    "id": "tablero",
+    "title": { "es": "Tablero por turnos", "en": "Turn-based board" },
+    "description": {
+      "es": "Una rejilla, marcas y líneas (como el tres en raya), con pistas para la interfaz.",
+      "en": "A grid, marks and lines (like tic-tac-toe), with UI hints."
+    }
+  },
+  {
+    "id": "cartas",
+    "title": { "es": "Cartas", "en": "Cards" },
+    "description": {
+      "es": "Baraja francesa, mano oculta, reparto y cambio de cartas. Gana la más alta.",
+      "en": "French deck, hidden hands, dealing and swapping. Highest card wins."
+    }
+  },
+  {
+    "id": "dados",
+    "title": { "es": "Dados", "en": "Dice" },
+    "description": {
+      "es": "El «cerdo»: tirar o plantarse, con azar, un nodo automático y la meta como opción.",
+      "en": "Pig: roll or hold, with chance, an automatic node and the target as an option."
+    }
+  },
+  {
+    "id": "matriz",
+    "title": { "es": "Matriz 2×2", "en": "2×2 matrix" },
+    "description": {
+      "es": "Elección simultánea y secreta con tablas de pagos (teoría de juegos).",
+      "en": "Simultaneous secret choice with payoff tables (game theory)."
+    }
+  }
+]

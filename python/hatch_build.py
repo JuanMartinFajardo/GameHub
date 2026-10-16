@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Construcción de la rueda: la app web compilada (`web/apps/play/dist`, tras `pnpm build`), si
-existe, viaja dentro del paquete como `gamehub/webapp`, donde la busca `gamehub serve`."""
+"""Construcción de la rueda: las apps web compiladas (tras `pnpm build`), si existen, viajan dentro
+del paquete: la de jugar (`web/apps/play/dist`) como `gamehub/webapp`, donde la busca
+`gamehub serve`, y la del Studio (`web/apps/studio/dist`) como `gamehub/studioapp`, donde la busca
+`gamehub studio`."""
 
 from __future__ import annotations
 
@@ -14,10 +16,15 @@ class CustomBuildHook(BuildHookInterface):  # type: ignore[type-arg]
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         if self.target_name != "wheel":
             return
-        dist = Path(self.root).parent / "web" / "apps" / "play" / "dist"
-        if (dist / "index.html").is_file():
-            build_data["force_include"][str(dist)] = "gamehub/webapp"
-        else:
-            self.app.display_warning(
-                "La rueda no lleva la app web: compílala antes con `pnpm build` en la raíz."
-            )
+        apps = Path(self.root).parent / "web" / "apps"
+        for app, target, what in (
+            ("play", "gamehub/webapp", "la app web"),
+            ("studio", "gamehub/studioapp", "el Studio"),
+        ):
+            dist = apps / app / "dist"
+            if (dist / "index.html").is_file():
+                build_data["force_include"][str(dist)] = target
+            else:
+                self.app.display_warning(
+                    f"La rueda no lleva {what}: compílalo antes con `pnpm build` en la raíz."
+                )

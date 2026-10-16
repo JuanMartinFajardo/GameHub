@@ -30,7 +30,7 @@ para poder calcular su hash).
 
 | Nivel | Quién lo produce | Contenido |
 |---|---|---|
-| **IR de autor** | Compilador/Studio, tras parsear | En la Fase 2 es el **AST de Nomos** más el modelo del juego (módulos, mods y combinadores sin resolver), con posiciones y comentarios; el round-trip texto ↔ IR lo garantiza el descompilador (ADR-029). El editor visual (F5) trabajará sobre él. |
+| **IR de autor** | Compilador/Studio, tras parsear | En la Fase 2 es el **AST de Nomos** más el modelo del juego (módulos, mods y combinadores sin resolver), con posiciones y comentarios; el round-trip texto ↔ IR lo garantiza el descompilador (ADR-029). El Studio (F5) edita sobre él: cada gesto del diagrama es una operación sobre el árbol y el texto se reescribe solo donde cambió ([ADR-052](decisiones.md)). |
 | **IR resuelta** | `gamehub check` (lowering) | Imports resueltos, tipos anotados, azúcar eliminado (bucles → nodos + contadores, `deal` → `move`s, `table` → `match`). Es lo que consumen los motores. Sobre ella se calcula el hash. |
 
 Conjunto de nodos de la IR resuelta (núcleo mínimo): `decision`, `simultaneous`, `window`,
@@ -113,10 +113,12 @@ Un cambio cosmético (renombrar un título, mover una caja del diagrama) no camb
 
 ## 6. Layout y comentarios
 
-- La posición de las cajas, colores y grupos plegados del diagrama van en un *sidecar*
-  `nombre.layout.json` (no afecta al hash ni a las reglas).
-- Los comentarios del texto se adjuntan a nodos de la IR de autor (`"doc"`), para que el
-  round-trip texto → diagrama → texto no los pierda.
+- La posición de las cajas, la dirección y las fases plegadas del diagrama van en un *sidecar*
+  `<juego>.layout.json`, por nombre de nodo (no afecta al hash ni a las reglas; formato en el
+  [Studio](studio-editor-visual.md#2-el-diagrama)).
+- Los comentarios del texto van con los elementos de la IR de autor (los `///`, como `doc`; los
+  demás, como *trivia* de cada elemento) y el Studio los conserva al editar desde el diagrama:
+  lo que no cambia mantiene su texto tal cual.
 
 ## 7. Versionado de la IR
 

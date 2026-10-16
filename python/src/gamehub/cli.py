@@ -153,6 +153,30 @@ def _parser() -> argparse.ArgumentParser:
     rules.add_argument("-o", "--output", type=Path, metavar="SALIDA.md")
     rules.set_defaults(handler=_rules)
 
+    lsp = commands.add_parser(
+        "lsp", help="servidor de lenguaje de Nomos por la entrada estándar (para editores)"
+    )
+    lsp.set_defaults(handler=_lsp)
+
+    studio = commands.add_parser(
+        "studio", help="el Studio: editor visual de juegos (diagrama ↔ texto) y simulador"
+    )
+    studio.add_argument(
+        "path",
+        type=Path,
+        nargs="?",
+        default=Path("."),
+        metavar="RUTA",
+        help="directorio de trabajo o archivo .game que abrir (por defecto, el actual)",
+    )
+    studio.add_argument("--host", default="127.0.0.1", help="interfaz (por defecto, solo local)")
+    studio.add_argument("--port", type=int, default=7421, help="puerto (por defecto, 7421)")
+    studio.add_argument("--open", action="store_true", help="abre el navegador")
+    studio.add_argument(
+        "--no-token", action="store_true", help="sin token (solo para pruebas en tu máquina)"
+    )
+    studio.set_defaults(handler=_studio)
+
     test = commands.add_parser("test", help="ejecuta los tests y los invariantes de archivos .game")
     test.add_argument(
         "files", nargs="+", type=Path, metavar="RUTA", help="archivos .game o directorios"
@@ -190,6 +214,11 @@ def _parser() -> argparse.ArgumentParser:
     new.add_argument("name", metavar="NOMBRE", help="nombre del paquete: minúsculas y guiones")
     new.add_argument("--dir", type=Path, help="directorio (por defecto, ./NOMBRE)")
     new.add_argument("--author", action="append", default=[], help="autor (se puede repetir)")
+    new.add_argument(
+        "--template",
+        default="carrera",
+        help="plantilla: vacio, carrera (por defecto), tablero, cartas, dados o matriz",
+    )
     new.set_defaults(handler=_new)
 
     fetch = commands.add_parser("fetch", help="descarga las dependencias git y escribe game.lock")
@@ -954,6 +983,84 @@ def _ui_new(args: argparse.Namespace) -> int:
     return 0
 
 
+def _studio(args: argparse.Namespace) -> int:
+    import asyncio
+    import os
+    from urllib.parse import quote
+
+    from gamehub.packages import MANIFEST
+    from gamehub.server.run import start, stop
+    from gamehub.server.serve import until_stopped
+    from gamehub.studio.server import LOCAL_HOSTS, WS_MAX_SIZE, create_app, new_token, studio_dir
+    from gamehub.studio.workspace import Workspace
+
+    target = args.path.resolve()
+    if not target.exists():
+        print(f"error: no existe {args.path}", file=sys.stderr)
+        return 1
+    open_file = None
+    root = target
+    if target.is_file():
+        root = target.parent
+        for parent in [target.parent, *target.parent.parents]:
+            if (parent / MANIFEST).is_file():
+                root = parent.parent if parent.parent != parent else parent
+                break
+        open_file = target.relative_to(root).as_posix()
+    token = None if args.no_token else (os.environ.get("GAMEHUB_STUDIO_TOKEN") or new_token())
+    local = args.host in LOCAL_HOSTS
+    web = studio_dir()
+    app = create_app(
+        Workspace(root),
+        token=token,
+        web=web,
+        hosts=LOCAL_HOSTS if local else None,
+        open_file=open_file,
+    )
+
+    async def main() -> None:
+        server, task = await start(app, args.host, args.port, ws_max_size=WS_MAX_SIZE)
+        try:
+            shown = "127.0.0.1" if args.host in ("127.0.0.1", "0.0.0.0", "::") else args.host
+            query = [f"token={token}"] if token else []
+            if open_file:
+                query.append(f"file={quote(open_file)}")
+            url = f"http://{shown}:{server.port}/" + (f"?{'&'.join(query)}" if query else "")
+            print(f"GameHub Studio · {root}")
+            print(f"  ábrelo en: {url}", flush=True)
+            if web is None:
+                print("  (falta la app web: compílala con `pnpm install && pnpm build` en la raíz)")
+            if not local:
+                print(
+                    "  aviso: escucha fuera de esta máquina; cualquiera con el enlace puede editar"
+                )
+            print("  Ctrl+C para parar", flush=True)
+            if args.open:
+                import webbrowser
+
+                webbrowser.open(url)
+            await until_stopped()
+        finally:
+            await stop(server, task)
+        print("Studio parado.")
+
+    try:
+        asyncio.run(main())
+    except OSError as exc:
+        print(
+            f"error: no se puede abrir el Studio en el puerto {args.port}: {exc}", file=sys.stderr
+        )
+        return 1
+    return 0
+
+
+def _lsp(args: argparse.Namespace) -> int:
+    from gamehub.lsp.server import run_stdio
+
+    run_stdio()
+    return 0
+
+
 def _rules(args: argparse.Namespace) -> int:
     from gamehub.render.rules import rules
 
@@ -1150,7 +1257,7 @@ def _new(args: argparse.Namespace) -> int:
 
     root = args.dir or Path(args.name)
     try:
-        manifest = new_package(root, args.name, authors=args.author)
+        manifest = new_package(root, args.name, authors=args.author, template=args.template)
     except PackageError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

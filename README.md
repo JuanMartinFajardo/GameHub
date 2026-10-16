@@ -11,10 +11,10 @@
    combinatoria, heurísticas, bots, arena y aprendizaje por refuerzo.
 5. **Colaborar**: publicar, clonar, bifurcar y proponer cambios de reglas con diffs semánticos.
 
-> Estado: **Fase 4 — se juega en el navegador** (≈ 41 %). Los juegos se escriben en Nomos y se
-> juegan en la terminal, en red (salas con código, enlace y QR en la LAN) y en una app web, también
-> en el móvil: cualquier juego del catálogo con la interfaz genérica, y el tres en raya, Conecta 4
-> y Dudo con la suya propia.
+> Estado: **Fase 5 — el Studio** (≈ 51 %, pendiente de fusionar). Los juegos se diseñan en Nomos
+> o en el **Studio** (diagrama y texto a la vez, con simulador), y se juegan en la terminal, en red
+> (salas con código, enlace y QR en la LAN) y en una app web, también en el móvil: cualquier juego
+> con la interfaz genérica, y el tres en raya, Conecta 4 y Dudo con la suya propia.
 
 ## Documentación
 
@@ -25,9 +25,10 @@
 ## Desarrollo
 
 ```bash
-pnpm install && pnpm build                       # la app web (Node 22 + pnpm, en la raíz)
+pnpm install && pnpm build                       # las apps web (Node 22 + pnpm, en la raíz)
 cd python
 uv sync                                          # entorno de Python (3.12+)
+uv run gamehub studio ../games --open            # el Studio: diseñar con diagrama y texto, simular
 uv run gamehub serve ../games --open             # servidor de partidas y la app en el navegador
 uv run gamehub host ../games/dudo --players 4    # una sala en la LAN (los demás: gamehub join)
 uv run gamehub play ../games/nim --seats human,random   # en la terminal, contra un bot

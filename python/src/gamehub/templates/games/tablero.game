@@ -1,0 +1,51 @@
+// __TITLE__
+// Un juego de tablero por turnos: se pone una marca en una casilla libre y gana quien hace una
+// línea de tres. Cambia el tamaño de la rejilla, la longitud de la línea o las marcas.
+
+game __GAME__ {
+  meta {
+    title: "__TITLE__"
+    version: "0.1.0"
+  }
+  players 2
+
+  enum Mark { X, O }
+
+  state {
+    board: Grid[3, 3] of Mark? = none
+    turn: Seat = 0
+  }
+
+  /// La marca de cada asiento.
+  fn mark(p: Seat) -> Mark = X if p == 0 else O
+  /// ¿Hay una línea de tres con la marca?
+  fn wins(m: Mark) -> Bool = any(line in lines(board, 3) : all(c in line : board[c] == m))
+  /// ¿Está el tablero lleno?
+  fn full() -> Bool = all(c in cells(board) : not is_none(board[c]))
+
+  flow {
+    start -> Move
+
+    decision Move {
+      actor: turn
+      action place(c in cells(board)) requires is_none(board[c]) { board[c] = mark(turn) }
+      -> Win when wins(mark(turn))
+      -> Draw when full()
+      -> Move { turn = next(turn) }
+    }
+
+    terminal Win { payoff: win_loss(turn, 1, -1) }
+    terminal Draw { payoff: fill(0) }
+  }
+
+  ui {
+    board: grid
+    turn: hidden
+    Mark: symbols(X: "✕", O: "◯")
+  }
+
+  test "una línea gana" {
+    play place((0, 0)), place((1, 0)), place((0, 1)), place((1, 1)), place((0, 2))
+    expect at(Win) and payoff == [1, -1]
+  }
+}

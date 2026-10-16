@@ -132,6 +132,24 @@ class ScriptedDraws:
         return self.pos == len(self.draws)
 
 
+class ProbabilityDraws(ScriptedDraws):
+    """Reproduce un resultado y calcula su probabilidad exacta."""
+
+    def __init__(self, draws: Sequence[int]) -> None:
+        super().__init__(draws)
+        self.probability = Fraction(1)
+
+    def uniform(self, n: int) -> int:
+        d = super().uniform(n)
+        self.probability /= n
+        return d
+
+    def weighted(self, probs: Sequence[Fraction]) -> int:
+        i = super().weighted(probs)
+        self.probability *= probs[i]
+        return i
+
+
 class _NeedDraw(Exception):
     def __init__(self, n: int, probs: tuple[Fraction, ...] | None = None) -> None:
         super().__init__(n)

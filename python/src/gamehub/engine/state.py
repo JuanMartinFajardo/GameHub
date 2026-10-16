@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterator
+from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
@@ -22,13 +23,26 @@ from gamehub.engine.errors import IllegalAction, RuleError
 from gamehub.engine.events import Event
 from gamehub.engine.expr import boolean, iterate, num, seat
 from gamehub.engine.game import ActionDef, GameDef, NodeDef, TransitionDef
-from gamehub.engine.rng import Draws, Outcome, Pcg32, RngDraws, enumerate_outcomes, replay_outcome
+from gamehub.engine.rng import (
+    Draws,
+    Outcome,
+    Pcg32,
+    ProbabilityDraws,
+    RngDraws,
+    enumerate_outcomes,
+    replay_outcome,
+)
 from gamehub.engine.values import HIDDEN, Zone, norm_num, to_json
 from gamehub.engine.visibility import redact
 from gamehub.ir.hashing import canonical_json
 
 #: Llegadas a nodos permitidas en un solo paso antes de declarar un bucle sin progreso.
 MAX_ARRIVALS = 10_000
+
+#: Si contiene una lista, el motor anota en ella la clave de cada transición que sigue (ver
+#: `TransitionDef.key`). Lo usa el simulador del Studio para la cobertura de reglas; no cambia
+#: nada de la semántica.
+TRACE: ContextVar[list[tuple[str, ...]] | None] = ContextVar("gamehub_trace", default=None)
 
 
 class Status(Enum):
@@ -266,6 +280,13 @@ class State:
         replay_outcome(run, outcome)
         tx = holder[-1]
         return tx.commit(self, Step("chance", outcome=tuple(outcome), events=tuple(tx.ctx.events)))
+
+    def outcome_probability(self, outcome: Outcome) -> Fraction:
+        """Probabilidad exacta de un resultado del punto de azar actual."""
+        self._require(Status.CHANCE)
+        draws = ProbabilityDraws(outcome)
+        self._tx(draws).run_chance()
+        return draws.probability
 
     def edited(self, stmts: list[Any], **locals_: Any) -> State:
         """Copia del estado tras ejecutar sentencias de la IR fuera del flow (los `set` de los
@@ -596,6 +617,9 @@ class _Tx:
         for transitions, env in candidates:
             for t in transitions:
                 if t.when is None or boolean(t.when(env), "when"):
+                    trace = TRACE.get()
+                    if trace is not None:
+                        trace.append(t.key)
                     t.effects(env)
                     if t.to == "$exit":
                         parent = self.game.nodes[origin].parent

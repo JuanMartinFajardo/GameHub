@@ -5,6 +5,91 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-16 — F5 aprobada y fusionada a `main`
+
+**Respuesta recibida**: «Sí» a la pregunta 22: ADR-052 a 059 aceptadas (entre ellas **CodeMirror en
+vez de Monaco**, que cambia la ADR-012) y `f5/studio` fusionada a `main` con `--no-ff`. Nada se ha
+subido.
+
+**Siguientes pasos**: F6, catálogo ola 2 (los 7 juegos pedidos) y biblioteca estándar madura, en la
+rama `f6/…`.
+
+**Progreso**: ≈ 51 % (F0 a F5 en `main`).
+
+---
+
+## 2026-10-12 — Sesión 7: Fase 5, el Studio
+
+**Respuestas recibidas**: «ve con la fase 5», que se tomó como visto bueno a las ADR-044 a 051 y a
+fusionar F4 (hecho, `d14ae62`; nada se ha subido). F5 se trabaja en la rama `f5/studio`.
+
+**Hecho (un commit por tarea)**
+- **Núcleo** (`2cde02a`): posición de cada nombre en el árbol, **índice de símbolos** del
+  comprobador (declaraciones, usos resueltos y tipos de cada expresión), referencia de lo
+  predefinido, fragmentos sueltos con errores situados, el **motor de ediciones** (~45 operaciones
+  sobre el árbol con reescritura mínima del texto, comprobada volviendo a analizar) y el **modelo
+  del documento** para el diagrama y los formularios. Compilar para el editor se salta el JSON
+  Schema (era el 90 % del tiempo).
+- **Servidor de lenguaje** (`cff47a3`) con pygls: diagnósticos, autocompletado con el texto a
+  medias, hover, definición, referencias, renombrar con comprobación de choques, formato, esquema,
+  plegado, firmas y arreglos rápidos; `gamehub lsp` por stdio y el mismo servidor por el WebSocket
+  del Studio.
+- **Servidor del Studio** (`8c4277e`): `gamehub studio` (API del espacio de trabajo, disposición
+  en `<juego>.layout.json`, juegos nuevos desde plantillas, historia de git), seguridad (solo
+  local, token, Host y Origin), **simulador** (historia con viaje en el tiempo, correr hasta
+  puntos de ruptura, recargar reglas, partidas masivas con cobertura gracias a la traza de
+  transiciones del motor, árbol, recuento, tamaño con el estimador de Knuth) y **plantillas**
+  (`gamehub new --template`).
+- **Tests e invariantes en el Studio** y **aceptación** (`7e62df0`): operaciones para editarlos y
+  `gamehub/tests` para ejecutarlos (sin ellas, la plantilla vacía no compilaba en cuanto se tocaba
+  su acción); pruebas de aceptación contra el servidor de verdad.
+- **El Studio web** (`428b6f4`): `@gamehub/nomos` (Nomos para CodeMirror), `@gamehub/studio`
+  (diagrama con React Flow + ELK, editor y campos con CodeMirror y el LSP, inspector, diseñador
+  de componentes, simulador con la UI genérica, partidas masivas, árbol, comparar, exportar SVG y
+  PNG) y la app; pruebas unitarias, de integración y de la app entera en jsdom.
+- **Rueda y CI** (`16d9b6e`): la rueda lleva el Studio compilado; la CI compila las dos apps.
+- **Aceptación**: el tres en raya se construye desde la plantilla vacía con 24 gestos del
+  diagrama y del inspector, pasa sus tests, se juega en el simulador y es el mismo juego que el
+  del catálogo (mismas jugadas legales y pagos en 40 partidas al azar); Dudo se cambia en el
+  diagrama (nodo nuevo, flecha reconectada —una línea de texto—, acciones reordenadas, la ronda
+  metida en una fase) sin perder ningún comentario, y lo escrito en el texto, también roto y
+  arreglado, llega al diagrama. Revisado a mano en el navegador integrado.
+- **Fallos encontrados y corregidos al probar en el navegador**: guardar daba siempre conflicto
+  (la versión del archivo iba en nanosegundos y no cabe exacta en un número de JavaScript: ahora
+  en microsegundos); las flechas tapaban las asas de salida y no se podía tirar otra desde un nodo
+  que ya tenía alguna; ELK ponía el nodo de apuestas de Dudo por encima del inicio (rompía el
+  ciclo por la flecha equivocada: ahora por el orden del texto); al cambiar de vista el diagrama
+  quedaba fuera del encuadre; un nodo nuevo quedaba fuera de la vista; del clic al diagrama
+  pasaban más de 0,65 s (el editor esperaba medio segundo para sincronizar el texto y el servidor
+  otros 150 ms para analizarlo: ahora ~70 ms); en las partidas masivas un empate contaba como victoria de los dos (69 % + 44 %);
+  «Contar» el árbol podía tardar medio minuto sin dar señales (ahora con límite y «Contando…»); el
+  generador de dados creaba un nodo de azar sin transición; los selectores de idioma y tema
+  ocupaban todo el ancho; «1 avisos»; los tipos de nodo salían en español con la interfaz en
+  inglés; dos copias de `@lezer/highlight`; el WebSocket del Studio rechazaba mensajes de más de
+  64 KB (un `.game` grande al abrirlo).
+- Docs: página del [Studio](docs/wiki/studio-editor-visual.md) reescrita (implementado),
+  lenguaje §4 y §13 (`gamehub studio`, `gamehub lsp`, plantillas), arquitectura, motor (traza),
+  roadmap, licencias (elkjs es EPL-2.0), READMEs; ADR-052 a 059. Tests: 798 de Python y 113 de la
+  parte web.
+
+**Decisiones** (propuestas): ADR-052 a 059; la más visible, **CodeMirror en vez de Monaco**
+(ADR-054, cambia la ADR-012): más ligero y pensado para decenas de campos con su cliente LSP.
+
+**Limitaciones**: sin edición colaborativa; sin bloques tipo Scratch (pregunta 6); mover una
+acción de un nodo a otro se hace en el texto; la extensión de VS Code aún no usa el LSP; el Studio
+necesita el servidor local (sin él, con el WASM de F8 y el hub de F10). El panel del navegador
+integrado era pequeño: el diseño de escritorio se comprobó midiendo la página y con capturas a ese
+tamaño, no a pantalla completa.
+
+**Pendiente de ti**: revisar las ADR-052 a 059 y dar el visto bueno para fusionar `f5/studio` a
+`main` (pregunta 22).
+
+**Siguiente**: F6, catálogo ola 2 (los 7 juegos pedidos) y biblioteca estándar madura.
+
+**Progreso global**: ≈ 51 %.
+
+---
+
 ## 2026-10-11 — Fase 4 aprobada y fusionada
 
 - «Ve con la fase 5»: se toman como aprobadas las ADR-044 a 051 y la fusión. La rama

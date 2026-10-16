@@ -38,6 +38,7 @@ from gamehub.lang.model import (
     TestStep,
 )
 from gamehub.lang.source import NO_SPAN, Span
+from gamehub.lang.symbols import SymbolIndex, local_key
 from gamehub.lang.types import Ty
 from gamehub.lang.ui import UiContext, check_ui
 
@@ -78,6 +79,8 @@ class Binding:
     kind: str  # "local" | "arg"
     ty: Ty
     span: Span = NO_SPAN
+    #: Clave del símbolo en el índice (None en variables sintetizadas).
+    key: str | None = None
 
 
 class Scope:
@@ -143,9 +146,13 @@ class NodeInfo:
 
 
 class Checker:
-    def __init__(self, model: GameModel, diagnostics: Diagnostics) -> None:
+    def __init__(
+        self, model: GameModel, diagnostics: Diagnostics, index: SymbolIndex | None = None
+    ) -> None:
         self.model = model
         self.diagnostics = diagnostics
+        #: Si se da, el comprobador anota en él cada declaración, cada uso y cada tipo.
+        self.index = index
         self.types: dict[str, TypeInfo] = {}
         self.enum_values: dict[str, list[str]] = {}
         self.params: dict[str, tuple[Ty, int]] = {}
@@ -177,6 +184,28 @@ class Checker:
     def use(self, name: str) -> None:
         self.refs.setdefault(self.owner, set()).add(name)
 
+    def note(self, span: Span | None, key: str) -> None:
+        """Anota un uso de un símbolo en el índice (si lo hay)."""
+        if self.index is not None:
+            self.index.ref(span, key)
+
+    def declare(
+        self,
+        key: str,
+        kind: str,
+        name: str,
+        span: Span | None,
+        detail: str = "",
+        doc: ast.Text | None = None,
+    ) -> None:
+        """Anota una declaración en el índice (si lo hay)."""
+        if self.index is None:
+            return
+        text = None
+        if doc is not None:
+            text = doc.value if isinstance(doc.value, str) else next(iter(doc.value.values()), "")
+        self.index.define(key, kind, name, span, detail, text)
+
     def expect(self, typed: Typed, want: Ty, span: Span, what: str = "") -> Any:
         ir, ty = typed
         if not T.assignable(ty, want):
@@ -199,6 +228,7 @@ class Checker:
 
     def run(self) -> CompiledGame:
         m = self.model
+        self.declare(f"game:{m.name}", "game", m.name, m.decl.name_span(), f"game {m.name}")
         self.declare_types()
         self.declare_params()
         self.declare_state()
@@ -293,7 +323,7 @@ class Checker:
             nodes=set(self.nodes),
             emitted_types=emitted_types,
         )
-        return check_ui(self.model.ui, ctx, self.diagnostics)
+        return check_ui(self.model.ui, ctx, self.diagnostics, self.index)
 
     def enum_values_by_type(self) -> dict[str, list[str]]:
         return {
@@ -428,6 +458,16 @@ class Checker:
                 self.error("E206", f"`{decl.name}` es un tipo predefinido", decl.span)
                 continue
             self.types[decl.name] = TypeInfo(decl, external)
+            if isinstance(decl, ast.EnumDecl):
+                detail = f"enum {decl.name} {{ {', '.join(decl.values)} }}"
+                self.declare(
+                    f"type:{decl.name}", "type", decl.name, decl.name_span(), detail, decl.doc
+                )
+                for i, value in enumerate(decl.values):
+                    span = decl.name_spans[i + 1] if i + 1 < len(decl.name_spans) else None
+                    self.declare(
+                        f"value:{decl.name}.{value}", "value", value, span, f"{decl.name}.{value}"
+                    )
         for name, info in self.types.items():
             if isinstance(info.decl, ast.EnumDecl):
                 if len(set(info.decl.values)) != len(info.decl.values):
@@ -445,7 +485,24 @@ class Checker:
                     if f.name in info.fields:
                         self.error("E202", f"campo repetido en {name}: {f.name}", f.span)
                     info.fields[f.name] = self.resolve_type(f.type)
+                    self.declare(
+                        f"field:{name}.{f.name}",
+                        "field",
+                        f.name,
+                        f.name_span(),
+                        f"{name}.{f.name}: {info.fields[f.name]}",
+                        f.doc,
+                    )
                 self.owner = "game"
+                fields = ", ".join(f"{k}: {v}" for k, v in info.fields.items())
+                self.declare(
+                    f"type:{name}",
+                    "type",
+                    name,
+                    info.decl.name_span(),
+                    f"struct {name} {{ {fields} }}",
+                    info.decl.doc,
+                )
 
     def type_decl_ir(self, info: TypeInfo) -> dict[str, Any]:
         decl = info.decl
@@ -469,6 +526,7 @@ class Checker:
                     return Ty(name)
                 if name in self.types:
                     self.use(name)
+                    self.note(t.span, f"type:{name}")
                     info = self.types[name]
                     return T.enum_(name) if isinstance(info.decl, ast.EnumDecl) else T.struct_(name)
                 if name in ("List", "Set", "Zone", "Bag", "Map"):
@@ -505,6 +563,10 @@ class Checker:
             case ast.TPerPlayer(inner=inner):
                 return T.per_player(self.resolve_type(inner))
             case ast.TGrid(width=w, height=h, inner=inner):
+                named = [d for d in (w, h) if isinstance(d, str)]
+                for dim, span in zip(named, t.name_spans, strict=False):
+                    if dim in self.params:
+                        self.note(span, f"param:{dim}")
                 for dim in (w, h):
                     if isinstance(dim, str) and dim not in self.params:
                         self.error("E201", f"parámetro desconocido en la dimensión: {dim}", t.span)
@@ -524,13 +586,21 @@ class Checker:
             self.params[p.name] = (T.UNKNOWN, i)
         for p in self.model.params:
             if p.name in self.params:
-                self.params[p.name] = (self.resolve_type(p.type), self.params[p.name][1])
+                ty = self.resolve_type(p.type)
+                self.params[p.name] = (ty, self.params[p.name][1])
+                self.declare(
+                    f"param:{p.name}", "param", p.name, p.name_span(), f"{p.name}: {ty}", p.doc
+                )
 
     def declare_state(self) -> None:
         for var in self.model.state:
             if not self.declare_global(var.name, var.span, "la variable"):
                 continue
-            self.state[var.name] = self.resolve_type(var.type)
+            ty = self.state[var.name] = self.resolve_type(var.type)
+            detail = f"{var.name}: {ty}"
+            if var.visibility is not None:
+                detail = f"@visible({_visibility_text(var.visibility)}) {detail}"
+            self.declare(f"state:{var.name}", "state", var.name, var.name_span(), detail, var.doc)
 
     def declare_functions(self) -> None:
         from gamehub.lang.builtins import BUILTINS
@@ -556,8 +626,17 @@ class Checker:
                 if p.name in (n for n, _ in params):
                     self.error("E202", f"parámetro repetido: {p.name}", p.span)
                 params.append((p.name, self.resolve_type(p.type)))
-            self.functions[decl.name] = FnInfo(
+            info = self.functions[decl.name] = FnInfo(
                 decl, params, self.resolve_type(decl.returns), external
+            )
+            signature = ", ".join(f"{n}: {ty}" for n, ty in params)
+            self.declare(
+                f"fn:{decl.name}",
+                "fn",
+                decl.name,
+                decl.name_span(),
+                f"fn {decl.name}({signature}) -> {info.returns}",
+                decl.doc,
             )
             self.owner = "game"
 
@@ -683,8 +762,8 @@ class Checker:
             self.owner = name
             self.in_module = info.external
             scope = Scope()
-            for pname, pty in info.params:
-                self.bind(scope, pname, "arg", pty, info.decl.span)
+            for param, (pname, pty) in zip(info.decl.params, info.params, strict=True):
+                self.bind(scope, pname, "arg", pty, info.decl.span, decl=param.name_span())
             ctx = Ctx(f"la función {name}")
             if info.external:
                 ctx = replace(ctx, reads_state=False, module=True)
@@ -732,7 +811,19 @@ class Checker:
         for name in sorted(self.calls):
             visit(name, [])
 
-    def bind(self, scope: Scope, name: str, kind: str, ty: Ty, span: Span) -> None:
+    def bind(
+        self,
+        scope: Scope,
+        name: str,
+        kind: str,
+        ty: Ty,
+        span: Span,
+        *,
+        decl: Span | None = None,
+        key: str | None = None,
+    ) -> None:
+        """Declara un nombre local. `decl` es la posición exacta del nombre (para el índice);
+        `key`, la clave de su símbolo si no es un local corriente (los parámetros de acción)."""
         if name in self.global_names() and name != "_":
             self.error(
                 "E204",
@@ -740,7 +831,12 @@ class Checker:
                 span,
                 help="usa otro nombre para la variable local",
             )
-        scope.names[name] = Binding(kind, ty, span)
+        if key is None and decl is not None and decl.source is not None:
+            key = local_key(decl)
+        if key is not None:
+            symbol_kind = "aparam" if key.startswith("aparam:") else "local"
+            self.declare(key, symbol_kind, name, decl, f"{name}: {ty}")
+        scope.names[name] = Binding(kind, ty, span, key)
 
     # --- flow -----------------------------------------------------------------------------------
 
@@ -751,6 +847,14 @@ class Checker:
                     self.error("E401", f"nodo duplicado: {node.name}", node.span)
                     continue
                 self.nodes[node.name] = NodeInfo(node, parent)
+                self.declare(
+                    f"node:{node.name}",
+                    "node",
+                    node.name,
+                    node.name_span(),
+                    f"{node.kind} {node.name}",
+                    node.doc,
+                )
                 if node.kind == "phase":
                     walk([m for m in node.members if isinstance(m, ast.NodeDecl)], node.name)
                 for member in node.members:
@@ -781,6 +885,8 @@ class Checker:
             start = m.nodes[0].name if m.nodes else "Start"
         else:
             start = m.start.target
+            if start in self.nodes:
+                self.note(m.start.name_span(), f"node:{start}")
             if start not in top:
                 self.error(
                     "E405",
@@ -968,6 +1074,8 @@ class Checker:
                     out["start"] = children[0].name if children else node.name
                 else:
                     out["start"] = starts[0].target
+                    if starts[0].target in self.nodes:
+                        self.note(starts[0].name_span(), f"node:{starts[0].target}")
                     if starts[0].setup is not None:
                         self.error(
                             "E405",
@@ -1014,7 +1122,7 @@ class Checker:
         for let in lets:
             ir, ty = self.expr(let.value, scope, ctx)
             scope = scope.child()
-            self.bind(scope, let.name, "local", ty, let.span)
+            self.bind(scope, let.name, "local", ty, let.span, decl=let.name_span())
             bound.append((let.name, ir))
         result = self.expect(self.expr(value, scope, ctx, want), want, value.span)
         for name, ir in reversed(bound):
@@ -1040,6 +1148,11 @@ class Checker:
 
     def action(self, a: ast.ActionDecl, in_phase: bool) -> dict[str, Any]:
         out: dict[str, Any] = {"name": a.name}
+        signature = ", ".join(
+            p.name + (f": {_type_text(p.type)}" if p.type is not None else "") for p in a.params
+        )
+        detail = f"action {a.name}({signature})"
+        self.declare(f"action:{a.name}", "action", a.name, a.name_span(), detail, a.doc)
         if a.doc is not None:
             out["doc"] = a.doc.to_ir()
         ctx = Ctx(f"la acción {a.name}", actor=True)
@@ -1057,7 +1170,8 @@ class Checker:
                 param["size_visibility"] = self.visibility(p.size_visibility, True, p.name)
             params.append(param)
             scope = scope.child()
-            self.bind(scope, p.name, "arg", ty, p.span)
+            key = f"aparam:{a.name}.{p.name}"
+            self.bind(scope, p.name, "arg", ty, p.span, decl=p.name_span(), key=key)
         if params:
             out["params"] = params
         if a.requires is not None:
@@ -1134,6 +1248,8 @@ class Checker:
                         t.span,
                         help=self.suggest(t.target, list(self.nodes)),
                     )
+                else:
+                    self.note(t.name_span(), f"node:{t.target}")
                 out["to"] = t.target
             if t.when is not None:
                 out["when"] = self.expect(
@@ -1165,7 +1281,7 @@ class Checker:
         match s:
             case ast.LetStmt(name=name, value=value):
                 ir, ty = self.expr(value, scope, ctx)
-                self.bind(scope, name, "local", ty, s.span)
+                self.bind(scope, name, "local", ty, s.span, decl=s.name_span())
                 return [["let", name, ir]]
             case ast.Assign():
                 return [self.assign(s, scope, ctx)]
@@ -1179,7 +1295,7 @@ class Checker:
                 coll_ir, coll = self.expr(iterable, scope, ctx)
                 item = self.iterable(coll, iterable.span)
                 inner = scope.child()
-                self.bind(inner, var, "local", item, s.span)
+                self.bind(inner, var, "local", item, s.span, decl=s.name_span())
                 return [["for", var, coll_ir, self.stmts(body, inner, ctx)]]
             case ast.MoveStmt():
                 return [self.move(s, scope, ctx)]
@@ -1341,6 +1457,7 @@ class Checker:
                 if name in self.state:
                     if scope.lookup(name) is not None:
                         return self.error("E307", f"`{name}` es una variable local", e.span)
+                    self.note(e.span, f"state:{name}")
                     return ["var", name], self.state[name]
                 return self.error(
                     "E307",
@@ -1353,7 +1470,10 @@ class Checker:
                 return self.index_typed(base_ir, base_ty, index, scope, ctx, e.span)
             case ast.Field(target=target, name=name):
                 base_ir, base_ty = self.lvalue(target, scope, ctx)
-                return self.field_typed(base_ir, base_ty, name, e.span)
+                typed = self.field_typed(base_ir, base_ty, name, e.span)
+                if base_ty.kind == "struct" and not typed[1].is_unknown:
+                    self.note(e.name_span(), f"field:{base_ty.name}.{name}")
+                return typed
         return self.error(
             "E307",
             "solo se puede modificar el estado: una variable, un índice o un campo",
@@ -1469,7 +1589,10 @@ class Checker:
         method = getattr(self, "e_" + type(e).__name__, None)
         if method is None:
             return self.error("E110", f"expresión no válida: {type(e).__name__}", e.span)
-        return method(e, scope, ctx, expected)
+        typed = method(e, scope, ctx, expected)
+        if self.index is not None:
+            self.index.expr_type(e.span, typed[1])
+        return typed
 
     def e_Paren(self, e: ast.Paren, scope: Scope, ctx: Ctx, expected: Ty | None) -> Typed:
         return self.expr(e.inner, scope, ctx, expected)
@@ -1495,6 +1618,8 @@ class Checker:
         name = e.name
         binding = scope.lookup(name)
         if binding is not None:
+            if binding.key is not None:
+                self.note(e.span, binding.key)
             return [binding.kind, name], binding.ty
         if ctx.test and name in ("payoff", "active"):
             return ["local", name], T.PAYOFF if name == "payoff" else T.list_(T.SEAT)
@@ -1514,6 +1639,7 @@ class Checker:
                     e.span,
                     help="aquí solo se pueden usar parámetros y constantes",
                 )
+            self.note(e.span, f"state:{name}")
             return ["var", name], self.state[name]
         if name in self.params:
             ty, index = self.params[name]
@@ -1524,7 +1650,10 @@ class Checker:
                     "usar parámetros anteriores",
                     e.span,
                 )
+            self.note(e.span, f"param:{name}")
             return ["param", name], ty
+        if name in CONTEXT_VALUES:
+            self.note(e.span, f"context:{name}")
         match name:
             case "num_players":
                 return ["param", "num_players"], T.INT
@@ -1571,6 +1700,7 @@ class Checker:
                     help=f"escribe uno de: {options}",
                 )
             self.use(owners[0])
+            self.note(e.span, f"value:{owners[0]}.{name}")
             return ["enum", owners[0], name], T.enum_(owners[0])
         if name in self.functions:
             return self.error("E201", f"`{name}` es una función: llámala con {name}(…)", e.span)
@@ -1767,6 +1897,8 @@ class Checker:
                     e.args[0].span,
                     help=self.suggest(node, list(self.nodes)),
                 )
+            self.note(e.name_span(), "builtin:at")
+            self.note(e.args[0].span, f"node:{node}")
             return ["at", node], T.BOOL
         if e.func in RANDOM_CALLS:
             return self.error(
@@ -1779,6 +1911,7 @@ class Checker:
         if e.func in self.functions:
             info = self.functions[e.func]
             self.use(e.func)
+            self.note(e.name_span(), f"fn:{e.func}")
             if self.owner in self.functions:
                 self.calls.setdefault(self.owner, set()).add(e.func)
             if len(e.args) != len(info.params):
@@ -1793,6 +1926,8 @@ class Checker:
             ]
             return ["call", e.func, *args], info.returns
         builtin = BUILTINS.get(e.func)
+        if builtin is not None:
+            self.note(e.name_span(), f"builtin:{e.func}")
         if builtin is None:
             candidates = [*self.functions, *BUILTINS]
             return self.error(
@@ -1806,7 +1941,9 @@ class Checker:
     def e_Aggregate(self, e: ast.Aggregate, scope: Scope, ctx: Ctx, expected: Ty | None) -> Typed:
         from gamehub.lang.builtins import aggregate
 
-        return aggregate(self, e.func, e.var, e.coll, e.body, scope, ctx, e.span)
+        self.note(e.name_span(0), f"builtin:{e.func}")
+        var_span = e.name_spans[1] if len(e.name_spans) > 1 else None
+        return aggregate(self, e.func, e.var, e.coll, e.body, scope, ctx, e.span, var_span=var_span)
 
     def e_Index(self, e: ast.Index, scope: Scope, ctx: Ctx, expected: Ty | None) -> Typed:
         base_ir, base_ty = self.expr(e.target, scope, ctx)
@@ -1877,6 +2014,7 @@ class Checker:
         ):
             info = self.types[target.name]
             self.use(target.name)
+            self.note(target.span, f"type:{target.name}")
             if not isinstance(info.decl, ast.EnumDecl):
                 return self.error(
                     "E209", f"{target.name} es un struct: no tiene valores con nombre", e.span
@@ -1890,9 +2028,13 @@ class Checker:
                     e.span,
                     help=self.suggest(e.name, info.decl.values),
                 )
+            self.note(e.name_span(), f"value:{target.name}.{e.name}")
             return ["enum", target.name, e.name], T.enum_(target.name)
         base_ir, base = self.expr(target, scope, ctx)
-        return self.field_typed(base_ir, base, e.name, e.span)
+        typed = self.field_typed(base_ir, base, e.name, e.span)
+        if base.kind == "struct" and not typed[1].is_unknown:
+            self.note(e.name_span(), f"field:{base.name}.{e.name}")
+        return typed
 
     def field_typed(self, base_ir: Any, base: Ty, name: str, span: Span) -> Typed:
         if base.is_unknown:
@@ -1948,7 +2090,7 @@ class Checker:
         coll_ir, coll = self.expr(clause.iter, scope, ctx)
         item = self.iterable(coll, clause.iter.span)
         inner = scope.child()
-        self.bind(inner, clause.var, "local", item, clause.span)
+        self.bind(inner, clause.var, "local", item, clause.span, decl=clause.name_span())
         if clause.conds:
             conds = [
                 self.expect(self.expr(c, inner, ctx, T.BOOL), T.BOOL, c.span) for c in clause.conds
@@ -1976,6 +2118,10 @@ class Checker:
                 ),
             )
         self.use(e.type_name)
+        self.note(e.name_span(0), f"type:{e.type_name}")
+        for (k, _), span in zip(e.fields, e.name_spans[1:], strict=False):
+            if k in info.fields:
+                self.note(span, f"field:{e.type_name}.{k}")
         given = [k for k, _ in e.fields]
         missing = [f for f in info.fields if f not in given]
         extra = [f for f in given if f not in info.fields]
@@ -2000,10 +2146,11 @@ class Checker:
     def e_LetBlock(self, e: ast.LetBlock, scope: Scope, ctx: Ctx, expected: Ty | None) -> Typed:
         inner = scope
         bound: list[tuple[str, Any]] = []
-        for name, value in e.lets:
+        for i, (name, value) in enumerate(e.lets):
             ir, ty = self.expr(value, inner, ctx)
             inner = inner.child()
-            self.bind(inner, name, "local", ty, value.span)
+            decl = e.name_spans[i] if i < len(e.name_spans) else None
+            self.bind(inner, name, "local", ty, value.span, decl=decl)
             bound.append((name, ir))
         result_ir, result = self.expr(e.result, inner, ctx, expected)
         for name, ir in reversed(bound):
@@ -2213,7 +2360,9 @@ class Checker:
                             step.value.span,
                         )
                 case "params":
-                    for name, value in step.entries:
+                    for i, (name, value) in enumerate(step.entries):
+                        if name in self.params and i < len(step.name_spans):
+                            self.note(step.name_spans[i], f"param:{name}")
                         if name not in self.params:
                             self.error(
                                 "E201",
@@ -2270,6 +2419,7 @@ class Checker:
                 help=self.suggest(a.name, list(self.actions)),
             )
             return ActionCall(a.name, [], seat, a.span)
+        self.note(a.name_span(), f"action:{a.name}")
         decl = decls[0]
         if len(a.args) != len(decl.params):
             self.error(
@@ -2282,6 +2432,21 @@ class Checker:
 
 
 # --- utilidades ---------------------------------------------------------------------------------
+
+
+def _type_text(t: ast.TypeExpr) -> str:
+    from gamehub.lang.printer import Printer
+
+    return Printer().type(t)
+
+
+def _visibility_text(vis: ast.Visibility) -> str:
+    if vis.kind != "when" or vis.expr is None:
+        return vis.kind
+    from gamehub.lang.layout import render
+    from gamehub.lang.printer import Printer
+
+    return render(Printer().expr(vis.expr), 1000).strip()
 
 
 def _exits(node: ast.NodeDecl) -> bool:

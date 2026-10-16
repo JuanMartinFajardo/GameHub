@@ -30,6 +30,7 @@ from gamehub.lang import ast
 from gamehub.lang import types as T
 from gamehub.lang.diagnostics import Diagnostics
 from gamehub.lang.source import Span
+from gamehub.lang.symbols import SymbolIndex
 from gamehub.lang.types import Ty
 
 #: Cómo dibujar una variable de estado (como mucho una por variable).
@@ -106,11 +107,22 @@ class _Fail(Exception):
 
 
 class UiChecker:
-    def __init__(self, ctx: UiContext, diagnostics: Diagnostics) -> None:
+    def __init__(
+        self, ctx: UiContext, diagnostics: Diagnostics, index: SymbolIndex | None = None
+    ) -> None:
         self.ctx = ctx
         self.diagnostics = diagnostics
+        self.index = index
         self.ir: dict[str, Any] = {}
         self.seen: dict[tuple[str, tuple[str, ...], str], Span] = {}
+
+    def note(self, span: Span | None, key: str) -> None:
+        if self.index is not None:
+            self.index.ref(span, key)
+
+    def note_path(self, entry: ast.UiEntry, i: int, key: str) -> None:
+        if i < len(entry.name_spans):
+            self.note(entry.name_spans[i], key)
 
     def error(self, code: str, message: str, span: Span, help: str | None = None) -> _Fail:
         self.diagnostics.error(code, message, span, help=help)
@@ -154,6 +166,7 @@ class UiChecker:
                     raise self.error(
                         "E701", f"no hay ningún nodo `{name}`", span, _close(name, ctx.nodes)
                     )
+                self.note_path(entry, 0, f"node:{name}")
                 return "node"
             case "action":
                 name = entry.path[0]
@@ -161,6 +174,7 @@ class UiChecker:
                     raise self.error(
                         "E701", f"no hay ninguna acción `{name}`", span, _close(name, ctx.actions)
                     )
+                self.note_path(entry, 0, f"action:{name}")
                 if len(entry.path) == 1:
                     return "action"
                 param = entry.path[1]
@@ -171,15 +185,20 @@ class UiChecker:
                         span,
                         _close(param, ctx.actions[name]),
                     )
+                self.note_path(entry, 1, f"aparam:{name}.{param}")
                 return "action_param"
         [name] = entry.path
         if name in ctx.state:
+            self.note_path(entry, 0, f"state:{name}")
             return "state"
         if name in ctx.params:
+            self.note_path(entry, 0, f"param:{name}")
             return "param"
         if name in ctx.enums:
+            self.note_path(entry, 0, f"type:{name}")
             return "enum"
         if name in ctx.structs:
+            self.note_path(entry, 0, f"type:{name}")
             return "struct"
         known = [*ctx.state, *ctx.params, *ctx.enums, *ctx.structs]
         raise self.error(
@@ -271,6 +290,7 @@ class UiChecker:
                 raise self.error(
                     "E703", f"`{name}` no tiene el valor `{key}`", span, _close(key, values)
                 )
+            self.note(Span(span.source, span.start, span.start + len(key)), f"value:{name}.{key}")
             if hint.name == "labels":
                 out[key] = self.text_value(value, span)
             else:
@@ -303,6 +323,7 @@ class UiChecker:
                 raise self.error(
                     "E703", f"el campo `{value.name}` debe ser un enumerado o un Int", span
                 )
+            self.note(value.span, f"field:{name}.{value.name}")
             out[key] = value.name
         if "rank" not in out:
             raise self.error(
@@ -328,6 +349,9 @@ class UiChecker:
                 hint.span,
                 _close(var, self.ctx.state),
             )
+        arg = (hint.args or [None])[0]
+        if arg is not None and isinstance(arg.value, ast.UiName):
+            self.note(arg.value.span, f"state:{var}")
         vt = self.ctx.state[var]
         if hint.name in ("cell", "column", "row"):
             if vt.kind != "grid":
@@ -484,11 +508,14 @@ def _target_text(entry: ast.UiEntry) -> str:
 
 
 def check_ui(
-    entries: list[ast.UiEntry], ctx: UiContext, diagnostics: Diagnostics
+    entries: list[ast.UiEntry],
+    ctx: UiContext,
+    diagnostics: Diagnostics,
+    index: SymbolIndex | None = None,
 ) -> dict[str, Any]:
     """Comprueba las pistas y devuelve la clave `ui` de la IR (vacía si no hay ninguna). Las
     pistas de tipos importados que no llegan a la IR se descartan."""
-    ui = UiChecker(ctx, diagnostics).run(entries)
+    ui = UiChecker(ctx, diagnostics, index).run(entries)
     types = ui.get("types")
     if types is not None:
         kept = {k: v for k, v in types.items() if k in ctx.emitted_types}

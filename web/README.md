@@ -14,6 +14,9 @@ y la app para jugar en el navegador.
 | [`@gamehub/auto-ui`](packages/auto-ui) | **UI genérica**: cualquier juego dibujado y jugable a partir de su IR (tipos, dominios de las acciones y pistas `ui`), con registro de eventos y resultado |
 | [`@gamehub/shell`](packages/shell) | La experiencia de jugar como librería: inicio, crear y entrar en salas, lobby (invitar con código, enlace o QR; asientos, bots, configuración), partida con la UI genérica o una propia, chat, revancha, replays paso a paso y partidas en un mismo dispositivo |
 | [`apps/play`](apps/play) | La app web (Vite) que sirve `gamehub serve`: registra sola las UIs propias de `games/*/ui` y tiene una galería del kit en `/kit` |
+| [`@gamehub/nomos`](packages/nomos) | Nomos (el lenguaje `.game`) para CodeMirror 6: resaltado, sangría, plegado y tema claro/oscuro |
+| [`@gamehub/studio`](packages/studio) | **El Studio** como librería de React: conexión con `gamehub studio` (LSP y métodos propios por WebSocket), diagrama (React Flow + ELK), editor de texto y campos de Nomos (CodeMirror), inspector, diseñador de componentes, simulador, partidas masivas, árbol, comparar y exportar |
+| [`apps/studio`](apps/studio) | La app del Studio (Vite) que sirve `gamehub studio` |
 
 ## Requisitos
 
@@ -29,12 +32,16 @@ se ejecutan desde la raíz.
 ```bash
 pnpm install          # dependencias (versiones exactas en el catálogo de pnpm-workspace.yaml)
 pnpm test             # tests de todos los paquetes (Vitest); los de integración arrancan
-                      # `gamehub serve` con uv (GAMEHUB_SKIP_SERVER_TESTS=1 los salta)
+                      # `gamehub serve` o `gamehub studio` con uv (GAMEHUB_SKIP_SERVER_TESTS=1
+                      # los salta)
 pnpm typecheck        # TypeScript estricto
 pnpm lint             # Biome: lint y formato (pnpm format para corregir)
-pnpm build            # compila la app (web/apps/play/dist), que luego sirve gamehub serve
+pnpm build            # compila las apps (web/apps/play/dist y web/apps/studio/dist), que luego
+                      # sirven gamehub serve y gamehub studio
 pnpm dev              # la app con recarga en caliente (http://localhost:5173), contra un
                       # servidor de partidas local: cd python && uv run gamehub serve ../games
+pnpm dev:studio       # el Studio con recarga en caliente (http://localhost:5175/?token=…),
+                      # contra `GAMEHUB_STUDIO_TOKEN=… uv run gamehub studio ../games`
 ```
 
 Para jugar en el navegador basta con compilar una vez y arrancar el servidor:

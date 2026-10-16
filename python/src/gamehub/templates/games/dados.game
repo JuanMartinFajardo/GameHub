@@ -1,0 +1,81 @@
+// __TITLE__
+// Un juego de dados (el «cerdo»): en tu turno tiras un dado tantas veces como quieras y vas
+// sumando; si sale un 1, pierdes lo de ese turno. Plántate a tiempo: gana quien llega a la meta.
+
+game __GAME__ {
+  meta {
+    title: "__TITLE__"
+    version: "0.1.0"
+  }
+  players 2
+
+  params {
+    /// Puntos para ganar
+    target: Int = 30
+    assert target >= 2, "la meta tiene que ser al menos 2"
+  }
+
+  state {
+    score: per_player Int
+    /// Lo acumulado en el turno
+    pot: Int = 0
+    die: Int = 1
+    turn: Seat = 0
+  }
+
+  flow {
+    start -> Roll
+
+    chance Roll {
+      die = roll(6)
+      -> Lose when die == 1
+      -> Decide { pot += die }
+    }
+
+    decision Decide {
+      actor: turn
+      action again() {
+        -> Roll
+      }
+      action hold() { score[actor] += pot }
+      -> Win when score[turn] >= target
+      -> Next
+    }
+
+    auto Lose {
+      -> Next
+    }
+
+    auto Next {
+      -> Roll {
+        pot = 0
+        turn = next(turn)
+      }
+    }
+
+    terminal Win { payoff: win_loss(turn, 1, -1) }
+  }
+
+  ui {
+    die: dice
+    pot: counter, place(top)
+    score: counter, place(seats)
+    turn: hidden
+  }
+
+  // `chance [k]` fija el sorteo: roll(6) da k + 1.
+  test "plantarse suma lo del turno" {
+    chance [4]
+    play hold()
+    expect score[0] == 5 and turn == 1
+  }
+
+  test "un 1 lo pierde todo" {
+    chance [4]
+    play again()
+    chance [0]
+    expect score[0] == 0 and turn == 1
+  }
+
+  invariant pot >= 0
+}

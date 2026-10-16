@@ -1,0 +1,32 @@
+// __TITLE__
+// Juego nuevo: un turno y un final, para empezar a diseñar (en el Studio o aquí).
+// Referencia del lenguaje: docs/wiki/lenguaje-game.md
+
+game __GAME__ {
+  meta {
+    title: "__TITLE__"
+    version: "0.1.0"
+  }
+  players 2
+
+  state {
+    turn: Seat = 0
+  }
+
+  flow {
+    start -> Turn
+
+    decision Turn {
+      actor: turn
+      action finish()
+      -> End
+    }
+
+    terminal End { payoff: fill(0) }
+  }
+
+  test "la partida termina" {
+    play finish()
+    expect at(End) and payoff == [0, 0]
+  }
+}
