@@ -70,7 +70,7 @@ GameHub/
 │   ├── ir/                # schema, operator catalog, validation, canonical hash
 │   ├── build.py           # Python builder API → IR
 │   ├── engine/            # reference engine (IR interpreter, generated code, native plugins)
-│   ├── analysis/          # static warnings and classification (F2), perft (F6); feasibility, tree, solvers…
+│   ├── analysis/          # warnings and classification (F2), perft (F6); game theory (F7): feasibility, trees, Nash, CFR…
 │   ├── render/            # flow diagram, rulebook and semantic diff (F2)
 │   ├── packages.py        # game.toml, game.lock, dependencies, new/clone/fork (F2)
 │   ├── agents/            # Agent interface, random, minimax, MCTS, heuristics
@@ -165,7 +165,7 @@ the server, the Studio's simulator, the RL trainer, tournaments).
 | Web | TypeScript 7, React 19, Vite 8, pnpm, Biome, Vitest (F4, [ADR-044](decisions.md)) | Ecosystem; Biome is JS's ruff | Svelte; ESLint + Prettier |
 | Diagrams | React Flow (`@xyflow/react`) + ELK.js (F5, [ADR-055](decisions.md)) | The standard for node editors + auto-layout | Rete.js, JointJS, dagre |
 | Text editor | **CodeMirror 6** + LSP (`pygls`) (F5, [ADR-053](decisions.md), [054](decisions.md)) | Lightweight, dozens of fields per page, official LSP client | Monaco |
-| Analysis | NumPy, SciPy (HiGHS), `pygambit`, OpenSpiel | Don't reinvent solvers | — |
+| Analysis | Our own exact rational simplex; HiGHS (`highspy`, optional) for large LPs; export to Gambit; OpenSpiel wrapper (optional) | Exact results for small games, mature solvers for the rest (ADR-068 to 072) | — |
 | RL | PyTorch, Gymnasium, PettingZoo | Standard | JAX |
 | Hub | FastAPI + PostgreSQL + S3/MinIO + **Forgejo** (git) | Don't reinvent git | Gitea, our own git |
 
@@ -178,7 +178,7 @@ the server, the Studio's simulator, the RL trainer, tournaments).
 | Properties | Invariants (`invariant total_cards == 52`), random playouts without errors | hypothesis + our own fuzzer |
 | Golden traces | Same seed + actions ⇒ same events, views and payoffs | `spec/conformance/` |
 | Differential | Python vs C++ vs WASM over millions of playouts | conformance runner |
-| External references | Chess *perft* (F6), ISkO examples (Skat), Kuhn's value (−1/18), tic-tac-toe = draw | analysis tests and each game's tests |
+| External references | Chess *perft* (F6), ISkO examples (Skat), Kuhn's value (−1/18), tic-tac-toe = draw and its 5,478 positions, Nim's P-positions, Leduc's value, the Talmud nucleolus (F7) | analysis tests and each game's tests |
 | Native plugins | Plugin = Nomos reference on random inputs | `gamehub natives check`, tests |
 | Information leaks | No view contains non-visible data | static analysis + view tests |
 

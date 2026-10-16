@@ -73,6 +73,13 @@
 | 065 | Wave-2 rules: FIDE, ISkO without Kontra or Ramsch, Spanish Parchís, Amigo's Wizard, no-limit Hold'em and Klondike with a move cap | Accepted (2026-10-16, user) |
 | 066 | F6 language adjustments: modules do not see the game's names, a grid is assigned with its rows, lists of zones are redacted zone by zone | Accepted (2026-10-16, user) |
 | 067 | Documentation in English; Spanish only as an optional translation shipped by each game | Accepted (2026-10-16, user) |
+| 068 | Game theory on the reference engine, in exact arithmetic, over explicit representations: the extensive form (with the engine's information sets) and the state graph | Proposed |
+| 069 | Linear programming: an exact rational simplex by default; HiGHS (optional `gamehub[analysis]` extra) for large programs, in floating point | Proposed |
+| 070 | Solution concepts per class: reduced normal form, support enumeration + Lemke–Howson, sequence form (exact), CFR/CFR+ (floating point), exploitability as OpenSpiel defines it | Proposed |
+| 071 | Feasibility advisor: classification + Knuth's estimator (importance sampling at chance, merged outcomes) + bounded exact probes + recommendation codes; the Studio's estimator uses it | Proposed |
+| 072 | Interoperability: Gambit `.efg`/`.nfg` (ASCII labels, rationals) and an OpenSpiel wrapper with global action ids found by exploring the game | Proposed |
+| 073 | `gamehub analyze`: one JSON report for the CLI and the Studio's "Analysis" tab, with per-analysis errors and size guards | Proposed |
+| 074 | Connect Four 7×6 is solved in F8 (C++); in F7 it is verified on small boards against an independent solver | Proposed |
 
 ---
 
@@ -698,3 +705,125 @@
   [question 24](open-questions.md).
 - **Consequences:** historical entries (log, ADRs) are translated as well; commit messages already
   in the history stay as they are.
+
+### ADR-068 — Game theory on the reference engine, in exact arithmetic
+- **Context:** F7 asks for game theory on any game written in Nomos, with the reference results of
+  [game theory §6](game-theory.md#6-reference-results-validation-tests) reproduced exactly
+  (Kuhn's −1/18, not −0.0555…).
+- **Decision:** everything is computed with the reference engine (no second implementation of the
+  rules) over two explicit representations built from it (`gamehub.analysis.tree`):
+  - The **extensive form** (`build_tree`): chance nodes with exact probabilities, decision nodes
+    grouped into **information sets keyed by the engine's information state** (the SHA-256 of what
+    the seat has observed, views and events, since the start: perfect recall), computed
+    incrementally (same keys as `State.information_state`, without its quadratic cost), and
+    terminals with rational payoffs. Simultaneous nodes are played one seat after another: the
+    submissions are hidden, so the later seat does not know what the earlier one chose and the
+    game is the same. Chance outcomes that lead to the same state with the same events are
+    **merged** (shuffling J J Q Q K K gives 720 draws but 90 distinct orders): Leduc goes from
+    millions of nodes to 74,251 (288 information sets, the standard count).
+  - The **state graph** (`state_graph`): distinct states by digest, for counting positions and
+    games and for backward induction (tic-tac-toe: 5,478 positions, 255,168 games).
+  Payoffs and probabilities are `Fraction`s; only CFR works in floating point.
+- **Alternatives:** going through OpenSpiel for everything (pyspiel works in floating point and
+  would need the wrapper for every analysis); a tree representation in C++ (that is F8).
+- **Consequences:** exact results for the games Python can traverse (≲ 10⁶ nodes); the bigger
+  ones wait for the C++ core (F8) or approximate methods (F9). The information sets are exactly
+  the engine's, so any game with hidden information gets them right without annotations.
+
+### ADR-069 — Exact linear programming, HiGHS for large programs
+- **Decision:** `gamehub.analysis.lp.linprog` solves `min/max c·x` with `≤`, `=` and free
+  variables with a **two-phase simplex in rationals** (Dantzig's rule, switching to Bland's after
+  a streak of degenerate pivots: the programs of games are very degenerate). With
+  `backend="highs"` (or `"auto"` above 60,000 cells and with `highspy` installed: the
+  `gamehub[analysis]` extra) it uses HiGHS and returns floats. Zero-sum games, dominance by mixed
+  strategies, correlated equilibria, the sequence form, the core and the nucleolus all use it.
+- **Alternatives:** HiGHS only (no exact values); `fractions` with an off-the-shelf library
+  (there is none maintained for exact LP in pure Python).
+- **Consequences:** Kuhn's zero-sum LP over its 27 × 64 reduced normal form takes 0.08 s and gives
+  −1/18; Leduc's sequence form goes to HiGHS (−0.0856, the value in the literature).
+
+### ADR-070 — Solution concepts per class of game
+- **Decision:**
+  - **Normal form** (`normal_form`): **reduced** pure strategies (plans of action: a choice only at
+    the information sets the plan itself lets you reach), payoffs by bit masks over the terminals
+    consistent with each plan. Kuhn: 27 × 64, the same as Gambit computes from our `.efg`.
+  - **Two players:** support enumeration with equal-size supports (all equilibria of a
+    nondegenerate game; used while there are at most 20,000 pairs of supports) and Lemke–Howson
+    with the lexicographic ratio test (does not cycle on degenerate games), exact. n players: pure
+    equilibria and correlated equilibria (LP).
+  - **Zero-sum:** maximin by LP; with imperfect information, the **sequence form** (Koller,
+    Megiddo and von Stengel), exact and of the size of the tree.
+  - **Perfect information:** backward induction over the state graph (subgame-perfect equilibrium
+    with n players, general sum and chance, ties to the first action) and alpha-beta with a
+    transposition table for two players of constant sum (expectimax at chance).
+  - **CFR / CFR+** with alternating updates in floats; **best response** in one pass thanks to
+    perfect recall; **NashConv** = Σ (best response − value) and **exploitability** = NashConv / n,
+    OpenSpiel's convention (uniform Kuhn: 11/24, the same as OpenSpiel).
+  - **CGT:** Grundy values checking the normal-play convention at every terminal (misère is
+    refused); N/P classes with alpha-beta. **Cooperative:** v(C) as the coalition's maxmin, exact
+    Shapley, Banzhaf, core and least core by LP, nucleolus by successive LPs, Nash bargaining over
+    the convex hull. **Repeated games:** Axelrod round-robin with classic automata and the
+    ecological simulation.
+- **Consequences:** every reference result of §6 except Connect Four 7×6 (ADR-074) is a test.
+  Left for later: QRE, replicator dynamics and fictitious play, ESS, Moran, *-minimax, proof-number
+  search, partizan canonical forms and temperature, DCFR/MCCFR (F8–F9).
+
+### ADR-071 — Feasibility advisor
+- **Decision:** `feasibility(game)` = the static classification + **Knuth's estimator** (each
+  random walk weights each depth by the product of the branching factors; at chance, by the
+  inverse of the sampled outcome's probability, i.e. importance sampling, merging equivalent
+  outcomes when there are at most 5,000) + an **exact count** if the estimate is small or a bounded
+  probe (10,000 nodes, 5 s; a perfect-information game may have far fewer states than its tree
+  suggests: Nim 3-5-7 has 10⁷·⁶ nodes and 376 positions) + **recommendations** with stable codes
+  (`solve`, `grundy`, `normal_form`, `nash`, `sequence_form`, `cfr`, `tournament`, `cpp_exact`,
+  `cpp_cfr`, `approximate`) and the phase that brings them when they do not exist yet. Sampling
+  stops after a time budget (20 s, at least 20 samples). The Studio's size estimate (F5,
+  ADR-058) now uses the same estimator.
+- **Consequences:** the estimate is close to the truth where it can be checked (tic-tac-toe
+  10⁵·⁷ vs 549,946 nodes; Leduc 10⁴·⁹ vs 74,251) and the advisor answers in seconds for small
+  games and in under half a minute for chess, Wizard or Skat.
+
+### ADR-072 — Gambit and OpenSpiel
+- **Decision:** `gamehub export GAME --to gambit-efg|gambit-nfg` writes Gambit's formats: nodes in
+  preorder, information sets numbered per player, rational probabilities and payoffs, and labels
+  transliterated to printable ASCII (Gambit rejects anything else). `to_openspiel(game)` wraps a
+  game as a `pyspiel.Game` (sequential, explicit chance, terminal rewards): action ids are global,
+  found by exploring the state graph or the tree (so only games that fit in memory can be
+  wrapped), chance outcomes are numbered per chance node, the information-state string is a
+  perfect-recall key of the seat's observations and the observation string its current view; the
+  state shares the immutable engine state, so OpenSpiel's `deepcopy` clones copy nothing.
+  `open-spiel` is an optional extra (`gamehub[openspiel]`) and a dev dependency.
+- **Verification:** pygambit 16.7 (on Python 3.13; there are no 3.14 wheels) reads our Kuhn
+  `.efg` with 27 × 64 strategies and 6 + 6 information sets and its LP gives −1/18; its equilibria
+  of the 2×2 games coincide with ours. With the wrapped Kuhn, OpenSpiel's `random_sim_test`
+  passes, the uniform policy's exploitability equals that of its native `kuhn_poker`, its CFR+
+  converges to −1/18 and its alpha-beta gives tic-tac-toe as a draw.
+
+### ADR-073 — `gamehub analyze` and the Studio's "Analysis" tab
+- **Decision:** `gamehub.analysis.report.analyze(game, analyses)` runs the requested analyses and
+  returns one JSON document (rationals as exact strings: `"-1/18"`); `auto` = the advisor plus what
+  it recommends when it takes seconds. An analysis that does not apply (alpha-beta with hidden
+  information, Grundy on a misère game, a normal form that would not fit) does not break the
+  report: it goes to `errors` with its reason. Before building a tree, a quick estimate refuses
+  what would not fit (tic-tac-toe's normal form fails in half a second instead of minutes). The
+  CLI renders the report as text (`--json` for the document) and the Studio asks for it with
+  `gamehub/analyze` and draws it in the **Analysis** tab: the advisor with a button per
+  recommendation, the payoff matrix with best responses underlined and pure equilibria boxed,
+  equilibria, efficiency, the strategy per information set, CFR's convergence, Grundy, the
+  characteristic function and the tournament with its ecological simulation. The `repeat`
+  combinator now tags its games `repeated` (and `best_of`, `best-of`) so that the advisor proposes
+  a tournament.
+- **Consequences:** one implementation for the terminal, notebooks (`_repr_html_` on the normal
+  form, the tree, the tournament and the advisor) and the Studio.
+
+### ADR-074 — Connect Four 7×6 is solved in F8
+- **Context:** §6 lists "Connect Four (7×6): the first player wins". The reference engine solves
+  about 1,600 states per second with alpha-beta; the 7×6 board needs hundreds of millions of
+  positions even with the best move ordering (5×4 already took 7 minutes).
+- **Decision:** in F7 the alpha-beta search is checked on small boards against an independent
+  solver written directly in the test (3×3, 4×3 and 3×4 with three in a row; 4×4 with four,
+  a draw, among the `slow` tests). The 7×6 result moves to F8's acceptance (C++ core, bitboards
+  and transposition tables); its test is in place, skipped with that reason.
+- **Consequences:** F7's acceptance is met for every reference result except that one, which
+  depends on F8.
+

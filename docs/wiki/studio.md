@@ -33,7 +33,7 @@ prints carries a token; without it, the Studio cannot be used (§9).
 │              │   │ bid(q, f) ○──┘ 1. alive()==1 │                      │ …               │
 │              │   │ dudo()    ○──────►🏁 End     │                      │                 │
 ├──────────────┴───────────────────────────────┴─────────────────────┴─────────────────┤
-│ Problems (1) · Simulator · Batch runs · Tree · Compare                                  │
+│ Problems (1) · Simulator · Batch runs · Tree · Analysis · Compare                       │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -122,7 +122,8 @@ and nothing was moved by hand, it is re-fitted; the selection is brought into vi
 - Live **problems** (compiler errors and warnings, with their help); clicking one points to it in
   the diagram and in the text. The worst one of each node is marked on its box.
 - **Classification** of the game (perfect information, chance, simultaneous, zero-sum…) and the
-  **estimated size** of the tree (Knuth's estimator over random walks).
+  **estimated size** of the tree (Knuth's estimator over random walks, the same as the feasibility
+  advisor's since F7).
 - The game's **tests and invariants**, from the inspector (see §3).
 
 ## 6. Simulating and debugging
@@ -145,21 +146,40 @@ and nothing was moved by hand, it is re-fitted; the selection is brought into vi
 - The game's **tree** from the current step (small games): open branches and count states,
   terminals and depth (with a 5 s limit).
 
-## 7. Comparing and exporting
+## 7. Analyzing (game theory, F7)
+
+The **Analysis** tab runs [game theory](game-theory.md) on the text being edited (the same report
+as `gamehub analyze`, through `gamehub/analyze`):
+
+- **Analyze**: the feasibility advisor (classification, Knuth's estimate, exact counts if the game
+  is small) and whatever it recommends that takes seconds; each recommendation has a button, and
+  those that need a later phase say which one.
+- One button per analysis: feasibility, **solve** (value, optimal moves, an optimal game,
+  positions and games), **normal form and Nash** (the payoff matrix with best responses underlined
+  and pure equilibria boxed, mixed equilibria, dominance, correlated equilibrium, Pareto, price of
+  anarchy), **sequence form** (exact equilibrium of two-player zero-sum games), **CFR+** (with
+  its convergence chart and the strategy of each information set as bars), **Grundy**,
+  **cooperative** (characteristic function, Shapley, core, nucleolus, Nash bargaining) and the
+  **Axelrod tournament** (ranking and ecological simulation). Iterations and rounds can be chosen.
+- Results accumulate per game; an analysis that does not apply shows its reason without hiding the
+  rest. Before building a large tree, a quick estimate refuses what would not fit.
+
+## 8. Comparing and exporting
 
 - **Compare** with a git version of the file or with another file: added, changed and removed
   nodes and arrows are colored on the diagram (the removed ones, as ghosts).
 - **Export** the diagram to **SVG** (real rectangles, arrows and text) or **PNG**.
 
-## 8. Inside
+## 9. Inside
 
 | Part | Where | What it does |
 |---|---|---|
 | Server | `gamehub.studio.server` | Starlette: the app, the API (`/api/workspace`, `/api/file`, `/api/layout`, `/api/new`, `/api/git/log`, `/api/git/show`) and the `/lsp` WebSocket |
-| Session | `gamehub.studio.session` | Per connection: the language server (pygls) plus `gamehub/analysis` (a notification after each analysis), `gamehub/edit`, `gamehub/modelOf`, `gamehub/tests` and `gamehub/sim.*` |
+| Session | `gamehub.studio.session` | Per connection: the language server (pygls) plus `gamehub/analysis` (a notification after each analysis), `gamehub/edit`, `gamehub/modelOf`, `gamehub/tests`, `gamehub/sim.*` and `gamehub/analyze` (F7) |
 | Edits | `gamehub.studio.edits` | Operations on the tree, the minimal rewrite and its check; renaming |
 | Model | `gamehub.studio.model` | The document model (positions in UTF-16) |
-| Simulator | `gamehub.studio.sim` | History, running, breakpoints, batch runs with coverage, tree, size |
+| Simulator | `gamehub.studio.sim` | History, running, breakpoints, batch runs with coverage, tree, size (the advisor's Knuth estimator) |
+| Analysis | `gamehub.analysis.report` | The game-theory report of the "Analysis" tab |
 | Language | `gamehub.lsp` | Diagnostics, completion, hover, definition, references, rename, formatting… (also `gamehub lsp` over standard input, for any editor) |
 | Web | `@gamehub/nomos`, `@gamehub/studio`, `web/apps/studio` | Nomos for CodeMirror; the app as a React library (connection, state, diagram, editors, inspector, simulator, tools); the app served by `gamehub studio` |
 
@@ -167,7 +187,7 @@ In the browser: **React Flow** (canvas) + **ELK** (layout, loaded separately the
 **CodeMirror 6** with its LSP client (the editor and the fields). The Python wheel ships the built
 app (`gamehub/studioapp`); in development, `pnpm dev:studio` with `gamehub studio` behind it.
 
-## 9. Security
+## 10. Security
 
 The Studio reads and writes files: by default it only listens on this machine (127.0.0.1),
 requires a **random token** (it travels in the link; the app keeps it in a cookie for this origin
@@ -175,7 +195,7 @@ only, or in the `x-gamehub-token` header), checks the **Host** header (against D
 the **Origin** of WebSockets, and only opens and saves `.game` files inside the working directory.
 With `--host` reachable from outside the machine, it warns that anyone with the link can edit.
 
-## 10. Limits and next steps
+## 11. Limits and next steps
 
 - No real-time **collaborative editing** (CRDT): one file, one tab.
 - Conditions and effects are written in Nomos (with completion); **Scratch-like blocks** for

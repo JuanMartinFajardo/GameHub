@@ -16,6 +16,8 @@ uv run gamehub play ../games/nim --seats human,random
 uv run gamehub new my-game --template tablero    # a new game from a template (board)
 uv run gamehub perft ../games/chess --depth 4    # count legal move sequences
 uv run gamehub fuzz ../games/chess --games 1000 --jobs 6   # random matches in parallel
+uv run gamehub analyze ../games/kuhn-poker        # game theory: feasibility, equilibria, CFR…
+uv run gamehub export ../games/kuhn-poker --to gambit-efg   # to Gambit (.efg / .nfg)
 
 uv run gamehub studio ../games --open            # the Studio: diagram + text + simulator
 uv run gamehub lsp                               # language server (for your editor)
@@ -32,6 +34,8 @@ uv run gamehub natives check                     # native plugins = their Nomos 
 
 Native plugins need `wasmtime` (`pip install gamehub[wasm]`; it is in the development group);
 without it, the Nomos reference implementation is used.
+Game theory works without extras; `pip install gamehub[analysis]` adds HiGHS for large linear
+programs and `gamehub[openspiel]` the OpenSpiel wrapper (both in the development group).
 
 The web apps are built with `pnpm install && pnpm build` at the repository root; `gamehub serve`,
 `gamehub host` and `gamehub studio` find them by themselves (and the wheel ships them if they were

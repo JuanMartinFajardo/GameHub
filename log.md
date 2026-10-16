@@ -5,6 +5,81 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — Session 10: Phase 7, game theory v1
+
+**Request**: "go with the next step of the roadmap": F7. Worked on `f7/teoria-de-juegos`, which
+starts from `docs/english` (the translation, committed by the previous session and still waiting
+for approval), so merging F7 brings both.
+
+**Done** (`gamehub.analysis`, everything on the reference engine and in exact arithmetic except CFR)
+- **Representations** (ADR-068): the extensive form (`build_tree`) with the engine's information
+  sets (perfect-recall keys computed incrementally, the same as `State.information_state`),
+  simultaneous nodes played one seat after another, and chance outcomes that lead to the same state
+  merged (Leduc: 74,251 nodes and its standard 288 information sets); the state graph
+  (`state_graph`): tic-tac-toe has 5,478 positions, 958 terminals and 255,168 games.
+- **Linear programming** (ADR-069): an exact two-phase simplex in rationals; HiGHS (`highspy`, the
+  new `gamehub[analysis]` extra) for large programs.
+- **Normal form and equilibria** (ADR-070): reduced pure strategies (Kuhn 27 × 64), pure
+  equilibria, support enumeration, Lemke–Howson (lexicographic), zero-sum LP, iterated dominance
+  (strict, weak, by mixed strategies), correlated equilibrium, Pareto, welfare, PoA/PoS.
+- **Perfect information**: backward induction (SPE, n players, chance) and alpha-beta with a
+  transposition table (expectimax at chance; depth limit with an evaluation function).
+- **Imperfect information**: best response, NashConv and exploitability (OpenSpiel's convention),
+  CFR and CFR+, and the exact **sequence form** for two-player constant-sum games.
+- **CGT** (Grundy with the normal-play check, N/P and L/R/N/P classes), **cooperative games**
+  (maximin characteristic function, Shapley, Banzhaf, core and least core, nucleolus, Nash
+  bargaining) and **Axelrod tournaments** (11 classic strategies, noise, ecological simulation).
+- **Feasibility advisor** (ADR-071): classification + Knuth's estimator (importance sampling at
+  chance, merged outcomes, a time budget) + exact counts or a bounded probe + recommendations with
+  stable codes. The Studio's size estimate (F5) now uses the same estimator.
+- **Interoperability** (ADR-072): `gamehub export --to gambit-efg|gambit-nfg` and `to_openspiel`
+  (the new `gamehub[openspiel]` extra).
+- **`gamehub analyze`** (ADR-073): one JSON report for the CLI (text or `--json`), notebooks
+  (`_repr_html_`: the matrix with best responses and equilibria, the tree, the tournament, the
+  advisor) and the Studio's new **Analysis** tab (`gamehub/analyze`: the advisor with a button per
+  recommendation, the matrix, equilibria, efficiency, strategies per information set as bars, CFR's
+  convergence chart and the ecological simulation, with tooltips and a data table). Analyses that
+  do not apply go to `errors`; a quick estimate refuses trees that would not fit. The `repeat`
+  combinator tags its games `repeated` (and `best_of`, `best-of`).
+
+**Acceptance** (reference results of game theory §6, `tests/test_analysis_reference.py`): ✅
+tic-tac-toe a draw, 5,478 positions, 255,168 games; prisoner's dilemma (D, D) only, Pareto-dominated
+by (C, C); rock-paper-scissors and matching pennies uniform with value 0; Kuhn −1/18 exact (sequence
+form with exploitability 0, LP over the normal form; CFR+ < 10⁻⁴ in 1,000 iterations); Nim P ⇔
+nim-sum 0 for every position with heaps ≤ 3, by search. **Connect Four 7×6 moves to F8**
+(ADR-074): the engine solves ~1,600 states/s (5×4 took 7 minutes); checked on small boards against
+an independent solver, and 4×4 is a draw (`slow` test).
+
+**External checks**: pygambit 16.7 (built for Python 3.13: there are no 3.14 wheels) reads our Kuhn
+`.efg` (27 × 64 strategies, 6 + 6 information sets) and its LP gives −1/18; its equilibria of the
+2×2 games coincide with ours. With the wrapped Kuhn, OpenSpiel's `random_sim_test` passes, the
+uniform policy's exploitability equals its native `kuhn_poker`'s (11/24), its CFR+ converges to
+−1/18 and its alpha-beta gives tic-tac-toe as a draw. Leduc's sequence form with HiGHS gives
+−0.0856, the literature's value. The Analysis tab was reviewed in the browser (dark and light).
+
+**Bugs found on the way**: the first version of the advisor tried to enumerate whole decks while
+probing (minutes for Skat); support enumeration and Lemke–Howson from every label on Kuhn's
+27 × 64 matrix took 25 s (now bounded); tic-tac-toe's normal form ran for 5 minutes before failing
+(now refused in half a second).
+
+**Checks**: ruff, pyright, IR, conformance traces, natives, `gamehub fmt/check/test` of the games
+and the stdlib, pytest (1,028 passed, 3 skipped, 7 long ones apart), the web's lint, types, 137
+tests and build. Two timing-dependent web tests (Parchís played with the generic UI, a room against
+a bot) timed out once while the machine was loaded (the F6 Solitaire fuzz, load average 34); they
+pass when run again.
+
+**Decisions**: ADR-068 to 074 (proposed). Question 25 opened.
+
+**F6 acceptance, continued**: Solitaire's 50,000 random matches (draw one) are still running from
+the previous session; Hold'em's go after them.
+
+**Pending / next steps**: your approval (question 25, and question 24); then F8, the C++ core
+(which also brings Connect Four 7×6).
+
+**Progress**: ≈ 66 % (F0 to F7 complete; F7 waiting for approval).
+
+---
+
 ## 2026-10-16 — Session 9: the documentation in English
 
 **Request**: once F6 was finished, translate all the documentation into English: the project has

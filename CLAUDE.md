@@ -32,6 +32,8 @@
   explain why in the commit: the traces are the contract with other engines)
 - `uv run gamehub play|fuzz|replay|perft …` (see `docs/wiki/engine.md`; `fuzz --jobs N` in
   parallel)
+- `uv run gamehub analyze|export …`: game theory (see `docs/wiki/game-theory.md`); the
+  `gamehub[analysis]` (HiGHS) and `gamehub[openspiel]` extras are in the dev group
 - `uv run pytest -m slow`: the long tests (deep chess perft), outside the normal suite
 - `uv run gamehub natives build --check` (the `.wasm` files in `stdlib/std/native` are their
   compiled `.wat`; `--write` after touching a `.wat`) · `uv run gamehub natives check`

@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 59 % (F0 to F6 complete and
-> in `main`).**
+> % is computed with the weight of each phase. **Current progress: ≈ 66 % (F0 to F6 in `main`; F7
+> complete on its branch, waiting for approval).**
 
 ## Summary
 
@@ -236,18 +236,39 @@ See the [log](../../log.md) of 2026-10-16 and the [catalog](game-catalog.md).
 
 See [game theory](game-theory.md).
 
-- [ ] Feasibility advisor (classification + Knuth's estimator + recommendation)
-- [ ] Tree/DAG and normal-form builder (direct and through reduced strategies)
-- [ ] Solvers: minimax/alpha-beta/expectimax, backward induction (SPE), pure equilibria, iterated
-      dominance, support enumeration, Lemke–Howson, zero-sum LP (HiGHS), correlated, Pareto,
-      welfare, PoA/PoS
-- [ ] Imperfect information: tabular CFR/CFR+, best response, exploitability
-- [ ] CGT: Grundy, outcome classes; cooperative: v(C), Shapley, core, nucleolus
-- [ ] Repeated-game tournaments (Axelrod)
-- [ ] Export to Gambit (`.efg`/`.nfg`) and wrap as an OpenSpiel game
-- [ ] `gamehub analyze`, notebook widgets, an "Analysis" tab in the Studio
+- [x] Feasibility advisor (classification + Knuth's estimator + recommendation; exact counts or a
+      bounded probe when the game is small) — ADR-071
+- [x] Tree/DAG and normal-form builder (direct and through reduced strategies): the extensive form
+      with the engine's information sets and merged chance outcomes, the state graph — ADR-068
+- [x] Solvers: minimax/alpha-beta/expectimax, backward induction (SPE), pure equilibria, iterated
+      dominance, support enumeration, Lemke–Howson, zero-sum LP (exact simplex; HiGHS for large
+      programs), correlated, Pareto, welfare, PoA/PoS — ADR-069, 070
+- [x] Imperfect information: tabular CFR/CFR+, best response, exploitability (and the exact
+      sequence form for two-player zero-sum games)
+- [x] CGT: Grundy, outcome classes; cooperative: v(C), Shapley, core, nucleolus (and Banzhaf, least
+      core, Nash bargaining)
+- [x] Repeated-game tournaments (Axelrod, with the ecological simulation)
+- [x] Export to Gambit (`.efg`/`.nfg`) and wrap as an OpenSpiel game — ADR-072
+- [x] `gamehub analyze`, notebook widgets, an "Analysis" tab in the Studio (and `gamehub export`) —
+      ADR-073
 
 **Acceptance:** reproduce every reference result ([§6](game-theory.md)).
+Result: ✅ except Connect Four 7×6, which moves to F8's acceptance (ADR-074)
+- Tic-tac-toe: a draw (alpha-beta and backward induction); 5,478 positions and 255,168 games.
+- Prisoner's dilemma: the only equilibrium is (D, D), Pareto-dominated by (C, C); rock-paper-scissors
+  and matching pennies: the only equilibrium is uniform, value 0.
+- Kuhn: −1/18 exact with the sequence form (exploitability exactly 0) and with the LP over its
+  27 × 64 reduced normal form; CFR+ converges (exploitability < 10⁻⁴ in 1,000 iterations). Gambit
+  reads our `.efg` (27 × 64 strategies, 6 + 6 information sets) and gives −1/18; OpenSpiel, with the
+  wrapped game, gives the same exploitability as its own Kuhn and its CFR+ converges to −1/18.
+- Nim: P-position ⇔ nim-sum 0 for every position with heaps of at most 3, by search; Grundy of a
+  sum = XOR.
+- Connect Four: verified on small boards against an independent solver; 4×4 is a draw (`slow`
+  test); 7×6 needs the C++ core (the reference engine solves ~1,600 states/s).
+- Also: Leduc's value −0.0856 (the literature's) with the sequence form and HiGHS; the Talmud
+  nucleolus; Aumann's correlated equilibrium of chicken.
+
+See the [log](../../log.md) of 2026-10-17.
 
 ## F8 — C++ core + bindings + WASM (66 → 75 %) · XL
 
@@ -324,5 +345,6 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F7: game theory v1.
+1. Your approval of F7 (ADR-068 to 074, [question 25](open-questions.md)) and of the English
+   documentation; then F8: the C++ core (and Connect Four 7×6).
 2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire.

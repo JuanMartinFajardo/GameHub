@@ -5,6 +5,7 @@
 
 | # | Question | Default recommendation | Affects |
 |---|---|---|---|
+| 25 | 🔴 Do you approve **ADR-068 to 074** (Phase 7: game theory) and merging `f7/teoria-de-juegos` into `main`? The branch starts from `docs/english` (the translation, still waiting for your approval), so merging it brings both. | Yes: they follow the roadmap and the wiki's design; Connect Four 7×6 moves to F8's acceptance (ADR-074) | F7, F8 |
 | 24 | How far does the English switch go beyond the documentation: **code comments and docstrings**, **CLI and terminal messages** (`/listo`, "partidas en … s"), the **default language of the games and UIs** (Spanish today, English as a translation) and **commit messages**? | Everything in English: comments, docstrings, CLI messages and commands, commit messages from now on; games and UIs with English as the default and Spanish as an optional translation they ship | Whole repository |
 | 20 | Do you need to play **over the internet** (outside the LAN) before the hub? | Until F10, `gamehub serve` on a reachable machine or a Tailscale-like tunnel; our own relay with the hub (F10) | F4, F10 |
 | 3b | Will there be a remote repository on GitHub (or another host)? | Whenever you like; CI is ready | Everything |
