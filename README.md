@@ -11,10 +11,12 @@
    combinatoria, heurísticas, bots, arena y aprendizaje por refuerzo.
 5. **Colaborar**: publicar, clonar, bifurcar y proponer cambios de reglas con diffs semánticos.
 
-> Estado: **Fase 5 — el Studio** (≈ 51 %, pendiente de fusionar). Los juegos se diseñan en Nomos
-> o en el **Studio** (diagrama y texto a la vez, con simulador), y se juegan en la terminal, en red
-> (salas con código, enlace y QR en la LAN) y en una app web, también en el móvil: cualquier juego
-> con la interfaz genérica, y el tres en raya, Conecta 4 y Dudo con la suya propia.
+> Estado: **Fase 6 — catálogo ola 2** (≈ 59 %). Los juegos se diseñan en Nomos o en el **Studio**
+> (diagrama y texto a la vez, con simulador), y se juegan en la terminal, en red (salas con
+> código, enlace y QR en la LAN) y en una app web, también en el móvil. El catálogo tiene 23
+> juegos, entre ellos **ajedrez, Skat, Texas Hold'em, Wizard, Parchís, Solitario y Mentiroso**;
+> cualquiera se juega con la interfaz genérica, y siete (tres en raya, Conecta 4, Dudo, ajedrez,
+> Hold'em, Wizard y Parchís) tienen además la suya propia.
 
 ## Documentación
 
@@ -33,6 +35,7 @@ uv run gamehub serve ../games --open             # servidor de partidas y la app
 uv run gamehub host ../games/dudo --players 4    # una sala en la LAN (los demás: gamehub join)
 uv run gamehub play ../games/nim --seats human,random   # en la terminal, contra un bot
 uv run gamehub check ../games && uv run gamehub test ../games
+uv run gamehub perft ../games/chess --depth 4 --jobs 6   # cuenta las jugadas legales
 uv run pytest                                    # tests de Python (y pnpm test, los de la web)
 ```
 

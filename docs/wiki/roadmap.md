@@ -1,7 +1,7 @@
 # Roadmap: de 0 % a 100 %
 
 > Estado: **v0.1** (2026-10-09). Los checkboxes se marcan a medida que avanza el proyecto; el %
-> global se calcula con el peso de cada fase. **Progreso actual: ≈ 51 % (F0 a F5 completadas y en
+> global se calcula con el peso de cada fase. **Progreso actual: ≈ 59 % (F0 a F6 completadas y en
 > `main`).**
 
 ## Resumen
@@ -202,16 +202,36 @@ texto y simulador) y revisión en el navegador. Ver el [log](../../log.md) del 2
 
 ## F6 — Catálogo ola 2 + stdlib madura (51 → 59 %) · XL
 
-- [ ] stdlib: `std.tricktaking`, `std.bidding`, `std.betting` (botes secundarios), `std.poker`
-      (evaluador), `std.boards` (rayos/direcciones, grafos de recorrido), barajas Skat32 y Wizard60
-- [ ] Interfaz de **plugins nativos** (WASM preferente) con implementación de referencia obligatoria
-- [ ] Juegos: **Parchís, Wizard, Solitario, Ajedrez, Texas Hold'em, Skat** (Mentiroso ya llega en F2; definición
-      de "terminado" en el [catálogo](catalogo-de-juegos.md))
-- [ ] UIs propias: Parchís, Wizard, Ajedrez, Póker (las demás con UI genérica + ui-kit)
-- [ ] Perfilado y optimización del motor de referencia (cachés de legalidad, evaluación incremental)
+- [x] stdlib: `std.tricktaking`, `std.bidding`, `std.betting` (botes secundarios), `std.poker`
+      (evaluador), `std.boards` (rayos/direcciones, recorridos), barajas Skat32 y Wizard60
+      (`std.cards`); el Parchís no necesitó grafos: su recorrido es un anillo (`loop_path`)
+- [x] Interfaz de **plugins nativos** (WASM, ABI `gamehub-native/1`) con implementación de
+      referencia obligatoria (`@native`, ADR-062); el evaluador de `std.poker` escrito en WAT
+- [x] Juegos: **Parchís, Wizard, Solitario, Ajedrez, Texas Hold'em, Skat** (Mentiroso ya llega en F2; definición
+      de "terminado" en el [catálogo](catalogo-de-juegos.md), salvo el bot heurístico, que llega en F9)
+- [x] UIs propias: Parchís, Wizard, Ajedrez, Póker (las demás con UI genérica + ui-kit)
+- [x] Perfilado y optimización del motor de referencia: memo de funciones (ADR-060), código de
+      Python generado desde la IR (ADR-063), atajos para enteros; `perft` y `fuzz --jobs` (ADR-061)
 
 **Aceptación:** *perft(5)* del ajedrez = 4 865 609; puntuaciones de Skat verificadas con
 ejemplos oficiales; 10⁵ playouts de cada juego sin errores; los 7 juegos pedidos jugables online.
+Resultado: ✅ (salvo las partidas al azar del Solitario y el Hold'em, en marcha al fusionar)
+- *perft(5)* = **4 865 609** desde la posición inicial (131 s con 6 procesos), y los *perft* de
+  Kiwipete (d3 = 97 862), las posiciones 3 (d4 = 43 238), 4 (d3 = 9 467), 5 (d3 = 62 379) y 6
+  (d3 = 89 890) de la Chess Programming Wiki (`pytest -m slow`).
+- Skat: los valores de juego de los ejemplos de la ISkO son tests en Nomos: de palo con y sin
+  matadores, Grand a la mano con Schneider anunciado, Grand Ouvert (192), los cuatro Null (23,
+  35, 46 y 59), perder con Schneider en contra (doble) y pasarse en la subasta (2 × lo
+  subastado).
+- 10⁵ partidas al azar de cada juego, **0 errores y 0 truncadas** (`gamehub fuzz --jobs 6`):
+  ajedrez 100 000; Skat 50 000 con 3 y 50 000 con 4; Wizard 25 000 con 3, 4, 5 y 6; Parchís
+  25 000 con 2, 3 y 4 y 25 000 por parejas. Las del Solitario (50 000 con robo de una y 50 000
+  con robo de tres) y del Texas Hold'em (16 667 con 2, 3, 4, 6, 8 y 10 jugadores) seguían en
+  marcha al fusionar; su resultado irá al log.
+- Los 22 paquetes del catálogo (23 juegos) se juegan enteros contra el servidor de verdad solo con
+  la UI genérica (test de la app web), y las cuatro UIs nuevas se han probado en el navegador.
+
+Ver el [log](../../log.md) del 2026-10-16 y el [catálogo](catalogo-de-juegos.md).
 
 ## F7 — Teoría de juegos v1 (59 → 66 %) · L
 
@@ -301,6 +321,5 @@ seguridad · ejemplos actualizados · decisiones registradas.
 
 ## Próximos pasos inmediatos
 
-1. Responder las [preguntas abiertas](preguntas-abiertas.md) marcadas como bloqueantes.
-2. Cerrar F0: repo, herramientas, JSON Schema de la IR y las 3 IR de validación.
-3. Empezar F1 por el núcleo mínimo para el tres en raya y crecer juego a juego.
+1. Pasar la documentación al inglés (las traducciones al español quedan como opción de cada juego).
+2. F7: teoría de juegos v1.

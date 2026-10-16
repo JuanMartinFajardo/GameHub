@@ -5,13 +5,11 @@
 
 | # | Pregunta | Recomendación por defecto | Afecta a |
 |---|---|---|---|
-| 19 | ¿Cuándo añadimos el **`on_timeout` de cada juego** (IR v0.2: la jugada por defecto al vencer el plazo, p. ej. «pasar» o «perder la partida» en ajedrez)? Hoy lo decide la sala (`random`, `pass`, `bot`, `forfeit`). | Cuando lo pida un juego del catálogo (ajedrez o Skat, F6) | F6 |
 | 20 | ¿Necesitas jugar **por internet** (fuera de la LAN) antes del hub? | Hasta F10, `gamehub serve` en una máquina accesible o un túnel tipo Tailscale; relay propio con el hub (F10) | F4, F10 |
 | 3b | ¿Habrá repo remoto en GitHub (u otro host)? | Cuando quieras; el CI ya está preparado | Todo |
 | 6 | ¿Quién usará el editor visual? ¿Debe poder diseñar un juego alguien que no programa (bloques tipo Scratch para las condiciones)? | Como está en la Fase 5: condiciones y efectos escritos en Nomos en los campos, con autocompletado y el error en su sitio; bloques visuales como mejora posterior | Studio, después de F5 |
 | 7 | ¿Te parece bien TypeScript + React para la web? ¿Tienes experiencia con algún framework? | TS + React + React Flow + CodeMirror, como ya usan F4 y F5 (ADR-044, 054, 055) | Web |
 | 8 | ¿Quieres un SDK de **Godot** pronto para hacer UIs de juegos ahí? | Después de TS y Python (F6), salvo que te interese antes | F4–F6 |
-| 9 | Reglas concretas pendientes: **Solitario** (¿Klondike?), **Póker** (¿Hold'em No-Limit?), **Skat** (¿reglas ISkO?), **Parchís** (¿españolas? ¿parejas?), **Wizard** (¿Amigo estándar?) | Los supuestos del [catálogo](catalogo-de-juegos.md) | F6 |
 | 9b | Variantes de **Mentiroso**: ¿el rango sigue la secuencia As, Dos, Tres…, lo elige quien abre ronda o es libre en cada jugada? ¿Puede acusar cualquiera o solo el siguiente? ¿Quién juega tras una acusación? ¿Baraja francesa o española? | Secuencia As→K; acusa cualquiera; sigue el siguiente jugador; francesa de 52. Con Nomos, cada variante es un `extends` de pocas líneas (la española, con `std.cards`) | Mentiroso (cuando quieras) |
 | 10 | ¿Trabajas solo? ¿Cuántas horas por semana? ¿Fecha objetivo para el MVP? | Solo + IA; ritmo a definir | Orden y tamaño de fases |
 | 11 | ¿Juegos en tiempo real continuo (tipo arcade) o basta con discreto + nodos `race`? | Discreto + `race`; continuo fuera de alcance | Modelo |
@@ -39,3 +37,6 @@
 | 2026-10-10 | 18 | ¿Apruebas las ADR-036 a 043 de la Fase 3 y fusionas la rama `f3/servidor-partidas`? | Sí: ADR-036 a 043 aceptadas, F3 fusionada a `main` y F4 en la rama `f4/cliente-web`. |
 | 2026-10-11 | 21 | ¿Apruebas las ADR-044 a 051 de la Fase 4 y fusionas la rama `f4/cliente-web`? | Sí («ve con la fase 5»): ADR-044 a 051 aceptadas, F4 fusionada a `main` y F5 en la rama `f5/studio`. |
 | 2026-10-16 | 22 | ¿Apruebas las ADR-052 a 059 de la Fase 5 y fusionas la rama `f5/studio`? | Sí: ADR-052 a 059 aceptadas (entre ellas CodeMirror en vez de Monaco) y F5 fusionada a `main`. |
+| 2026-10-16 | 9 | Reglas concretas de Solitario, Póker, Skat, Parchís y Wizard | Las recomendadas: Klondike, Texas Hold'em sin límite, ISkO (sin Kontra ni Ramsch), Parchís español (parejas como opción) y Wizard de Amigo (*hook* como opción); el ajedrez, FIDE. → [ADR-065](decisiones.md), [catálogo](catalogo-de-juegos.md) |
+| 2026-10-16 | 19 | ¿Cuándo añadimos el `on_timeout` de cada juego? | No hizo falta en F6: perder por tiempo es la opción `forfeit` de la sala y abandonar es cosa del servidor (ADR-065). Se retomará si un juego necesita una jugada por defecto propia. |
+| 2026-10-16 | 23 | ¿Apruebas las ADR-060 a 066 de la Fase 6 y fusionas la rama `f6/catalogo-ola-2`? | Sí: ADR-060 a 066 aceptadas y F6 fusionada a `main`. Siguiente: la documentación, en inglés. |

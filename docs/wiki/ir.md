@@ -87,6 +87,13 @@ Extracto de [`tictactoe.ir.json`](../../spec/ir/examples/tictactoe.ir.json):
 **Visibilidad**: `"all"`, `"none"`, `"owner"` o `{"when": predicado}` con `viewer`, `owner` e
 `item_face_up` ligados ([ADR-019](decisiones.md)). En zonas, `size_visibility` controla el tamaño.
 
+**Funciones**: `{"name", "params": [{name, type}], "returns", "body"}` y, opcional (Fase 6),
+`"native": "modulo.funcion"`: un motor puede sustituir la función por un plugin que dé lo mismo,
+pero `body` sigue siendo la implementación de referencia y es obligatorio
+([ADR-062](decisiones.md), [motor](motor.md#plugins-nativos)). `native` forma parte del hash de
+reglas: marcar una función como nativa no cambia lo que calcula, pero sí lo que un motor puede
+hacer con ella.
+
 ## 4. Expresiones y efectos
 
 - Codificación tipo **S-expresión en JSON**: `[op, arg₁, …, argₙ]`. Compacta, trivial de evaluar
