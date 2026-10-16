@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -64,8 +66,31 @@ def _parser() -> argparse.ArgumentParser:
     fuzz.add_argument("--players", type=int)
     fuzz.add_argument("--max-steps", type=int, default=10_000)
     fuzz.add_argument("--failures", type=Path, metavar="DIR", help="guarda un replay de cada fallo")
+    fuzz.add_argument(
+        "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
+    )
     _match_options(fuzz)
     fuzz.set_defaults(handler=_fuzz)
+
+    perft = commands.add_parser(
+        "perft", help="cuenta las secuencias de jugadas legales hasta una profundidad"
+    )
+    perft.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    perft.add_argument("--depth", type=int, default=3)
+    perft.add_argument("--players", type=int)
+    perft.add_argument(
+        "--skip",
+        action="append",
+        default=[],
+        metavar="ACCIÓN",
+        help="acción que no cuenta como jugada (p. ej. claim_draw); se puede repetir",
+    )
+    perft.add_argument("--divide", action="store_true", help="el recuento por primera jugada")
+    perft.add_argument(
+        "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
+    )
+    _match_options(perft)
+    perft.set_defaults(handler=_perft)
 
     replay = commands.add_parser("replay", help="re-simula y verifica un replay .ghr.json")
     replay.add_argument("file", type=Path, metavar="ARCHIVO.ghr.json")
@@ -664,29 +689,38 @@ def _play(args: argparse.Namespace) -> int:
     return 0 if state.is_terminal else 1
 
 
+def _jobs(value: int) -> int:
+    return value if value > 0 else (os.cpu_count() or 1)
+
+
 def _fuzz(args: argparse.Namespace) -> int:
-    from gamehub.engine.match import fuzz
-    from gamehub.engine.replay import record, save
+    from gamehub.engine.match import fuzz, fuzz_parallel
 
     game = _load_game(args.game, args.name)
     if args.failures:
         args.failures.mkdir(parents=True, exist_ok=True)
-
-    def on_error(seed: int, state: Any, exc: Exception) -> None:
-        if args.failures is not None and state is not None:
-            data = record(state, seed, game=game)
-            data["error"] = str(exc)
-            save(data, args.failures / f"fallo-semilla-{seed}.ghr.json")
-
-    report = fuzz(
-        game,
-        args.games,
-        seed=args.seed,
-        num_players=args.players,
-        params=_params(args.param),
-        max_steps=args.max_steps,
-        on_error=on_error,
-    )
+    jobs = _jobs(args.jobs)
+    if jobs > 1:
+        report = fuzz_parallel(
+            functools.partial(_load_game, args.game.resolve(), args.name),
+            args.games,
+            jobs=jobs,
+            seed=args.seed,
+            num_players=args.players,
+            params=_params(args.param),
+            max_steps=args.max_steps,
+            failures=args.failures,
+        )
+    else:
+        report = fuzz(
+            game,
+            args.games,
+            seed=args.seed,
+            num_players=args.players,
+            params=_params(args.param),
+            max_steps=args.max_steps,
+            on_error=_save_failure(game, args.failures),
+        )
     rate = report.games / report.seconds if report.seconds else 0.0
     print(f"{game.title}: {report.games} partidas en {report.seconds:.1f} s ({rate:.0f}/s)")
     errors = len(report.errors)
@@ -697,6 +731,44 @@ def _fuzz(args: argparse.Namespace) -> int:
     for seed, message in report.errors[:10]:
         print(f"  ✗ semilla {seed}: {message}")
     return 1 if report.errors else 0
+
+
+def _save_failure(game: Any, failures: Path | None) -> Any:
+    from gamehub.engine.match import save_failure
+
+    if failures is None:
+        return None
+    return lambda seed, state, exc: save_failure(game, failures, seed, state, exc)
+
+
+def _perft(args: argparse.Namespace) -> int:
+    import time
+
+    from gamehub.analysis.perft import divide, perft, perft_parallel
+
+    game = _load_game(args.game, args.name)
+    params = _params(args.param)
+    started = time.perf_counter()
+    if args.divide:
+        state = game.new_state(args.players, params)
+        total = 0
+        for action, count in divide(state, args.depth, args.skip):
+            print(f"{action}: {count}")
+            total += count
+    elif _jobs(args.jobs) > 1:
+        total = perft_parallel(
+            functools.partial(_load_game, args.game.resolve(), args.name),
+            args.depth,
+            jobs=_jobs(args.jobs),
+            skip=args.skip,
+            num_players=args.players,
+            params=params,
+        )
+    else:
+        total = perft(game.new_state(args.players, params), args.depth, args.skip)
+    seconds = time.perf_counter() - started
+    print(f"perft({args.depth}) = {total}  ({seconds:.1f} s)")
+    return 0
 
 
 def _replay(args: argparse.Namespace) -> int:

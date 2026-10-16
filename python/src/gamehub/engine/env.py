@@ -22,20 +22,26 @@ class Ctx:
 
     `store` es la lista de valores de las variables de estado (índice = orden de declaración).
     Durante la ejecución de efectos se modifica en sitio; el `State` resultante la congela.
+
+    `memo` guarda los resultados de las funciones puras de la IR (las que no dependen del nodo ni
+    de `actor`, `viewer` u `owner`) mientras `store` no cambia: cada escritura en el estado lo
+    vacía. `None` lo desactiva. Es una caché: no cambia ningún resultado.
     """
 
-    __slots__ = ("draws", "events", "game", "n", "params", "path", "store")
+    __slots__ = ("draws", "events", "game", "memo", "n", "params", "path", "store")
 
     def __init__(
         self,
         game: GameDef,
-        store: list[Any],
+        store: list[Any] | tuple[Any, ...],
         params: dict[str, Any],
         n: int,
         path: tuple[str, ...] = (),
         draws: Draws | None = None,
+        memo: dict[Any, Any] | None = None,
     ) -> None:
         self.game = game
+        self.memo = memo
         self.store = store
         self.params = params
         self.n = n
@@ -69,6 +75,8 @@ class Env:
         self.face_up = face_up
 
     def replace(self, **changes: Any) -> Env:
+        """Copia con algunos campos cambiados (para los casos poco frecuentes: `bind` y
+        `with_args` son los rápidos)."""
         env = Env(
             self.ctx,
             args=self.args,
@@ -82,12 +90,25 @@ class Env:
             setattr(env, key, value)
         return env
 
+    def _copy(self, args: dict[str, Any], locals_: dict[str, Any]) -> Env:
+        env = Env.__new__(Env)
+        env.ctx = self.ctx
+        env.args = args
+        env.locals = locals_
+        env.actor = self.actor
+        env.viewer = self.viewer
+        env.owner = self.owner
+        env.face_up = self.face_up
+        return env
+
     def bind(self, name: str, value: Any) -> Env:
-        return self.replace(locals={**self.locals, name: value})
+        locals_ = dict(self.locals)
+        locals_[name] = value
+        return self._copy(self.args, locals_)
 
     def child(self) -> Env:
         """Copia con locales propios (un bloque de sentencias puede añadir `let`)."""
-        return self.replace(locals=dict(self.locals))
+        return self._copy(self.args, dict(self.locals))
 
     def with_args(self, args: dict[str, Any]) -> Env:
-        return self.replace(args=args)
+        return self._copy(args, self.locals)

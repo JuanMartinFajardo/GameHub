@@ -100,6 +100,7 @@ class State:
     __slots__ = (
         "depth",
         "game",
+        "memo",
         "n",
         "node",
         "params",
@@ -121,8 +122,11 @@ class State:
         payoffs: tuple[Any, ...] | None,
         parent: State | None,
         step: Step,
+        memo: dict[Any, Any] | None = None,
     ) -> None:
         self.game = game
+        #: Resultados de funciones puras con este estado (ver `Ctx.memo`).
+        self.memo: dict[Any, Any] = {} if memo is None else memo
         self.n = n
         self.params = params
         self.store = store
@@ -303,7 +307,7 @@ class State:
     def view(self, seat_: int | None) -> dict[str, Any]:
         """El estado tal como lo ve un asiento (`None` = vista omnisciente, `PUBLIC` = un
         espectador, que no ocupa ningún asiento)."""
-        ctx = Ctx(self.game, list(self.store), self.params, self.n, self._path())
+        ctx = Ctx(self.game, self.store, self.params, self.n, self._path(), memo=self.memo)
         env = Env(ctx, viewer=seat_)
         state = {
             var.name: redact(self.store[var.index], var.type, var.policy, var.size_policy, env)
@@ -388,7 +392,8 @@ class State:
         return _Tx(self.game, self.n, self.params, self.store, self.node, self.pending, draws)
 
     def _env(self, **kw: Any) -> Env:
-        return Env(Ctx(self.game, list(self.store), self.params, self.n, self._path()), **kw)
+        ctx = Ctx(self.game, self.store, self.params, self.n, self._path(), memo=self.memo)
+        return Env(ctx, **kw)
 
     def _enumerate(self, node: NodeDef, seat_: int) -> Iterator[Action]:
         for adef in node.actions:
@@ -511,7 +516,7 @@ class _Tx:
         self.node = node
         self.pending = pending
         self.payoffs: tuple[Any, ...] | None = None
-        self.ctx = Ctx(game, list(store), params, n, draws=draws)
+        self.ctx = Ctx(game, list(store), params, n, draws=draws, memo={})
         self.arrivals = 0
         # Siguiente salto pendiente: ("transfer", fases_activas, destino) o ("exit", fase, None).
         # Los saltos se encadenan en un bucle (no por recursión) para admitir cadenas largas
@@ -530,6 +535,7 @@ class _Tx:
             self.payoffs,
             parent,
             step,
+            self.ctx.memo,
         )
 
     # --- utilidades -----------------------------------------------------------------------------
@@ -697,6 +703,7 @@ class _Tx:
             None,
             None,
             Step("probe"),
+            self.ctx.memo,
         )
         for _ in probe._enumerate(node, actor):
             return

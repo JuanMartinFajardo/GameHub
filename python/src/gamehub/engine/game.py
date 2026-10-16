@@ -54,6 +54,9 @@ class FunctionDef:
     name: str
     params: tuple[str, ...]
     body: Compiled
+    #: Si se guarda su resultado: "static" (para siempre), "state" (mientras no cambie el
+    #: estado) o None (ver `_memo_kinds`).
+    memo: str | None = None
 
 
 @dataclass(frozen=True)
@@ -123,9 +126,15 @@ class GameDef:
         state = ir.get("state", [])
         self.var_index = {v["name"]: i for i, v in enumerate(state)}
         self.exprs = ExprCompiler(self.types, self.var_index)
+        memo_kinds = _memo_kinds(ir.get("functions", []))
+        #: Resultados de las funciones "static": valen para todas las partidas.
+        self.static_memo: dict[Any, Any] = {}
         self.functions = {
             f["name"]: FunctionDef(
-                f["name"], tuple(p[0] for p in f["params"]), self.exprs.compile(f["body"])
+                f["name"],
+                tuple(p[0] for p in f["params"]),
+                self.exprs.compile(f["body"]),
+                memo=memo_kinds[f["name"]],
             )
             for f in ir.get("functions", [])
         }
@@ -377,6 +386,77 @@ def _text(value: Any) -> str | None:
     if value is None or isinstance(value, str):
         return value
     return value.get("es") or next(iter(value.values()), None)
+
+
+#: Operadores que hacen que una expresión dependa de algo más que el estado, las opciones y sus
+#: argumentos: el nodo en curso y los asientos de contexto.
+_CONTEXTUAL = frozenset({"at", "actor", "viewer", "owner", "item_face_up"})
+
+#: Operadores que leen el estado, las opciones o el número de asientos.
+_STATEFUL = frozenset(
+    {"var", "param", "seats", "next_seat", "prev_seat", "other_seat", "seats_from"}
+    | {"win_loss", "fill"}
+)
+
+#: Operadores que recorren una colección: una función que no usa ninguno ni llama a otras es tan
+#: barata que guardar su resultado costaría más que calcularla.
+_LOOPS = frozenset(
+    {"all", "any", "count", "sum", "map", "flat_map", "filter", "argmax", "argmin"}
+    | {"max_of", "min_of", "sort_by", "subsets", "cells", "lines"}
+)
+
+
+def _memo_kinds(functions: list[dict[str, Any]]) -> dict[str, str | None]:
+    """Qué resultados se pueden guardar y dónde (ver `Ctx.memo`):
+
+    - `"static"`: la función solo depende de sus argumentos (no lee el estado, ni las opciones,
+      ni el número de asientos, ni el contexto): se guarda para todas las partidas del juego.
+    - `"state"`: depende del estado y de las opciones, pero no del nodo en curso ni de los
+      asientos de contexto: se guarda mientras el estado no cambia.
+    - `None`: no se guarda (depende del contexto, o es tan simple que no compensa)."""
+    calls: dict[str, set[str]] = {}
+    contextual: set[str] = set()
+    stateful: set[str] = set()
+    heavy: set[str] = set()
+
+    def walk(node: Any, name: str) -> None:
+        if isinstance(node, list) and node:
+            head = node[0] if isinstance(node[0], str) else None
+            if head == "const":
+                return
+            if head in _CONTEXTUAL:
+                contextual.add(name)
+            if head in _STATEFUL:
+                stateful.add(name)
+            if head in _LOOPS:
+                heavy.add(name)
+            if head == "call" and len(node) > 1 and isinstance(node[1], str):
+                calls[name].add(node[1])
+                heavy.add(name)
+            for x in node if head is None else node[1:]:
+                walk(x, name)
+        elif isinstance(node, dict):
+            for x in node.values():
+                walk(x, name)
+
+    for f in functions:
+        calls[f["name"]] = set()
+        walk(f["body"], f["name"])
+    changed = True
+    while changed:
+        changed = False
+        for name, callees in calls.items():
+            for marks in (contextual, stateful):
+                if name not in marks and callees & marks:
+                    marks.add(name)
+                    changed = True
+    kinds: dict[str, str | None] = {}
+    for name in calls:
+        if name in contextual or name not in heavy:
+            kinds[name] = None
+        else:
+            kinds[name] = "state" if name in stateful else "static"
+    return kinds
 
 
 def _has_chance(block: list[Any]) -> bool:

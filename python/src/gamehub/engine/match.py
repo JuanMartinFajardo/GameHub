@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from fractions import Fraction
+from pathlib import Path
 from typing import Any, Protocol
 
 from gamehub.engine.errors import RuleError
@@ -164,6 +166,107 @@ def fuzz(
         ]
     report.seconds = time.perf_counter() - started
     return report
+
+
+def save_failure(
+    game: Game, directory: Path, seed: int, state: State | None, exc: Exception
+) -> None:
+    """Guarda el replay de una partida que acabó en un error de reglas (para reproducirla)."""
+    from gamehub.engine.replay import record, save
+
+    if state is None:
+        return
+    data = record(state, seed, game=game)
+    data["error"] = str(exc)
+    save(data, directory / f"fallo-semilla-{seed}.ghr.json")
+
+
+def merge_reports(reports: Sequence[FuzzReport], seconds: float) -> FuzzReport:
+    total = FuzzReport(seconds=seconds)
+    for r in reports:
+        total.games += r.games
+        total.completed += r.completed
+        total.truncated += r.truncated
+        total.errors.extend(r.errors)
+        total.total_steps += r.total_steps
+        sums = r.payoff_sums
+        total.payoff_sums = (
+            sums
+            if not total.payoff_sums
+            else [a + b for a, b in zip(total.payoff_sums, sums, strict=True)]
+        )
+    total.errors.sort()
+    return total
+
+
+_worker: dict[str, Any] = {}
+
+
+def _init_worker(loader: Callable[[], Game]) -> None:
+    _worker["game"] = loader()
+
+
+def _fuzz_chunk(
+    seed: int,
+    games: int,
+    num_players: int | None,
+    params: dict[str, Any] | None,
+    max_steps: int,
+    failures: Path | None,
+) -> FuzzReport:
+    game: Game = _worker["game"]
+    on_error: Callable[[int, State | None, RuleError], None] | None = None
+    if failures is not None:
+        directory = failures
+
+        def save(s: int, state: State | None, exc: RuleError) -> None:
+            save_failure(game, directory, s, state, exc)
+
+        on_error = save
+
+    return fuzz(
+        game,
+        games,
+        seed=seed,
+        num_players=num_players,
+        params=params,
+        max_steps=max_steps,
+        on_error=on_error,
+    )
+
+
+def fuzz_parallel(
+    loader: Callable[[], Game],
+    games: int,
+    *,
+    jobs: int,
+    seed: int = 0,
+    num_players: int | None = None,
+    params: dict[str, Any] | None = None,
+    max_steps: int = 10_000,
+    failures: Path | None = None,
+    chunk: int = 0,
+) -> FuzzReport:
+    """`fuzz` repartido entre `jobs` procesos: las mismas partidas (semillas `seed + i`) y el mismo
+    informe que en un solo proceso, salvo el tiempo. `loader` carga el juego en cada proceso."""
+    started = time.perf_counter()
+    size = chunk or max(1, min(1000, games // (jobs * 8) or 1))
+    starts = range(seed, seed + games, size)
+    with ProcessPoolExecutor(jobs, initializer=_init_worker, initargs=(loader,)) as ex:
+        futures = [
+            ex.submit(
+                _fuzz_chunk,
+                s,
+                min(size, seed + games - s),
+                num_players,
+                params,
+                max_steps,
+                failures,
+            )
+            for s in starts
+        ]
+        reports = [f.result() for f in futures]
+    return merge_reports(reports, time.perf_counter() - started)
 
 
 class _LastState:

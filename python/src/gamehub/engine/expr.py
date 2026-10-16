@@ -30,6 +30,9 @@ from gamehub.engine.values import (
 
 Compiled = Callable[[Env], Any]
 
+#: Resultados guardados como mucho de las funciones que solo dependen de sus argumentos.
+STATIC_MEMO_LIMIT = 200_000
+
 # --- Comprobaciones y utilidades ----------------------------------------------------------------
 
 
@@ -115,6 +118,13 @@ def grid_cells(g: Grid) -> tuple[tuple[int, int], ...]:
 
 
 def index_value(coll: Any, key: Any) -> Any:
+    kind = type(coll)
+    if kind is tuple and type(key) is int and 0 <= key < len(coll):
+        return coll[key]
+    if kind is Grid and type(key) is tuple and len(key) == 2:
+        r, c = key
+        if type(r) is int and type(c) is int and 0 <= r < coll.height and 0 <= c < coll.width:
+            return coll.cells[r * coll.width + c]
     if isinstance(coll, tuple):
         if isinstance(key, bool) or not isinstance(key, int) or not 0 <= key < len(coll):
             raise RuleError(f"índice fuera de rango: {key!r} (longitud {len(coll)})")
@@ -185,6 +195,28 @@ def seated(name: str, fn: Callable[..., Any]) -> None:
     def build(c: ExprCompiler, args: list[Any]) -> Compiled:
         compiled = c.many(args)
         return lambda env: fn(env.ctx.n, *(x(env) for x in compiled))
+
+    OPERATORS[name] = build
+
+
+def fast_int(name: str, fast: Callable[[int, int], Any], slow: Callable[..., Any]) -> None:
+    """Como `pure`, con un atajo cuando hay dos argumentos y los dos son enteros (no booleanos):
+    es el caso de casi toda la aritmética de casillas y contadores. `slow` da el resultado (y
+    los errores) en los demás casos."""
+
+    def build(c: ExprCompiler, args: list[Any]) -> Compiled:
+        compiled = c.many(args)
+        if len(compiled) != 2:
+            return lambda env: slow(*(x(env) for x in compiled))
+        a, b = compiled
+
+        def f(env: Env) -> Any:
+            x, y = a(env), b(env)
+            if type(x) is int and type(y) is int:
+                return fast(x, y)
+            return slow(x, y)
+
+        return f
 
     OPERATORS[name] = build
 
@@ -272,7 +304,7 @@ def _at(c: ExprCompiler, args: list[Any]) -> Compiled:
 pure("list", lambda *xs: tuple(xs))
 pure("set", lambda *xs: SetValue.of(xs))
 pure("tuple", lambda *xs: tuple(xs))
-pure("cell", lambda r, col: (num(r, "cell"), num(col, "cell")))
+fast_int("cell", lambda r, col: (r, col), lambda r, col: (num(r, "cell"), num(col, "cell")))
 
 
 @op("struct")
@@ -312,9 +344,9 @@ def _mod(a: Any, b: Any) -> Any:
     return norm_num(num(a, "mod") % b)
 
 
-pure("add", _add)
-pure("sub", lambda a, b: norm_num(num(a, "sub") - num(b, "sub")))
-pure("mul", _mul)
+fast_int("add", int.__add__, _add)
+fast_int("sub", int.__sub__, lambda a, b: norm_num(num(a, "sub") - num(b, "sub")))
+fast_int("mul", int.__mul__, _mul)
 pure("div", _div)
 pure("idiv", _idiv)
 pure("mod", _mod)
@@ -327,10 +359,10 @@ pure("max", lambda *xs: max(num(x, "max") for x in xs))
 
 pure("eq", lambda a, b: a == b)
 pure("ne", lambda a, b: a != b)
-pure("lt", lambda a, b: compare(a, b, "lt") < 0)
-pure("le", lambda a, b: compare(a, b, "le") <= 0)
-pure("gt", lambda a, b: compare(a, b, "gt") > 0)
-pure("ge", lambda a, b: compare(a, b, "ge") >= 0)
+fast_int("lt", int.__lt__, lambda a, b: compare(a, b, "lt") < 0)
+fast_int("le", int.__le__, lambda a, b: compare(a, b, "le") <= 0)
+fast_int("gt", int.__gt__, lambda a, b: compare(a, b, "gt") > 0)
+fast_int("ge", int.__ge__, lambda a, b: compare(a, b, "ge") >= 0)
 
 # Lógica y control
 
@@ -340,7 +372,13 @@ def _and(c: ExprCompiler, args: list[Any]) -> Compiled:
     compiled = c.many(args)
 
     def f(env: Env) -> bool:
-        return all(boolean(x(env), "and") for x in compiled)
+        for x in compiled:
+            v = x(env)
+            if v is False:
+                return False
+            if v is not True:
+                boolean(v, "and")
+        return True
 
     return f
 
@@ -350,7 +388,13 @@ def _or(c: ExprCompiler, args: list[Any]) -> Compiled:
     compiled = c.many(args)
 
     def f(env: Env) -> bool:
-        return any(boolean(x(env), "or") for x in compiled)
+        for x in compiled:
+            v = x(env)
+            if v is True:
+                return True
+            if v is not False:
+                boolean(v, "or")
+        return False
 
     return f
 
@@ -361,7 +405,17 @@ pure("not", lambda a: not boolean(a, "not"))
 @op("if")
 def _if(c: ExprCompiler, args: list[Any]) -> Compiled:
     cond, then, other = c.many(args)
-    return lambda env: then(env) if boolean(cond(env), "if") else other(env)
+
+    def f(env: Env) -> Any:
+        v = cond(env)
+        if v is True:
+            return then(env)
+        if v is False:
+            return other(env)
+        boolean(v, "if")
+        raise AssertionError
+
+    return f
 
 
 @op("case")
@@ -491,7 +545,16 @@ def comprehension(name: str, reduce: Callable[[str, Sequence[Any], Callable[[Any
 
         def f(env: Env) -> Any:
             items = iterate(coll(env), name)
-            return reduce(name, items, lambda x: body(env.bind(binder, x)))
+            # Un solo ámbito para todos los elementos: el cuerpo se evalúa entero antes de pasar
+            # al siguiente (las reducciones no guardan nada que lo use después).
+            scope = env.bind(binder, None)
+            local = scope.locals
+
+            def apply(x: Any) -> Any:
+                local[binder] = x
+                return body(scope)
+
+            return reduce(name, items, apply)
 
         return f
 
@@ -624,9 +687,29 @@ def _call(c: ExprCompiler, args: list[Any]) -> Compiled:
     name, arg_exprs = args[0], c.many(args[1:])
 
     def f(env: Env) -> Any:
-        fn = env.ctx.game.functions[name]
-        values = {p: a(env) for p, a in zip(fn.params, arg_exprs, strict=True)}
-        return fn.body(Env(env.ctx, args=values))
+        ctx = env.ctx
+        game = ctx.game
+        fn = game.functions[name]
+        values = [a(env) for a in arg_exprs]
+        kind = fn.memo
+        if kind is None:
+            return fn.body(Env(ctx, args=dict(zip(fn.params, values, strict=True))))
+        if kind == "static":
+            memo = game.static_memo
+            if len(memo) > STATIC_MEMO_LIMIT:
+                memo.clear()
+        else:
+            memo = ctx.memo
+            if memo is None:
+                return fn.body(Env(ctx, args=dict(zip(fn.params, values, strict=True))))
+        key = (name, *values)
+        try:
+            return memo[key]
+        except KeyError:
+            pass
+        result = fn.body(Env(ctx, args=dict(zip(fn.params, values, strict=True))))
+        memo[key] = result
+        return result
 
     return f
 

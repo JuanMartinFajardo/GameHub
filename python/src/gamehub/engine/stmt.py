@@ -85,6 +85,17 @@ def coerce(v: Any, t: Type) -> Any:
     return v
 
 
+def grid_from_rows(rows: Any, width: int, height: int, t: Type) -> Grid:
+    """Una rejilla a partir de la lista de sus filas (de arriba abajo)."""
+    if not (
+        isinstance(rows, tuple)
+        and len(rows) == height
+        and all(isinstance(r, tuple) and len(r) == width for r in rows)
+    ):
+        raise RuleError(f"se esperaban {height} filas de {width} casillas para la rejilla")
+    return Grid(width, height, tuple(coerce(x, t.inner) for row in rows for x in row))
+
+
 # --- Selectores de elementos de zona -----------------------------------------------------------
 
 
@@ -170,7 +181,14 @@ class StmtCompiler:
             i = self.exprs.var_index[name]
 
             def set_var(env: Env, v: Any) -> None:
-                env.ctx.store[i] = v
+                ctx = env.ctx
+                store = ctx.store
+                # Solo las transacciones escriben, y su almacén es una lista; los estados
+                # consultan una tupla (escribir en ella sería un fallo del motor).
+                assert isinstance(store, list)
+                store[i] = v
+                if ctx.memo:
+                    ctx.memo.clear()
 
             return LValue(
                 get=lambda env: env.ctx.store[i],
@@ -225,6 +243,17 @@ class StmtCompiler:
 
     def _assign(self, target: list[Any], value_e: list[Any]) -> Runner:
         lv, value = self.lvalue(target), self.exprs.compile(value_e)
+        if lv.type.kind == "grid":
+            dims = lv.type.dims
+
+            def assign_grid(env: Env) -> None:
+                v = value(env)
+                if not isinstance(v, Grid):
+                    w, h = (d if isinstance(d, int) else env.ctx.params[d] for d in dims)
+                    v = grid_from_rows(v, w, h, lv.type)
+                lv.set(env, v)
+
+            return assign_grid
         return lambda env: lv.set(env, coerce(value(env), lv.type))
 
     def _let(self, name: str, value_e: list[Any]) -> Runner:

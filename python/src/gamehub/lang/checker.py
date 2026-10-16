@@ -1357,6 +1357,23 @@ class Checker:
                 help="el azar es explícito: mueve esta sentencia a un nodo chance",
             )
 
+    def assigned(self, value: ast.Expr, target_ty: Ty, scope: Scope, ctx: Ctx) -> Any:
+        """El valor de `x = valor`. Una rejilla también se asigna con la lista de sus filas (las
+        dimensiones se comprueban al ejecutar)."""
+        if target_ty.kind != "grid":
+            return self.expect(self.expr(value, scope, ctx, target_ty), target_ty, value.span)
+        rows = T.list_(T.list_(target_ty.inner))
+        v_ir, v_ty = self.expr(value, scope, ctx, rows)
+        if not (T.assignable(v_ty, target_ty) or T.assignable(v_ty, rows)):
+            self.error(
+                "E301",
+                f"tipos incompatibles: se esperaba `{target_ty}` o una lista de filas, "
+                f"se encontró `{v_ty}`",
+                value.span,
+                f"esto es `{v_ty}`",
+            )
+        return v_ir
+
     def assign(self, s: ast.Assign, scope: Scope, ctx: Ctx) -> Any:
         value = s.value
         if (
@@ -1368,8 +1385,7 @@ class Checker:
             return self.random_assign(s, value, scope, ctx)
         target_ir, target_ty = self.lvalue(s.target, scope, ctx)
         if s.op == "=":
-            v = self.expect(self.expr(value, scope, ctx, target_ty), target_ty, value.span)
-            return ["assign", target_ir, v]
+            return ["assign", target_ir, self.assigned(value, target_ty, scope, ctx)]
         v_ir, v_ty = self.expr(value, scope, ctx)
         if target_ty.kind == "list" or (target_ty.kind in ("set", "zone", "bag") and s.op != "*="):
             if s.op == "*=":
@@ -2398,9 +2414,7 @@ class Checker:
                     assert step.target is not None and step.value is not None
                     target_ir, target_ty = self.lvalue(step.target, Scope(), ctx)
                     out.target = target_ir
-                    out.value = self.expect(
-                        self.expr(step.value, Scope(), ctx, target_ty), target_ty, step.value.span
-                    )
+                    out.value = self.assigned(step.value, target_ty, Scope(), ctx)
             steps.append(out)
         return TestCase(test.name, steps, test.span)
 

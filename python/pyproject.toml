@@ -63,7 +63,9 @@ typeCheckingMode = "standard"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# Los tests marcados `slow` (perft profundos, playouts largos) solo con `-m slow`.
+addopts = "-q -m 'not slow'"
+markers = ["slow: tarda minutos con el motor de referencia (se ejecuta con -m slow)"]
 # Si un test se cuelga (red, hilos), vuelca la pila de todos los hilos.
 faulthandler_timeout = 120
 # pygls usa asyncio.iscoroutinefunction, obsoleto en Python 3.14 (no es nuestro).
