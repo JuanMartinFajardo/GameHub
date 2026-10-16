@@ -1,8 +1,8 @@
 # Catálogo de juegos
 
-> Estado: **ola 1 completa** (Fase 2, 2026-10-09). Los 16 juegos de la ola 1 están en Nomos en
-> [`games/`](../../games), cada uno un paquete con sus tests, y se juegan en la terminal
-> (`gamehub play`). Los de la ola 2 llegan en la Fase 6.
+> Estado: **olas 1 y 2 completas** (Fases 2 y 6, 2026-10-16). Los 22 paquetes (23 juegos) están
+> en Nomos en [`games/`](../../games), cada uno con sus tests, y se juegan en la terminal
+> (`gamehub play`), en red y en el navegador.
 > El orden está pensado para que cada ola fuerce **nuevas capacidades del motor** de forma incremental.
 
 Leyenda: **Az** = azar · **Oc** = información oculta · **Si** = simultaneidad/ventanas.
@@ -28,18 +28,41 @@ lleva sus pistas `ui { … }`), y el tres en raya, Conecta 4 y Dudo tienen adem�
 
 ## Ola 2 — Los juegos que pediste (Fase 6)
 
-| Juego | Jug. | Az | Oc | Si | Qué pone a prueba |
-|---|---|:-:|:-:|:-:|---|
-| **Parchís** | 2–4 (parejas) | ✓ | | | Tablero como **grafo**, casillas seguras, barreras, capturas (+20), llegada (+10), tres seises, movimientos encadenados |
-| **Wizard** | 3–6 | ✓ | ✓ | | **Bazas** (`std.tricktaking`), apuestas, triunfo, magos/bufones, rondas variables |
-| **Solitario** (Klondike) | 1 | ✓ | ✓ | | Un jugador (POMDP), muchas acciones, búsqueda/solvers, % de partidas ganables |
-| **Ajedrez** | 2 | | | | Legalidad compleja (jaque, enroque, al paso, promoción), **historial** (triple repetición, 50 jugadas), validación por **perft**, rendimiento |
-| **Póker** Texas Hold'em No-Limit | 2–10 | ✓ | ✓ | | Rondas de apuestas, **botes secundarios**, evaluador de manos (plugin nativo), acciones con importe |
-| **Skat** | 3 (4 con repartidor) | ✓ | ✓ | | **Subasta** (*Reizen*), skat, tipos de juego (palo, Grand, Null, Hand, Ouvert), puntuación compleja |
+| Juego | Paquete | Jug. | Az | Oc | Si | Qué pone a prueba |
+|---|---|---|:-:|:-:|:-:|---|
+| **Parchís** | [`parchis`](../../games/parchis) | 2–4 (parejas) | ✓ | | | Recorridos con `std.boards`, seguros, barreras, capturas (+20), llegada (+10), tres seises, premios encadenados |
+| **Wizard** | [`wizard`](../../games/wizard) | 3–6 | ✓ | ✓ | | Bazas (`std.tricktaking`), apuestas, triunfo, magos y bufones, rondas de 1 a 60/n cartas |
+| **Solitario** (Klondike) | [`solitaire`](../../games/solitaire) | 1 | ✓ | ✓ | | Un jugador (POMDP), cartas boca abajo en una lista de zonas, muchas acciones |
+| **Ajedrez** | [`chess`](../../games/chess) | 2 | | | | Legalidad completa (jaque, clavadas, enroque, al paso, coronación), historial (repeticiones, 50/75 jugadas), **perft** |
+| **Póker** Texas Hold'em sin límite | [`texas-holdem`](../../games/texas-holdem) | 2–10 | ✓ | ✓ | | Rondas de apuestas, subidas mínimas, **botes secundarios** (`std.betting`), evaluador (`std.poker`, plugin nativo) |
+| **Skat** | [`skat`](../../games/skat) | 3 (4 con quien reparte descansando) | ✓ | ✓ | | **Subasta** (*Reizen*), skat, palo / Grand / Null, Hand, Schneider, Schwarz, Ouvert, matadores, juego pasado de la subasta |
 
-Bibliotecas que salen de esta ola: `std.cards` (French52, Spanish40/48, Skat32, Wizard60),
-`std.dice`, `std.boards` (rejillas con direcciones/rayos, grafos), `std.tricktaking`,
-`std.bidding`, `std.betting` (botes y botes secundarios), `std.poker` (evaluador).
+Mentiroso, el séptimo juego pedido, llegó en la ola 1. El ajedrez, el póker, Wizard y el Parchís
+tienen además **UI propia** (`games/<juego>/ui`); el Skat y el Solitario se juegan con la UI
+genérica.
+
+Bibliotecas que salieron de esta ola: `std.cards` (también `skat32()` y la baraja de Wizard,
+`wizard60()`), `std.boards` (direcciones, rayos y saltos dentro del tablero, recorridos),
+`std.tricktaking`, `std.betting` (botes y botes secundarios) y `std.poker` (valor de una mano,
+con plugin nativo en WebAssembly).
+
+### Fichas de análisis
+
+Clasificación de `gamehub check` y tamaño del árbol con el estimador de Knuth (60 paseos al azar;
+para árboles tan grandes es solo un orden de magnitud). Con agentes al azar.
+
+| Juego | Clasificación | Estados (Knuth) | Pasos medios | Ramificación media |
+|---|---|---|---:|---:|
+| Ajedrez | 2 jugadores, determinista, información perfecta, suma cero | ~10⁷⁵⁷ | 350 | 21,9 |
+| Skat (una mano, 3) | azar, información imperfecta | ~10⁶¹ | 40 | 7,2 |
+| Texas Hold'em (una mano, 2 / 6) | azar, información imperfecta | ~10⁷⁹ / ~10⁸¹ | 4,8 / 9,2 | 74 / 34 |
+| Wizard (3, partida entera / una ronda) | azar, información imperfecta | ~10²⁰⁵⁰ / ~10⁸⁴ | 711 / 7 | 5,4 / 1,5 |
+| Parchís (4) | azar, información perfecta | ~10⁵¹⁷ | 663 | 2,5 |
+| Solitario (robo de una) | 1 jugador, azar, información imperfecta | ~10¹¹²⁷ | 1 000 (tope) | 8,1 |
+
+Comprobaciones exactas: **perft(5) = 4 865 609** desde el inicio y los *perft* de Kiwipete y de
+las posiciones 3 a 6 de la Chess Programming Wiki; los valores de juego del Skat con los ejemplos
+de la ISkO.
 
 ## Ola 3 — Sugerencias para ampliar el motor (después)
 
@@ -58,18 +81,26 @@ Bibliotecas que salen de esta ola: `std.cards` (French52, Spanish40/48, Skat32, 
 | Diplomacy, Codenames, Catan | Órdenes simultáneas, comunicación y negociación |
 | Ultimátum, Ciempiés, Bienes públicos, Concurso de belleza (p-guess) | Clásicos de teoría de juegos/economía experimental, parametrizables |
 
-## Supuestos sobre reglas (a confirmar)
+## Reglas elegidas
 
 - **Mentiroso** (confirmado 2026-10-09): es el *Bullshit*. Se ponen cartas boca abajo en el centro
   declarando "3 cuatros"; si te acusan y era mentira, te llevas todo el montón; si era verdad, se
   lo lleva quien acusó. Pendiente de confirmar ([pregunta 9b](preguntas-abiertas.md)): secuencia
   de rangos, quién puede acusar, quién sigue tras una acusación y baraja. Dudo queda como la
   versión de dados.
-- **Solitario:** Klondike (robo de 1 y de 3 como parámetro). FreeCell sería de información perfecta.
-- **Póker:** Texas Hold'em No-Limit; Kuhn y Leduc como versiones mínimas para análisis.
-- **Skat:** reglas oficiales internacionales (ISkO).
-- **Parchís:** reglas españolas habituales, con variante por parejas.
-- **Wizard:** reglas estándar de Amigo; variantes como `params`.
+- Los de la ola 2, con las recomendaciones de la [pregunta 9](preguntas-abiertas.md)
+  ([ADR-065](decisiones.md)):
+  - **Ajedrez:** FIDE. Tablas automáticas por ahogado, material insuficiente, quíntuple
+    repetición y 75 jugadas; reclamables por triple repetición y 50 jugadas. Rendirse y perder
+    por tiempo son cosa del servidor (abandonar, y la opción `forfeit` de la sala).
+  - **Skat:** ISkO, sin Kontra ni Ramsch (si pasan todos, la mano no se juega); Seeger-Fabian como
+    opción.
+  - **Parchís:** reglas españolas; con dos jugadores, colores opuestos; por parejas como opción.
+  - **Wizard:** reglas de Amigo; la variante *hook* como opción.
+  - **Póquer:** Texas Hold'em sin límite con ciegas fijas; Kuhn y Leduc quedan como versiones
+    mínimas para el análisis.
+  - **Solitario:** Klondike (robo de una o de tres, vueltas al descarte como opción, tope de
+    jugadas). FreeCell sería de información perfecta.
 
 ## Definición de "juego terminado" en el catálogo
 
@@ -77,5 +108,6 @@ Bibliotecas que salen de esta ola: `std.cards` (French52, Spanish40/48, Skat32, 
 2. Tests de escenarios que cubren cada regla especial (y *perft* o equivalente si existe).
 3. 10⁵ playouts aleatorios sin errores de regla; invariantes declarados.
 4. Jugable en la UI genérica; UI propia opcional.
-5. Bot de referencia (como mínimo aleatorio + uno heurístico).
+5. Bot de referencia (como mínimo aleatorio + uno heurístico). *Hoy, solo el aleatorio: los bots
+   heurísticos llegan con los bloques `heuristic` de la Fase 9.*
 6. Ficha de análisis: clasificación, tamaño estimado y lo que se haya podido calcular.

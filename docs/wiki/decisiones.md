@@ -65,6 +65,13 @@
 | 057 | Seguridad del Studio: solo local, token, Host y Origin comprobados, archivos `.game` del directorio de trabajo | Aceptada (2026-10-16, usuario) |
 | 058 | Simulador en el servidor sobre el motor de referencia: historia inmutable, traza de transiciones y estimador de Knuth | Aceptada (2026-10-16, usuario) |
 | 059 | Tests e invariantes editables y ejecutables desde el Studio; plantillas compartidas con `gamehub new --template` | Aceptada (2026-10-16, usuario) |
+| 060 | Memo de las funciones de la IR: para siempre las que solo dependen de sus argumentos, mientras no cambie el estado las que lo leen | **Propuesta** (F6) |
+| 061 | `gamehub perft` y `gamehub fuzz --jobs` (varios procesos, el mismo informe); tests largos marcados `slow` | **Propuesta** (F6) |
+| 062 | Plugins nativos: `@native("m.f")` con el cuerpo como referencia obligatoria; WebAssembly sin importaciones (ABI `gamehub-native/1`) y `wasmtime` opcional | **Propuesta** (F6) |
+| 063 | Las expresiones de la IR se compilan a código de Python (`codegen`); los cierres siguen siendo la referencia | **Propuesta** (F6) |
+| 064 | Bibliotecas de juegos de cartas sin genéricos: palos y fuerzas como enteros en `std.tricktaking`; barajas en `std.cards` | **Propuesta** (F6) |
+| 065 | Reglas de la ola 2: FIDE, ISkO sin Kontra ni Ramsch, Parchís español, Wizard de Amigo, Hold'em sin límite y Klondike con tope de jugadas | **Propuesta** (F6) |
+| 066 | Ajustes del lenguaje de F6: los módulos no ven los nombres del juego, una rejilla se asigna con sus filas, las listas de zonas se redactan zona a zona | **Propuesta** (F6) |
 
 ---
 
@@ -551,3 +558,124 @@
   diagrama.
 - **Consecuencias:** el tres en raya se crea desde cero solo con el diagrama y los formularios,
   con sus tests (test de aceptación).
+
+### ADR-060 — Memo de las funciones de la IR
+- **Contexto:** el ajedrez pregunta mil veces por posición lo mismo (dónde está el rey, si hay
+  jaque, qué piezas están clavadas, las casillas de un rayo) y cada llamada recalculaba todo: el
+  *perft(3)* tardaba 52 s.
+- **Decisión:** el motor guarda el resultado de las funciones de la IR según de qué dependen
+  (`game._memo_kinds`, análisis estático transitivo):
+  - **static**: solo de sus argumentos (ni estado, ni opciones, ni asientos, ni contexto). Se
+    guardan para todas las partidas del juego (las tablas de rayos y saltos del ajedrez, el valor
+    de una mano de póquer).
+  - **state**: del estado y de las opciones, pero no del nodo en curso (`at`) ni de los asientos
+    de contexto. Se guardan en el estado (`State.memo`) y cada escritura en el almacén de una
+    transacción vacía el memo, así que no hay invalidación que olvidar.
+  - Ninguno: las que dependen del contexto y las que no tienen bucles ni llamadas (guardarlas
+    costaría más que calcularlas).
+- **Alternativas:** que el diseñador marque qué guardar (error humano, y no cambia la semántica:
+  mejor automático); claves con el estado entero (cada consulta haría un hash del estado).
+- **Consecuencias:** es una caché: las trazas de conformidad no cambian. Junto con los atajos para
+  enteros, el *perft(3)* pasa a 1,2 s y el *perft(5)* (4 865 609) a 131 s con 6 procesos. Un juego
+  puede escribirse «como en un motor de verdad» (generador de jugadas con clavadas y líneas de
+  jaque) sin preocuparse de cuántas veces se llama a cada función.
+
+### ADR-061 — *Perft* y partidas al azar en paralelo
+- **Decisión:** `gamehub perft JUEGO --depth N` cuenta las secuencias de jugadas legales (los
+  puntos de azar suman todos sus resultados; `--skip` deja fuera acciones como reclamar tablas;
+  `--divide` separa por primera jugada) y `gamehub fuzz --jobs N` reparte las partidas entre
+  procesos con el mismo informe que en uno (semillas `seed + i`). Los dos cargan el juego en cada
+  proceso. Los tests que tardan minutos se marcan `slow` y solo corren con `pytest -m slow`.
+- **Consecuencias:** la aceptación (10⁵ partidas por juego, *perft(5)*) se hace en minutos u horas
+  en un portátil, no en días; el *perft* vale para cualquier juego (el del tres en raya está en
+  los tests).
+
+### ADR-062 — Plugins nativos en WebAssembly
+- **Contexto:** el roadmap pedía una vía de escape para cálculos que en Nomos son lentos (el
+  evaluador de manos del póquer), sin perder la portabilidad: el mismo juego tiene que funcionar
+  en el motor de referencia, en el navegador y en el futuro motor C++.
+- **Decisión:** una función se marca `@native("modulo.funcion")`; **su cuerpo en Nomos es la
+  implementación de referencia y es obligatorio**. Un motor puede sustituirla por un plugin que
+  dé exactamente lo mismo para cualquier entrada. Los plugins son módulos **WebAssembly sin
+  importaciones** (ABI `gamehub-native/1`: argumentos y resultado como palabras i32 en un búfer;
+  `Bool`, `Int`, `Seat`, `Cell`, enumerados, structs, tuplas, listas y opcionales; E211 si la firma
+  usa otra cosa), con un límite de cómputo por llamada (combustible de `wasmtime`). El de `std.poker`
+  está escrito a mano en WAT (`stdlib/std/native/std.poker.wat`, con su `.wasm` compilado y
+  comprobado en el CI). En Python se usa `wasmtime` si está instalado (extra `gamehub[wasm]`); si
+  no, o con `GAMEHUB_NATIVES=0`, la referencia. `gamehub natives check` compara plugin y referencia
+  con entradas al azar.
+- **Alternativas:** plugins en Python (no valen en el navegador ni en C++); funciones nativas sin
+  referencia (un juego dependería de un binario); generar el WASM desde Nomos (es lo que hará el
+  motor C++ de F8).
+- **Consecuencias:** 0 diferencias entre el plugin y la referencia en miles de listas de cartas al
+  azar, también con cartas repetidas o con menos de cinco. En Python, una llamada a `wasmtime`
+  cuesta ~25 µs, así que la ganancia es modesta (×3); el valor está en tener la interfaz y un
+  binario que valdrá igual en el navegador (F8).
+
+### ADR-063 — Las expresiones de la IR se compilan a código de Python
+- **Contexto:** con el memo, el coste estaba en el propio intérprete: cada nodo de una expresión
+  era una llamada a un cierre y cada local, un diccionario nuevo (unos 3 µs por llamada a una
+  función de la IR). 10⁵ partidas de ajedrez o de solitario eran días de cálculo.
+- **Decisión:** `gamehub.engine.codegen` escribe cada expresión y cada función de la IR como
+  código fuente de Python (un `def` por función, con los locales y los argumentos como variables;
+  `let` y las comprensiones como lambdas) y lo compila con `exec`. Llama a **las mismas funciones
+  de cada operador** que los cierres, así que da los mismos resultados y los mismos errores. Los
+  cierres siguen siendo la implementación de referencia: se usan si algo no se puede generar, con
+  `GAMEHUB_CODEGEN=0` o con `Game(ir, codegen=False)`.
+- **Alternativas:** compilar a bytecode propio (es el trabajo del core C++, F8); tipar las
+  expresiones para generar código especializado (la IR no lleva tipos por expresión).
+- **Consecuencias:** unas dos veces más rápido en todos los juegos; un test exige que el generador
+  cubra todo el catálogo de operadores y otro, que en todos los juegos las partidas al azar den la
+  misma huella en cada paso con los dos compiladores.
+
+### ADR-064 — Bibliotecas de juegos de cartas sin genéricos
+- **Contexto:** Nomos no tiene genéricos y cada juego de bazas tiene su baraja y su orden (en el
+  Skat las sotas son triunfo; en Wizard, magos y bufones no tienen palo).
+- **Decisión:** `std.tricktaking` trabaja con lo que cada juego calcula para cada carta: su **palo
+  efectivo** (un entero; −1 = una carta que se puede jugar siempre) y su **fuerza**. Con eso da
+  quién puede jugar qué (`can_play`), la clave de cada carta en la baza (`trick_key`) y quién la
+  gana (`trick_winner`). Las barajas van en `std.cards`: la del Skat reutiliza `Card` (francesa,
+  del siete al as) y la de Wizard es `WizardCard` (4 palos × 15 rangos: el bufón, del 2 al as y el
+  mago). `std.betting` hace lo mismo con las apuestas (listas de enteros por asiento) y
+  `std.boards` con los tableros (direcciones, rayos y saltos acotados, recorridos).
+- **Alternativas:** genéricos en el lenguaje (un cambio grande para una sola fase); una
+  biblioteca por baraja (duplicaría las reglas de las bazas).
+- **Consecuencias:** Wizard y Skat comparten la mecánica de bazas; un juego nuevo de bazas solo
+  escribe cómo ve sus cartas.
+
+### ADR-065 — Reglas de los juegos de la ola 2
+- **Decisión** (las recomendaciones de la pregunta 9, aplicadas):
+  - **Ajedrez:** reglas de la FIDE. Ahogado, material insuficiente, quíntuple repetición y 75
+    jugadas son tablas automáticas; la triple repetición y las 50 jugadas, reclamables por el
+    jugador al que le toca. La captura al paso solo cuenta para la repetición si es legal. No hay
+    rendición ni oferta de tablas en las reglas: abandonar es cosa del servidor (ADR-041), y
+    perder por tiempo es la opción `forfeit` de la sala (por eso no hace falta el `on_timeout` de
+    la IR, pregunta 19).
+  - **Skat:** Skatordnung internacional (ISkO), de 3 o 4 jugadores (quien reparte descansa). Sin
+    Kontra ni Re; si pasan todos, la mano no se juega (sin Ramsch). Puntuación de torneo
+    Seeger-Fabian como opción.
+  - **Parchís:** reglas españolas habituales (salir con un cinco es obligatorio, comer da 20 y
+    llegar a la meta 10, barreras, un seis cuenta siete sin fichas en casa, tres seises), con dos
+    jugadores en colores opuestos y por parejas como opción.
+  - **Wizard:** reglas de Amigo, con la variante «hook» como opción.
+  - **Póquer:** Texas Hold'em sin límite de 2 a 10 jugadores, con ciegas fijas.
+  - **Solitario:** Klondike con robo de una o de tres y vueltas al descarte como opción; la partida
+    acaba al completar los montones, al atascarse o con un máximo de jugadas (1 000 por defecto).
+- **Consecuencias:** cada regla especial tiene su test en Nomos; las variantes son opciones
+  (`params`) o un `extends` de pocas líneas.
+
+### ADR-066 — Ajustes del lenguaje que pidieron los juegos de F6
+- **Decisión:**
+  - Dentro de una función de módulo, los nombres que declara el juego que la importa no existen:
+    un parámetro `led` de la stdlib ya no choca con una función `led` del juego (antes, E204).
+  - Una rejilla se puede **asignar con la lista de sus filas** (`board = [[…], …]`), también en
+    los `set` de los tests; las dimensiones se comprueban al ejecutar.
+  - Una **lista de zonas** con `@visible(face_up)` (las columnas del solitario) se redacta zona a
+    zona.
+  - El análisis de fugas (W405) entiende `@visible(viewer == owner or …)` como «el dueño ve su
+    parte», igual que `@visible(owner)`.
+  - El compilador da la IR de un módulo sin juego (sus tipos y funciones), para llamarlas desde
+    las herramientas.
+- **Consecuencias:** las posiciones de los tests de ajedrez se escriben como tableros; sin falsos
+  avisos de fugas en la mano del Skat.
+

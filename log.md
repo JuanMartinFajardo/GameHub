@@ -5,6 +5,31 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-16 — Sesión 8: Fase 6 (en curso), catálogo ola 2
+
+**Respuesta recibida**: «ve con la fase 6». Rama `f6/catalogo-ola-2`. Petición nueva: al terminar
+F6, traducir toda la documentación al inglés (los juegos pueden seguir trayendo el español como
+traducción opcional).
+
+**Hecho (un commit por tarea)**: motor con memo de funciones puras y atajos para enteros
+(`4503ab7`), ajedrez FIDE y `std.boards` (`d469338`, *perft(5)* = 4 865 609), Wizard y
+`std.tricktaking` (`f22021a`), Skat ISkO (`cf590b1`), plugins nativos en WebAssembly, `std.poker`,
+`std.betting` y Texas Hold'em (`f3f3235`), Parchís (`6d1fd6d`), generador de código Python para
+la IR (`958a431`, ×2), Solitario Klondike (`2999017`), UIs propias de ajedrez, póker, Wizard y
+Parchís (`356225a`, revisadas en el navegador), `std.bidding` (`e2d6915`). La aceptación de la UI
+genérica juega enteros los 22 juegos del catálogo contra el servidor. ADR-060 a 066 escritas
+(propuestas) y catálogo actualizado con las fichas de análisis.
+
+**Pendiente**: terminar la aceptación de 10⁵ partidas por juego (en marcha; la del Hold'em hay que
+relanzarla con la ruta nueva `games/texas-holdem`); actualizar el resto de la wiki (README,
+roadmap, lenguaje §4/§13/§15, motor, IR, arquitectura, cliente web, glosario, preguntas
+abiertas con la 9 y la 19 respondidas y la 23 nueva), los README y el CLAUDE.md (comandos
+nuevos); pasar la batería completa; después, la traducción al inglés.
+
+**Progreso**: ≈ 57 % (F6 casi completa).
+
+---
+
 ## 2026-10-16 — F5 aprobada y fusionada a `main`
 
 **Respuesta recibida**: «Sí» a la pregunta 22: ADR-052 a 059 aceptadas (entre ellas **CodeMirror en
