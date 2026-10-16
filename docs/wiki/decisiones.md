@@ -57,14 +57,14 @@
 | 049 | Partidas en un mismo dispositivo con una conexión por asiento contra el servidor | Aceptada (2026-10-11, usuario) |
 | 050 | UIs propias como paquetes en games/<juego>/ui, registradas solas; plantilla y tipos por juego | Aceptada (2026-10-11, usuario) |
 | 051 | Sin dependencias de estado ni de idiomas: reductor puro + useSyncExternalStore, catálogos propios | Aceptada (2026-10-11, usuario) |
-| 052 | Studio: el `.game` es lo único que se guarda; diagrama y formularios editan el árbol con operaciones y reescritura mínima comprobada | **Propuesta** (F5) |
-| 053 | Servidor de lenguaje con pygls: `gamehub lsp` por stdio y el mismo servidor, con métodos `gamehub/…`, por el WebSocket del Studio | **Propuesta** (F5) |
-| 054 | Editor de texto y campos con CodeMirror 6 y su cliente LSP, no Monaco | **Propuesta** (F5) |
-| 055 | Diagrama con React Flow + ELK (por capas, ciclos por el orden del texto); disposición en `<juego>.layout.json` | **Propuesta** (F5) |
-| 056 | Índice de símbolos del comprobador (posiciones de nombres, usos resueltos, tipos) para el LSP y para renombrar | **Propuesta** (F5) |
-| 057 | Seguridad del Studio: solo local, token, Host y Origin comprobados, archivos `.game` del directorio de trabajo | **Propuesta** (F5) |
-| 058 | Simulador en el servidor sobre el motor de referencia: historia inmutable, traza de transiciones y estimador de Knuth | **Propuesta** (F5) |
-| 059 | Tests e invariantes editables y ejecutables desde el Studio; plantillas compartidas con `gamehub new --template` | **Propuesta** (F5) |
+| 052 | Studio: el `.game` es lo único que se guarda; diagrama y formularios editan el árbol con operaciones y reescritura mínima comprobada | Aceptada (2026-10-16, usuario) |
+| 053 | Servidor de lenguaje con pygls: `gamehub lsp` por stdio y el mismo servidor, con métodos `gamehub/…`, por el WebSocket del Studio | Aceptada (2026-10-16, usuario) |
+| 054 | Editor de texto y campos con CodeMirror 6 y su cliente LSP, no Monaco | Aceptada (2026-10-16, usuario) |
+| 055 | Diagrama con React Flow + ELK (por capas, ciclos por el orden del texto); disposición en `<juego>.layout.json` | Aceptada (2026-10-16, usuario) |
+| 056 | Índice de símbolos del comprobador (posiciones de nombres, usos resueltos, tipos) para el LSP y para renombrar | Aceptada (2026-10-16, usuario) |
+| 057 | Seguridad del Studio: solo local, token, Host y Origin comprobados, archivos `.game` del directorio de trabajo | Aceptada (2026-10-16, usuario) |
+| 058 | Simulador en el servidor sobre el motor de referencia: historia inmutable, traza de transiciones y estimador de Knuth | Aceptada (2026-10-16, usuario) |
+| 059 | Tests e invariantes editables y ejecutables desde el Studio; plantillas compartidas con `gamehub new --template` | Aceptada (2026-10-16, usuario) |
 
 ---
 

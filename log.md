@@ -5,6 +5,19 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
+## 2026-10-16 — F5 aprobada y fusionada a `main`
+
+**Respuesta recibida**: «Sí» a la pregunta 22: ADR-052 a 059 aceptadas (entre ellas **CodeMirror en
+vez de Monaco**, que cambia la ADR-012) y `f5/studio` fusionada a `main` con `--no-ff`. Nada se ha
+subido.
+
+**Siguientes pasos**: F6, catálogo ola 2 (los 7 juegos pedidos) y biblioteca estándar madura, en la
+rama `f6/…`.
+
+**Progreso**: ≈ 51 % (F0 a F5 en `main`).
+
+---
+
 ## 2026-10-12 — Sesión 7: Fase 5, el Studio
 
 **Respuestas recibidas**: «ve con la fase 5», que se tomó como visto bueno a las ADR-044 a 051 y a
