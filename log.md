@@ -5,6 +5,23 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — F7 approved and merged into `main`
+
+**Answer received**: "I approve" to question 25: ADR-068 to 074 accepted (Connect Four 7×6 moves
+to F8's acceptance) and `f7/teoria-de-juegos` merged into `main` with `--no-ff`. The branch
+started from `docs/english`, so the English documentation (ADR-067) reaches `main` with it.
+Nothing has been pushed.
+
+**Still open**: question 24 (code comments, CLI messages and commit messages stay in Spanish
+until it is answered). F6 acceptance: Solitaire's random matches are still running; their result
+and Hold'em's will go to this log.
+
+**Next steps**: F8, the C++ core, bindings and WASM (and Connect Four 7×6).
+
+**Progress**: ≈ 66 % (F0 to F7 in `main`).
+
+---
+
 ## 2026-10-17 — Session 10: Phase 7, game theory v1
 
 **Request**: "go with the next step of the roadmap": F7. Worked on `f7/teoria-de-juegos`, which

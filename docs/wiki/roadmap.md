@@ -1,8 +1,7 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 66 % (F0 to F6 in `main`; F7
-> complete on its branch, waiting for approval).**
+> % is computed with the weight of each phase. **Current progress: ≈ 66 % (F0 to F7 in `main`).**
 
 ## Summary
 
@@ -345,6 +344,5 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. Your approval of F7 (ADR-068 to 074, [question 25](open-questions.md)) and of the English
-   documentation; then F8: the C++ core (and Connect Four 7×6).
+1. F8: the C++ core, bindings and WASM (and Connect Four 7×6, ADR-074).
 2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire.

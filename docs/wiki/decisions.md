@@ -73,13 +73,13 @@
 | 065 | Wave-2 rules: FIDE, ISkO without Kontra or Ramsch, Spanish Parchís, Amigo's Wizard, no-limit Hold'em and Klondike with a move cap | Accepted (2026-10-16, user) |
 | 066 | F6 language adjustments: modules do not see the game's names, a grid is assigned with its rows, lists of zones are redacted zone by zone | Accepted (2026-10-16, user) |
 | 067 | Documentation in English; Spanish only as an optional translation shipped by each game | Accepted (2026-10-16, user) |
-| 068 | Game theory on the reference engine, in exact arithmetic, over explicit representations: the extensive form (with the engine's information sets) and the state graph | Proposed |
-| 069 | Linear programming: an exact rational simplex by default; HiGHS (optional `gamehub[analysis]` extra) for large programs, in floating point | Proposed |
-| 070 | Solution concepts per class: reduced normal form, support enumeration + Lemke–Howson, sequence form (exact), CFR/CFR+ (floating point), exploitability as OpenSpiel defines it | Proposed |
-| 071 | Feasibility advisor: classification + Knuth's estimator (importance sampling at chance, merged outcomes) + bounded exact probes + recommendation codes; the Studio's estimator uses it | Proposed |
-| 072 | Interoperability: Gambit `.efg`/`.nfg` (ASCII labels, rationals) and an OpenSpiel wrapper with global action ids found by exploring the game | Proposed |
-| 073 | `gamehub analyze`: one JSON report for the CLI and the Studio's "Analysis" tab, with per-analysis errors and size guards | Proposed |
-| 074 | Connect Four 7×6 is solved in F8 (C++); in F7 it is verified on small boards against an independent solver | Proposed |
+| 068 | Game theory on the reference engine, in exact arithmetic, over explicit representations: the extensive form (with the engine's information sets) and the state graph | Accepted (2026-10-17, user) |
+| 069 | Linear programming: an exact rational simplex by default; HiGHS (optional `gamehub[analysis]` extra) for large programs, in floating point | Accepted (2026-10-17, user) |
+| 070 | Solution concepts per class: reduced normal form, support enumeration + Lemke–Howson, sequence form (exact), CFR/CFR+ (floating point), exploitability as OpenSpiel defines it | Accepted (2026-10-17, user) |
+| 071 | Feasibility advisor: classification + Knuth's estimator (importance sampling at chance, merged outcomes) + bounded exact probes + recommendation codes; the Studio's estimator uses it | Accepted (2026-10-17, user) |
+| 072 | Interoperability: Gambit `.efg`/`.nfg` (ASCII labels, rationals) and an OpenSpiel wrapper with global action ids found by exploring the game | Accepted (2026-10-17, user) |
+| 073 | `gamehub analyze`: one JSON report for the CLI and the Studio's "Analysis" tab, with per-analysis errors and size guards | Accepted (2026-10-17, user) |
+| 074 | Connect Four 7×6 is solved in F8 (C++); in F7 it is verified on small boards against an independent solver | Accepted (2026-10-17, user) |
 
 ---
 
