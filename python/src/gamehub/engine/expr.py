@@ -3,7 +3,7 @@
 
 Cada operador del catálogo (`spec/ir/v0/ops.json`) tiene aquí su implementación de referencia;
 `OPERATORS` debe cubrir el catálogo completo (lo comprueba un test). La semántica exacta de cada
-operador está documentada en `docs/wiki/motor.md`.
+operador está documentada en `docs/wiki/engine.md`.
 """
 
 from __future__ import annotations

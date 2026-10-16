@@ -23,7 +23,7 @@ TEMPLATES = ("react",)
 
 def _text(value: Any) -> str:
     if isinstance(value, dict):
-        return str(value.get("es") or next(iter(value.values()), ""))
+        return str(value.get("en") or next(iter(value.values()), ""))
     return str(value or "")
 
 

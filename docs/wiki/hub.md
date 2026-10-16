@@ -1,70 +1,71 @@
-# El Hub — "GitHub para juegos"
+# The Hub — "GitHub for games"
 
-> Estado: **diseño v0.1** (Fase 0). v0 local (Fase 2), web completa (Fase 10).
+> Status: **design v0.1** (Phase 0). Local v0 (Phase 2), full web version (Phase 10).
 
 ## 1. Idea
 
-Cada juego es un **repositorio git** con un `game.toml`. El hub **no reinventa git**: lo usa por
-debajo (Forgejo/Gitea embebido o cualquier host git) y añade encima todo lo que entiende de juegos:
-reglas renderizadas, diagramas, partidas, análisis, bots, interfaces y diffs semánticos.
+Every game is a **git repository** with a `game.toml`. The hub **does not reinvent git**: it uses
+it underneath (an embedded Forgejo/Gitea or any git host) and adds on top everything that
+understands games: rendered rules, diagrams, matches, analyses, bots, interfaces and semantic
+diffs.
 
-## 2. Flujo local-first (CLI)
+## 2. Local-first flow (CLI)
 
 ```bash
-gamehub new mi-juego --template tricktaking   # crea paquete con game.toml + .game + tests
-gamehub check && gamehub test                 # verificar
-gamehub publish                               # sube versión (semver) al registro
-gamehub clone juanma/wizard                   # = git clone + resolución de dependencias
-gamehub fork juanma/wizard --as wizard-sin-bufones
-gamehub diff v1.2.0..main                     # diff semántico de reglas
-gamehub host wizard --players 4               # jugar
+gamehub new my-game --template cards           # creates a package with game.toml + .game + tests
+gamehub check && gamehub test                  # verify
+gamehub publish                                # uploads a version (semver) to the registry
+gamehub clone juanma/wizard                    # = git clone + dependency resolution
+gamehub fork juanma/wizard --as wizard-without-jesters
+gamehub diff v1.2.0..main                      # semantic diff of the rules
+gamehub host wizard --players 4                # play
 ```
 
-Ramas, commits y merges son git normal. `gamehub` añade los pasos que git no sabe hacer.
+Branches, commits and merges are plain git. `gamehub` adds the steps git does not know how to do.
 
-## 3. Entidades
+## 3. Entities
 
-| Entidad | Descripción |
+| Entity | Description |
 |---|---|
-| Repositorio | Juego o **biblioteca** (módulos reutilizables: barajas, bazas, apuestas) |
-| Versión (release) | semver + **hash de reglas** + hash de interfaz; inmutable |
-| Rama / fork | Variantes y mods (git) |
-| Propuesta (PR) | Cambio de reglas con diff textual, **semántico**, **visual** y de **balance** |
-| Partida / replay | Ligada al hash de reglas exacto |
-| Bot | Agente publicado, con ratings por versión de reglas |
-| Análisis | Resultado cacheado (Nash, árbol, métricas) indexado por hash de reglas |
-| Interfaz (Pages) | UI estática alojada por el hub, compatible con un hash de interfaz |
+| Repository | A game or a **library** (reusable modules: decks, tricks, betting) |
+| Version (release) | semver + **rules hash** + interface hash; immutable |
+| Branch / fork | Variants and mods (git) |
+| Proposal (PR) | A rules change with a textual, **semantic**, **visual** and **balance** diff |
+| Match / replay | Tied to the exact rules hash |
+| Bot | A published agent, with ratings per rules version |
+| Analysis | A cached result (Nash, tree, metrics) indexed by rules hash |
+| Interface (Pages) | A static UI hosted by the hub, compatible with an interface hash |
 
-## 4. Página de un juego
+## 4. A game's page
 
-`Reglas` (reglamento autogenerado + diagrama interactivo) · `Código` · **`Jugar`** (crear sala con
-un clic) · `Análisis` (clasificación, tamaño, equilibrios si son viables) · `Bots` (ranking de la
-arena) · `Interfaces` (UIs compatibles) · `Variantes` (**árbol genealógico** del juego: forks y
-ancestros, p. ej. Whist → Oh Hell → Wizard) · `Partidas` · `Issues` · `Propuestas`.
+`Rules` (generated rulebook + interactive diagram) · `Code` · **`Play`** (create a room with one
+click) · `Analysis` (classification, size, equilibria when feasible) · `Bots` (arena ranking) ·
+`Interfaces` (compatible UIs) · `Variants` (the game's **family tree**: forks and ancestors, e.g.
+Whist → Oh Hell → Wizard) · `Matches` · `Issues` · `Proposals`.
 
-## 5. Diff semántico y "Balance CI"
+## 5. Semantic diff and "Balance CI"
 
-Un PR de reglas se revisa en cuatro capas:
+A rules PR is reviewed in four layers:
 
-1. **Diff de texto** (git normal).
-2. **Diff semántico de IR:** "acción `bid`: dominio `0..round` → `0..round+1`",
-   "nodo `DealerChoosesTrump` eliminado", "pago de `Exact`: `20+10·w` → `30+10·w`".
-3. **Diff visual:** el diagrama con nodos y flechas añadidos/eliminados/modificados coloreados.
-4. **Diff de comportamiento (Balance CI):** la misma batería de bots juega N partidas con cada
-   versión y se comparan métricas: ventaja por asiento, duración, tasa de empates, cobertura de
-   reglas, diferencia entre bots fuertes y aleatorios (habilidad vs. suerte)… Igual que un CI de
-   rendimiento, pero para el diseño del juego.
+1. **Text diff** (plain git).
+2. **Semantic IR diff:** "action `bid`: domain `0..round` → `0..round+1`", "node
+   `DealerChoosesTrump` removed", "payoff of `Exact`: `20+10·w` → `30+10·w`".
+3. **Visual diff:** the diagram with added/removed/modified nodes and arrows colored.
+4. **Behavioral diff (Balance CI):** the same set of bots plays N matches with each version and
+   the metrics are compared: advantage per seat, length, draw rate, rule coverage, the gap between
+   strong and random bots (skill vs. luck)… Just like a performance CI, but for game design.
 
-## 6. Versionado automático
+## 6. Automatic versioning
 
-Comparando el **hash de interfaz** entre versiones, el hub detecta cambios incompatibles para UIs y
-bots (p. ej. una acción nueva con parámetros distintos) y **exige subir la versión major**. Cambios
-de reglas que no tocan la interfaz son *minor*; cosméticos, *patch*.
+By comparing the **interface hash** between versions, the hub detects changes that are
+incompatible for UIs and bots (e.g. a new action with different parameters) and **requires a
+major version bump**. Rules changes that do not touch the interface are *minor*; cosmetic ones,
+*patch*.
 
-## 7. Dependencias
+## 7. Dependencies
 
-`game.toml` declara dependencias (`std = ">=0.3, <0.4"`, `juanma/tricktaking = "^1.2"`);
-`game.lock` fija versiones y hashes. Resolución tipo cargo/npm.
+`game.toml` declares dependencies (`std = ">=0.3, <0.4"`, `juanma/tricktaking = "^1.2"`);
+`game.lock` pins versions and hashes. Cargo/npm-style resolution.
 
 ```toml
 [game]
@@ -73,34 +74,34 @@ version = "1.0.0"
 authors = ["…"]
 license = "CC-BY-4.0"
 players = "3..6"
-tags = ["cartas", "bazas", "apuestas"]
+tags = ["cards", "tricks", "bidding"]
 
 [dependencies]
 std = ">=0.3, <0.4"
 ```
 
-## 8. Búsqueda por propiedades matemáticas
+## 8. Search by mathematical properties
 
-Como cada juego se clasifica automáticamente, se puede buscar: *"2 jugadores, suma cero,
-información perfecta, ramificación < 10"*, *"cooperativos con información oculta"*, *"juegos de
-bazas para 4 con equipos"*. Etiquetas de autor + propiedades derivadas + tamaño estimado.
+Since every game is classified automatically, you can search for: *"2 players, zero-sum, perfect
+information, branching < 10"*, *"cooperative games with hidden information"*, *"trick-taking games
+for 4 with teams"*. Author tags + derived properties + estimated size.
 
-## 9. Partidas alojadas y comunidad
+## 9. Hosted matches and community
 
-Salas online con código, emparejamiento, ratings humanos por juego/versión, torneos, perfiles,
-organizaciones (clubes, asignaturas), estrellas, seguidores.
+Online rooms with codes, matchmaking, human ratings per game/version, tournaments, profiles,
+organizations (clubs, courses), stars, followers.
 
-## 10. Propiedad intelectual (nota)
+## 10. Intellectual property (note)
 
-Las mecánicas de un juego suelen tratarse como ideas no protegibles, pero **el texto de un
-reglamento, el arte y las marcas sí lo están** (p. ej. nombres comerciales de juegos publicados).
-El catálogo oficial debería usar reglas redactadas por nosotros, arte propio y, si hace falta,
-nombres genéricos. Antes de abrir el hub al público conviene una revisión legal.
+A game's mechanics are usually treated as unprotectable ideas, but **the text of a rulebook, the
+art and the trademarks are protected** (e.g. trade names of published games). The official
+catalog should use rules written by us, our own art and, where needed, generic names. A legal
+review is advisable before opening the hub to the public.
 
-## 11. Etapas
+## 11. Stages
 
-| Etapa | Contenido |
+| Stage | Contents |
 |---|---|
-| **v0** (Fase 2) | `game.toml`, dependencias, `clone`/`fork` sobre URLs git, `diff` semántico en CLI |
-| **v1** (Fase 10) | Web: cuentas, repos, explorar, página del juego, jugar, publicar, registro |
-| **v2** (Fase 10–12) | PRs con diffs semántico/visual/balance, arena, Pages, búsqueda por propiedades, árbol genealógico |
+| **v0** (Phase 2) | `game.toml`, dependencies, `clone`/`fork` over git URLs, semantic `diff` in the CLI |
+| **v1** (Phase 10) | Web: accounts, repos, explore, game page, play, publish, registry |
+| **v2** (Phases 10–12) | PRs with semantic/visual/balance diffs, arena, Pages, search by properties, family tree |

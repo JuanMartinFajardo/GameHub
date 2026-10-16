@@ -2,7 +2,7 @@
 /**
  * Protocolo de partidas de GameHub, versión 1: los tipos de todos los mensajes (generados desde
  * `spec/protocol/v1/protocol.schema.json`) y las utilidades que comparten todos los clientes.
- * Semántica: `docs/wiki/protocolo.md`.
+ * Semántica: `docs/wiki/protocol.md`.
  */
 
 import type { ClientMessage, ServerMessage } from "./types";

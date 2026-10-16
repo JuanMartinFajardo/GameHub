@@ -309,3 +309,125 @@ export interface TreeNode {
   }[];
   payoffs?: unknown[];
 }
+
+// --- Teoría de juegos (gamehub/analyze, F7) ------------------------------------------------------
+
+/** Un número del informe: los racionales exactos llegan como texto ("-1/18"); los aproximados, como número. */
+export type TheoryNumber = string | number;
+
+export interface TheoryRecommendation {
+  code: string;
+  text: string;
+  phase: string | null;
+}
+
+export interface PolicyRow {
+  infoset: number;
+  player: number;
+  description: string;
+  actions: string[];
+  probs: TheoryNumber[];
+}
+
+export interface StrategySets {
+  strategies: string[][];
+}
+
+/** El informe de `gamehub analyze` (`gamehub.analysis.report`). */
+export interface TheoryReport {
+  game: { id: string; title: string; players: number; params: Record<string, unknown> };
+  errors: Record<string, string>;
+  feasibility?: {
+    labels: string[];
+    players: number;
+    samples: number;
+    tree_log10: number;
+    leaves_log10: number;
+    branching: number;
+    depth: { mean: number; max: number };
+    truncated: number;
+    exact: Record<string, number>;
+    recommendations: TheoryRecommendation[];
+  };
+  count?: { positions: number; terminals: number; games: number | null; cyclic: boolean };
+  solve?: { value: string[]; best: string[]; pv: string[]; states: number; method: string };
+  tree?: {
+    counts: {
+      nodes: number;
+      terminals: number;
+      chance: number;
+      decision: number;
+      infosets: number;
+    };
+  };
+  normal_form?: StrategySets & {
+    players: string[];
+    payoffs: { profile: number[]; payoffs: string[] }[];
+    infosets: Record<string, string>;
+    constant_sum: boolean;
+  };
+  nash?: StrategySets & {
+    pure: number[][];
+    mixed?: { strategies: TheoryNumber[][]; payoffs: TheoryNumber[] }[];
+    zero_sum?: { value: TheoryNumber; strategies: TheoryNumber[][] };
+    method?: string;
+    complete?: boolean;
+  };
+  dominance?: StrategySets & {
+    strict: { remaining: number[][]; steps: [number, number, number | string][] };
+    weak: { remaining: number[][]; steps: [number, number, number | string][] };
+  };
+  correlated?: StrategySets & {
+    distribution: { profile: number[]; probability: TheoryNumber }[];
+    welfare: TheoryNumber;
+  };
+  pareto?: StrategySets & {
+    optimal: number[][];
+    equilibria_dominated: { profile: number[]; by: number[][] }[];
+    utilitarian: { value: TheoryNumber; profiles: number[][] };
+    egalitarian: { value: TheoryNumber; profiles: number[][] };
+    price_of_anarchy: TheoryNumber | null;
+    price_of_stability: TheoryNumber | null;
+  };
+  sequence_form?: { value: TheoryNumber; exploitability: TheoryNumber; policy: PolicyRow[] };
+  cfr?: {
+    iterations: number;
+    plus: boolean;
+    values: TheoryNumber[];
+    exploitability: TheoryNumber;
+    convergence: [number, TheoryNumber][];
+    policy: PolicyRow[];
+  };
+  grundy?: {
+    value: number;
+    outcome: "N" | "P";
+    moves: { move: string; grundy: number }[];
+    winning: string[];
+    states: number;
+  };
+  coop?: {
+    players: string[];
+    values: { coalition: number[]; value: TheoryNumber }[];
+    shapley: TheoryNumber[];
+    banzhaf: TheoryNumber[];
+    core: TheoryNumber[] | null;
+    nucleolus: TheoryNumber[] | null;
+    nash_bargaining?: { payoffs: TheoryNumber[]; disagreement: TheoryNumber[] } | null;
+  };
+  tournament?: {
+    names: string[];
+    rounds: number;
+    scores: number[][];
+    cooperation: number[][];
+    ranking: { name: string; score: number }[];
+    ecological: { generations: number; final: number[]; series: number[][] };
+  };
+}
+
+export interface TheoryOptions {
+  cfrIterations?: number;
+  cfrPlus?: boolean;
+  tournamentRounds?: number;
+  tournamentNoise?: number;
+  seed?: number;
+}

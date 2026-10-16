@@ -8,6 +8,8 @@
 - `gamehub/modelOf`: el modelo de un texto cualquiera (otra versión, para comparar).
 - `gamehub/sim.*`: el simulador (ver `gamehub.studio.sim`).
 - `gamehub/tests`: ejecuta los tests del juego y comprueba sus invariantes en partidas aleatorias.
+- `gamehub/analyze`: teoría de juegos (el informe de `gamehub analyze`, ver
+  `gamehub.analysis.report`) para la pestaña «Análisis».
 
 Las posiciones van en desplazamientos UTF-16 (los de las cadenas de JavaScript).
 """
@@ -166,6 +168,7 @@ class StudioSession:
             "gamehub/sim.playouts": self.playouts,
             "gamehub/sim.estimate": self.estimate,
             "gamehub/sim.condition": self.condition,
+            "gamehub/analyze": self.analyze,
             "gamehub/tests": self.tests,
         }
 
@@ -437,6 +440,33 @@ class StudioSession:
                 samples=min(int(p.get("samples", 200)), 10_000),
                 seed=int(p.get("seed", 0)),
                 time_limit=min(float(p.get("timeLimit", 5)), 60),
+            )
+        except EngineError as exc:
+            raise RpcError(FAILED, str(exc)) from None
+
+    async def analyze(self, params: Any) -> dict[str, Any]:
+        from gamehub.analysis.report import ANALYSES, Options, analyze
+
+        p = _require(params, "uri")
+        game = await asyncio.to_thread(self.game_of, p["uri"], p.get("game"))
+        wanted = [a for a in p.get("analyses") or ["auto"] if a == "auto" or a in ANALYSES]
+        raw = p.get("options") or {}
+        options = Options(
+            cfr_iterations=max(1, min(int(raw.get("cfrIterations", 1000)), 100_000)),
+            cfr_plus=bool(raw.get("cfrPlus", True)),
+            tournament_rounds=max(1, min(int(raw.get("tournamentRounds", 200)), 10_000)),
+            tournament_noise=min(max(float(raw.get("tournamentNoise", 0)), 0.0), 1.0),
+            max_nodes=max(1, min(int(raw.get("maxNodes", 1_000_000)), 2_000_000)),
+            seed=int(raw.get("seed", 0)),
+        )
+        try:
+            return await asyncio.to_thread(
+                analyze,
+                game,
+                wanted,
+                num_players=p.get("players"),
+                params=p.get("params"),
+                options=options,
             )
         except EngineError as exc:
             raise RpcError(FAILED, str(exc)) from None

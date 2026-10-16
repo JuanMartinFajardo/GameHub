@@ -1,5 +1,5 @@
 ;; SPDX-License-Identifier: Apache-2.0
-;; Plugin nativo std.poker (ABI gamehub-native/1, ver docs/wiki/motor.md): el valor de una mano de
+;; Plugin nativo std.poker (ABI gamehub-native/1, ver docs/wiki/engine.md): el valor de una mano de
 ;; póquer. Es el mismo algoritmo que la implementación de referencia, `hand_value` en
 ;; stdlib/std/poker.game, y tiene que dar lo mismo para cualquier lista de cartas (lo comprueban los
 ;; tests con listas al azar, también con cartas repetidas).

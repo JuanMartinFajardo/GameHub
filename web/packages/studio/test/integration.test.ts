@@ -235,6 +235,25 @@ describe.skipIf(!serverAvailable)("con gamehub studio", () => {
     expect(studio.getState().estimate?.log10States).toBeGreaterThan(5);
   });
 
+  it("teoría de juegos: viabilidad, solución y errores que no rompen el informe", async () => {
+    await open(TICTACTOE);
+    await studio.runTheory(["feasibility", "count", "solve"]);
+    let report = studio.getState().theory;
+    expect(report?.solve?.value).toEqual(["0", "0"]);
+    expect(report?.count?.positions).toBe(5478);
+    expect(report?.count?.games).toBe(255168);
+    expect(report?.feasibility?.recommendations[0]?.code).toBe("solve");
+    // La forma normal del tres en raya no es viable: queda como error y lo demás se conserva.
+    await studio.runTheory(["nash"]);
+    report = studio.getState().theory;
+    expect(report?.errors.nash).toMatch(/no es viable/);
+    expect(report?.solve).toBeDefined();
+    await open(DUDO);
+    expect(studio.getState().theory).toBeNull();
+    await studio.runTheory(["solve"]);
+    expect(studio.getState().theory?.errors.solve).toMatch(/información imperfecta/);
+  }, 120_000);
+
   it("los tests del juego se ejecutan desde el Studio", async () => {
     await open(TICTACTOE);
     const file = studio.getState().file;

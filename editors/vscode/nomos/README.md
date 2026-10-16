@@ -1,40 +1,38 @@
-# Nomos para VS Code
+# Nomos for VS Code
 
-Soporte del lenguaje **Nomos** (archivos `.game`) de [GameHub](../../../README.md):
+Support for [GameHub](../../../README.md)'s **Nomos** language (`.game` files):
 
-- **Resaltado** de sintaxis (gramática TextMate): palabras clave, tipos de nodo, nombres de nodos,
-  acciones y funciones, anotaciones (`@visible`…), comentarios de documentación (`///`).
-- **Diagnósticos** de `gamehub check` al abrir y al guardar: errores y avisos con su posición,
-  nota y ayuda, también los de los módulos importados.
-- **Formato** con `gamehub fmt` (*Dar formato al documento*, o al guardar si tienes
+- Syntax **highlighting** (a TextMate grammar): keywords, node kinds, names of nodes, actions and
+  functions, annotations (`@visible`…), documentation comments (`///`).
+- **Diagnostics** from `gamehub check` on open and on save: errors and warnings with their
+  position, note and help, including those of imported modules.
+- **Formatting** with `gamehub fmt` (*Format Document*, or on save if you have
   `editor.formatOnSave`).
-- Comentarios, corchetes, sangría automática y continuación de `///` al pulsar Intro.
+- Comments, brackets, automatic indentation and continuation of `///` when pressing Enter.
 
-## Instalación
+## Installation
 
-Hace falta `gamehub` (el paquete Python de este repositorio). Para probar la extensión sin
-empaquetarla:
+It needs `gamehub` (this repository's Python package). To try the extension without packaging it:
 
 ```bash
 ln -s "$PWD" ~/.vscode/extensions/gamehub.nomos-0.1.0
 ```
 
-(desde este directorio) y reinicia VS Code. Para empaquetarla: `npx @vscode/vsce package` y
+(from this directory) and restart VS Code. To package it: `npx @vscode/vsce package` and
 `code --install-extension nomos-0.1.0.vsix`.
 
-## Ajustes
+## Settings
 
-| Ajuste | Por defecto | Qué hace |
+| Setting | Default | What it does |
 |---|---|---|
-| `nomos.command` | `["gamehub"]` | Cómo ejecutar gamehub. En el repositorio de GameHub: `["uv", "run", "--project", "python", "gamehub"]`. |
-| `nomos.checkOnSave` | `true` | Comprueba el archivo al abrirlo y al guardarlo. |
+| `nomos.command` | `["gamehub"]` | How to run gamehub. In the GameHub repository: `["uv", "run", "--project", "python", "gamehub"]`. |
+| `nomos.checkOnSave` | `true` | Checks the file when it is opened and saved. |
 
-El comando **Nomos: comprobar el juego** lo comprueba en cualquier momento.
+The **Nomos: check the game** command checks it at any time.
 
-## Servidor de lenguaje
+## Language server
 
-`gamehub lsp` es un servidor de lenguaje completo (autocompletado, hover, ir a la definición,
-referencias, renombrar, formato, arreglos rápidos…) por la entrada estándar. Esta extensión aún no
-lo usa; mientras tanto, cualquier editor con cliente LSP genérico (Neovim, Helix, Zed, o VS Code
-con una extensión de LSP genérica) puede usarlo con el comando `gamehub lsp` para los archivos
-`.game`.
+`gamehub lsp` is a complete language server (completion, hover, go to definition, references,
+rename, formatting, quick fixes…) over standard input. This extension does not use it yet;
+meanwhile, any editor with a generic LSP client (Neovim, Helix, Zed, or VS Code with a generic LSP
+extension) can use it with the `gamehub lsp` command for `.game` files.

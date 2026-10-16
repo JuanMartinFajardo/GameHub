@@ -6,7 +6,7 @@ la IR resuelta a la vez (cada expresión devuelve su IR y su tipo). Los errores 
 posición; una expresión errónea tiene tipo `unknown`, que es compatible con todo, para no
 encadenar errores.
 
-Traducciones con azúcar (ver docs/wiki/lenguaje-game.md):
+Traducciones con azúcar (ver docs/wiki/language.md):
 - `a + b + c` → `["add", a, b, c]` (lo mismo con `*`, `and`, `or`), salvo paréntesis explícitos.
 - `-3` → `["const", -3]`; `0.5` → `["rat", 1, 2]`; `a..b` → `range`; `a..<b` → `range(a, b-1)`.
 - Listas: `+` → `concat`, `-` → `difference`; `x in xs` → `contains`.

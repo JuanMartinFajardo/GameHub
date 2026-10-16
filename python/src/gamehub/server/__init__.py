@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Servidor de partidas (Fase 3): salas, protocolo WebSocket, API REST, LAN y persistencia.
 
-Semántica: docs/wiki/protocolo.md. Piezas: `room`/`match` (núcleo puro), `rooms` (registro),
+Semántica: docs/wiki/protocol.md. Piezas: `room`/`match` (núcleo puro), `rooms` (registro),
 `app` (transporte), `run` (uvicorn), `store` (memoria y SQLite), `catalog`, `lan`.
 """
 

@@ -1,7 +1,7 @@
 {
   "name": "nomos",
   "displayName": "Nomos (GameHub)",
-  "description": "Lenguaje Nomos (.game) de GameHub: resaltado, diagnósticos de gamehub check y formato de gamehub fmt.",
+  "description": "GameHub's Nomos language (.game): highlighting, diagnostics from gamehub check and formatting with gamehub fmt.",
   "version": "0.1.0",
   "publisher": "gamehub",
   "license": "Apache-2.0",
@@ -31,7 +31,7 @@
     "commands": [
       {
         "command": "nomos.check",
-        "title": "Nomos: comprobar el juego"
+        "title": "Nomos: check the game"
       }
     ],
     "configuration": {
@@ -41,12 +41,12 @@
           "type": "array",
           "items": { "type": "string" },
           "default": ["gamehub"],
-          "description": "Cómo ejecutar gamehub. En el repositorio de GameHub: [\"uv\", \"run\", \"--project\", \"python\", \"gamehub\"]."
+          "description": "How to run gamehub. In the GameHub repository: [\"uv\", \"run\", \"--project\", \"python\", \"gamehub\"]."
         },
         "nomos.checkOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Comprobar el archivo con gamehub check al abrirlo y al guardarlo."
+          "description": "Check the file with gamehub check when it is opened and saved."
         }
       }
     }

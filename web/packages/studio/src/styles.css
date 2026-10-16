@@ -32,6 +32,11 @@
   --gh-sd-removed: #dc2626;
   --gh-sd-changed: #d97706;
   --gh-sd-taken: #f59e0b;
+  /* Gráficas de análisis: las cuatro primeras ranuras de la paleta categórica de referencia. */
+  --gh-sd-series-1: #2a78d6;
+  --gh-sd-series-2: #eb6834;
+  --gh-sd-series-3: #1baf7a;
+  --gh-sd-series-4: #eda100;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,6 +61,10 @@
     --gh-sd-auto: #9ca3af;
     --gh-sd-phase: #64748b;
     --gh-sd-terminal: #4ade80;
+    --gh-sd-series-1: #3987e5;
+    --gh-sd-series-2: #d95926;
+    --gh-sd-series-3: #199e70;
+    --gh-sd-series-4: #c98500;
   }
 }
 
@@ -80,6 +89,10 @@
   --gh-sd-auto: #9ca3af;
   --gh-sd-phase: #64748b;
   --gh-sd-terminal: #4ade80;
+  --gh-sd-series-1: #3987e5;
+  --gh-sd-series-2: #d95926;
+  --gh-sd-series-3: #199e70;
+  --gh-sd-series-4: #c98500;
 }
 
 html,
@@ -1314,4 +1327,216 @@ body {
     border-top: 1px solid var(--gh-border);
     max-height: none;
   }
+}
+
+/* --- Análisis (teoría de juegos) --------------------------------------------------------------- */
+
+.gh-sd-theory {
+  display: grid;
+  gap: 8px;
+}
+.gh-sd-input--narrow {
+  width: 84px;
+}
+.gh-sd-theory__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  align-items: start;
+}
+.gh-sd-theory__card {
+  border: 1px solid var(--gh-border);
+  border-radius: var(--gh-radius-sm);
+  padding: 4px 10px 8px;
+  font-size: 13px;
+  min-width: 0;
+  overflow-x: auto;
+}
+.gh-sd-theory__card p {
+  margin: 4px 0;
+}
+.gh-sd-theory__card .gh-sd-subtitle {
+  margin-top: 6px;
+}
+.gh-sd-theory__list {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+.gh-sd-theory__list li {
+  margin: 2px 0;
+}
+.gh-sd-theory__legend {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0;
+  font-size: 12px;
+}
+.gh-sd-theory__legend div {
+  display: flex;
+  gap: 6px;
+}
+.gh-sd-theory__legend dt {
+  font-family: var(--gh-mono);
+  color: var(--gh-text-muted);
+}
+.gh-sd-theory__legend dd {
+  margin: 0;
+}
+.gh-sd-matrix {
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 4px 0;
+}
+.gh-sd-matrix th,
+.gh-sd-matrix td {
+  border: 1px solid var(--gh-border);
+  padding: 4px 10px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.gh-sd-matrix td.is-equilibrium {
+  outline: 2px solid var(--gh-success);
+  outline-offset: -3px;
+  font-weight: 600;
+}
+.gh-sd-stats tr.is-highlight th,
+.gh-sd-stats tr.is-highlight td {
+  font-weight: 600;
+}
+.gh-sd-theory__policy summary {
+  cursor: pointer;
+  color: var(--gh-text-muted);
+  margin: 4px 0;
+}
+.gh-sd-stats td.gh-sd-theory__probs {
+  text-align: left;
+}
+.gh-sd-theory__prob {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 10px;
+  white-space: nowrap;
+}
+.gh-sd-stats th.gh-sd-theory__infoset {
+  text-align: left;
+  font-weight: 400;
+  font-family: var(--gh-mono);
+  font-size: 12px;
+}
+.gh-sd-theory__track {
+  display: inline-block;
+  width: 40px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--gh-surface-3);
+  overflow: hidden;
+}
+.gh-sd-theory__bar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--gh-sd-series-1);
+}
+.gh-sd-chart {
+  margin: 6px 0;
+}
+.gh-sd-chart figcaption {
+  font-size: 12px;
+}
+.gh-sd-chart svg {
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  display: block;
+}
+.gh-sd-chart__grid {
+  stroke: var(--gh-border);
+  stroke-width: 1;
+}
+.gh-sd-chart__axis,
+.gh-sd-chart__label,
+.gh-sd-chart__tip {
+  font-size: 10px;
+  fill: var(--gh-text-muted);
+}
+.gh-sd-chart__label {
+  fill: var(--gh-text);
+}
+.gh-sd-chart__tip {
+  fill: var(--gh-text);
+  font-weight: 600;
+}
+.gh-sd-chart__line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.gh-sd-chart__cross {
+  stroke: var(--gh-text-muted);
+  stroke-width: 1;
+}
+.gh-sd-chart__dot {
+  stroke: var(--gh-surface, var(--gh-bg));
+  stroke-width: 2;
+}
+.gh-sd-chart__line.is-series-1 {
+  stroke: var(--gh-sd-series-1);
+}
+.gh-sd-chart__line.is-series-2 {
+  stroke: var(--gh-sd-series-2);
+}
+.gh-sd-chart__line.is-series-3 {
+  stroke: var(--gh-sd-series-3);
+}
+.gh-sd-chart__line.is-series-4 {
+  stroke: var(--gh-sd-series-4);
+}
+.gh-sd-chart__line.is-series-other {
+  stroke: var(--gh-text-muted);
+  stroke-dasharray: 4 3;
+}
+.gh-sd-chart__dot.is-series-1 {
+  fill: var(--gh-sd-series-1);
+}
+.gh-sd-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  list-style: none;
+  margin: 2px 0;
+  padding: 0;
+  font-size: 12px;
+}
+.gh-sd-chart__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.gh-sd-chart__key {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+}
+.gh-sd-chart__key.is-series-1 {
+  background: var(--gh-sd-series-1);
+}
+.gh-sd-chart__key.is-series-2 {
+  background: var(--gh-sd-series-2);
+}
+.gh-sd-chart__key.is-series-3 {
+  background: var(--gh-sd-series-3);
+}
+.gh-sd-chart__key.is-series-4 {
+  background: var(--gh-sd-series-4);
+}
+.gh-sd-chart__key.is-series-other {
+  background: var(--gh-text-muted);
+}
+.gh-sd-chart__data summary {
+  cursor: pointer;
+  color: var(--gh-text-muted);
+  font-size: 12px;
 }

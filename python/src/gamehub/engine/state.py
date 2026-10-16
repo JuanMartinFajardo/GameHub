@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Estados inmutables y semántica operacional del flow (ver docs/wiki/motor.md).
+"""Estados inmutables y semántica operacional del flow (ver docs/wiki/engine.md).
 
 Un `State` es una configuración del juego: valores de las variables, nodo activo, envíos
 pendientes (nodos simultáneos y ventanas) y pagos si es terminal. `apply_action` y

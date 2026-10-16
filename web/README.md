@@ -1,60 +1,61 @@
 # GameHub · web
 
-Monorepo TypeScript del cliente web de GameHub (Fase 4): el SDK para hablar con el servidor de
-partidas, la interfaz genérica que dibuja cualquier juego a partir de su IR, el kit de componentes
-y la app para jugar en el navegador.
+The TypeScript monorepo of GameHub's web client (Phase 4) and Studio (Phase 5): the SDK to talk to
+the match server, the generic interface that draws any game from its IR, the component kit, the
+app to play in the browser and the visual editor.
 
-| Paquete | Qué es |
+| Package | What it is |
 |---|---|
-| [`@gamehub/protocol`](packages/protocol) | Tipos del protocolo v1 (generados desde [`spec/protocol`](../spec/protocol) con `gamehub protocol types --write`) y utilidades (códigos de sala) |
-| [`@gamehub/i18n`](packages/i18n) | Español e inglés: textos traducibles de la IR, catálogos de mensajes, idioma elegido |
-| [`@gamehub/ui-kit`](packages/ui-kit) | Componentes de React: rejilla, carta, mano, montón, mazo, dado, ficha, recorrido, grafo, marcador, reloj, barra de acciones; estilos con variables CSS (tema claro y oscuro) |
-| [`@gamehub/client`](packages/client) | SDK cliente: conexión WebSocket con reconexión y `resume`, estado de la sala y la partida (inmutable, apto para React), acciones legales y progresivas, sesiones guardadas, API REST |
-| [`@gamehub/react`](packages/react) | Hooks de React sobre el SDK: sala, partida, vista, acciones legales, jugar, IR de la sala |
-| [`@gamehub/auto-ui`](packages/auto-ui) | **UI genérica**: cualquier juego dibujado y jugable a partir de su IR (tipos, dominios de las acciones y pistas `ui`), con registro de eventos y resultado |
-| [`@gamehub/shell`](packages/shell) | La experiencia de jugar como librería: inicio, crear y entrar en salas, lobby (invitar con código, enlace o QR; asientos, bots, configuración), partida con la UI genérica o una propia, chat, revancha, replays paso a paso y partidas en un mismo dispositivo |
-| [`apps/play`](apps/play) | La app web (Vite) que sirve `gamehub serve`: registra sola las UIs propias de `games/*/ui` y tiene una galería del kit en `/kit` |
-| [`@gamehub/nomos`](packages/nomos) | Nomos (el lenguaje `.game`) para CodeMirror 6: resaltado, sangría, plegado y tema claro/oscuro |
-| [`@gamehub/studio`](packages/studio) | **El Studio** como librería de React: conexión con `gamehub studio` (LSP y métodos propios por WebSocket), diagrama (React Flow + ELK), editor de texto y campos de Nomos (CodeMirror), inspector, diseñador de componentes, simulador, partidas masivas, árbol, comparar y exportar |
-| [`apps/studio`](apps/studio) | La app del Studio (Vite) que sirve `gamehub studio` |
+| [`@gamehub/protocol`](packages/protocol) | Protocol v1 types (generated from [`spec/protocol`](../spec/protocol) with `gamehub protocol types --write`) and utilities (room codes) |
+| [`@gamehub/i18n`](packages/i18n) | Spanish and English: translatable texts from the IR, message catalogs, chosen language |
+| [`@gamehub/ui-kit`](packages/ui-kit) | React components: grid, card, hand, pile, deck, die, token, track, graph, scoreboard, clock, action bar; styles with CSS variables (light and dark themes) |
+| [`@gamehub/client`](packages/client) | Client SDK: WebSocket connection with reconnection and `resume`, room and match state (immutable, React-friendly), legal and progressive actions, stored sessions, REST API |
+| [`@gamehub/react`](packages/react) | React hooks on top of the SDK: room, match, view, legal actions, playing, the room's IR |
+| [`@gamehub/auto-ui`](packages/auto-ui) | **Generic UI**: any game drawn and playable from its IR (types, action domains and `ui` hints), with an event log and the result |
+| [`@gamehub/shell`](packages/shell) | The play experience as a library: home, creating and joining rooms, lobby (invite with a code, link or QR code; seats, bots, settings), match with the generic UI or a custom one, chat, rematch, step-by-step replays and matches on a single device |
+| [`apps/play`](apps/play) | The web app (Vite) served by `gamehub serve`: it registers the custom UIs in `games/*/ui` by itself and has a kit gallery at `/kit` |
+| [`@gamehub/nomos`](packages/nomos) | Nomos (the `.game` language) for CodeMirror 6: highlighting, indentation, folding and light/dark theme |
+| [`@gamehub/studio`](packages/studio) | **The Studio** as a React library: connection to `gamehub studio` (LSP and its own methods over WebSocket), diagram (React Flow + ELK), text editor and Nomos fields (CodeMirror), inspector, component designer, simulator, batch runs, tree, compare and export |
+| [`apps/studio`](apps/studio) | The Studio app (Vite) served by `gamehub studio` |
 
-## Requisitos
+## Requirements
 
-- **Node 22** (`nvm use` en la raíz lee `.nvmrc`).
-- **pnpm**, mediante corepack: `corepack enable` una vez (o `corepack pnpm …` sin activarlo).
+- **Node 22** (`nvm use` at the root reads `.nvmrc`).
+- **pnpm**, through corepack: `corepack enable` once (or `corepack pnpm …` without enabling it).
 
-El workspace de pnpm está en la **raíz del repositorio** (`pnpm-workspace.yaml`): incluye
-`web/packages/*`, `web/apps/*` y las UIs propias de los juegos (`games/<juego>/ui`). Los comandos
-se ejecutan desde la raíz.
+The pnpm workspace lives at the **repository root** (`pnpm-workspace.yaml`): it includes
+`web/packages/*`, `web/apps/*` and the games' custom UIs (`games/<game>/ui`). Commands are run
+from the root.
 
-## Comandos
+## Commands
 
 ```bash
-pnpm install          # dependencias (versiones exactas en el catálogo de pnpm-workspace.yaml)
-pnpm test             # tests de todos los paquetes (Vitest); los de integración arrancan
-                      # `gamehub serve` o `gamehub studio` con uv (GAMEHUB_SKIP_SERVER_TESTS=1
-                      # los salta)
-pnpm typecheck        # TypeScript estricto
-pnpm lint             # Biome: lint y formato (pnpm format para corregir)
-pnpm build            # compila las apps (web/apps/play/dist y web/apps/studio/dist), que luego
-                      # sirven gamehub serve y gamehub studio
-pnpm dev              # la app con recarga en caliente (http://localhost:5173), contra un
-                      # servidor de partidas local: cd python && uv run gamehub serve ../games
-pnpm dev:studio       # el Studio con recarga en caliente (http://localhost:5175/?token=…),
-                      # contra `GAMEHUB_STUDIO_TOKEN=… uv run gamehub studio ../games`
+pnpm install          # dependencies (exact versions in the pnpm-workspace.yaml catalog)
+pnpm test             # tests of every package (Vitest); integration tests start
+                      # `gamehub serve` or `gamehub studio` with uv (GAMEHUB_SKIP_SERVER_TESTS=1
+                      # skips them)
+pnpm typecheck        # strict TypeScript
+pnpm lint             # Biome: lint and formatting (pnpm format to fix)
+pnpm build            # builds the apps (web/apps/play/dist and web/apps/studio/dist), which
+                      # gamehub serve and gamehub studio then serve
+pnpm dev              # the app with hot reload (http://localhost:5173), against a local match
+                      # server: cd python && uv run gamehub serve ../games
+pnpm dev:studio       # the Studio with hot reload (http://localhost:5175/?token=…), against
+                      # `GAMEHUB_STUDIO_TOKEN=… uv run gamehub studio ../games`
 ```
 
-Para jugar en el navegador basta con compilar una vez y arrancar el servidor:
+To play in the browser, it is enough to build once and start the server:
 
 ```bash
 pnpm install && pnpm build
 cd python && uv run gamehub serve ../games --open
 ```
 
-## UIs propias
+## Custom UIs
 
-`gamehub ui new games/<juego>` crea una UI de React para un juego en `games/<juego>/ui`, con los
-tipos del juego (`gamehub sdk ts`), un tablero inicial, un test y un servidor de desarrollo
-(`pnpm dev` en su carpeta: la app solo con ese juego). La app web registra sola las UIs de
-`games/*/ui`. Ejemplos: [tres en raya](../games/tictactoe/ui), [Conecta 4](../games/connect-four/ui)
-y [Dudo](../games/dudo/ui).
+`gamehub ui new games/<game>` creates a React UI for a game in `games/<game>/ui`, with the game's
+types (`gamehub sdk ts`), a starting board, a test and a development server (`pnpm dev` in its
+folder: the app with only that game). The web app registers the UIs in `games/*/ui` by itself.
+Examples: [tic-tac-toe](../games/tictactoe/ui), [Connect Four](../games/connect-four/ui),
+[Dudo](../games/dudo/ui), [chess](../games/chess/ui), [Texas Hold'em](../games/texas-holdem/ui),
+[Wizard](../games/wizard/ui) and [Parchís](../games/parchis/ui).

@@ -511,56 +511,32 @@ def estimate_size(
     max_steps: int = 10_000,
     time_limit: float = 5.0,
 ) -> dict[str, Any]:
-    """Tamaño estimado del árbol del juego (número de estados) con el estimador de Knuth: en un
-    paseo al azar, cada estado cuenta como 1/P(llegar a él); la media sobre muchos paseos es un
-    estimador sin sesgo. Devuelve log10 del tamaño (los árboles crecen deprisa) y la longitud y el
-    factor de ramificación medios."""
-    n = players or game.players[0]
-    totals: list[float] = []  # log10 de la estimación de cada paseo
-    lengths: list[int] = []
-    branching: list[int] = []
-    started = time.perf_counter()
-    for k in range(samples):
-        if time.perf_counter() - started > time_limit:
-            break
-        rng = Pcg32(seed + k, STREAM_CHANCE)
-        agents = Pcg32(seed + k, STREAM_AGENT_BASE)
-        state = game.new_state(n, params or {})
-        weight = 0.0  # log10 de 1/P(camino)
-        log_terms = [0.0]
-        steps = 0
-        try:
-            while not state.is_terminal and steps < max_steps:
-                if state.status is Status.CHANCE:
-                    outcome = state.sample_chance(rng)
-                    p = state.outcome_probability(outcome)
-                    weight += -math.log10(p) if p > 0 else 0.0
-                    state = state.apply_chance(outcome)
-                else:
-                    seat = state.active_seats[0]
-                    legal = state.legal_actions(seat)
-                    branching.append(len(legal))
-                    weight += math.log10(len(legal))
-                    state = state.apply_action(seat, legal[agents.below(len(legal))])
-                log_terms.append(weight)
-                steps += 1
-        except RuleError:
-            continue
-        top = max(log_terms)
-        total = top + math.log10(sum(10 ** (t - top) for t in log_terms))
-        totals.append(total)
-        lengths.append(steps)
-    if not totals:
+    """Tamaño estimado del árbol del juego (número de estados) con el estimador de Knuth del
+    asesor de viabilidad (`gamehub.analysis.feasibility.knuth_estimate`): en un paseo al azar,
+    cada estado cuenta como 1/P(llegar a él); la media sobre muchos paseos es un estimador sin
+    sesgo. Devuelve log10 del tamaño (los árboles crecen deprisa) y la longitud y el factor de
+    ramificación medios. Los paseos que fallan por un error de reglas no cuentan."""
+    from gamehub.analysis.feasibility import knuth_estimate
+
+    root = game.new_state(players or game.players[0], params or {})
+    k = knuth_estimate(
+        root,
+        samples=samples,
+        seed=seed,
+        max_steps=max_steps,
+        budget=time_limit,
+        min_samples=1,
+        skip_errors=True,
+    )
+    if not k.samples:
         return {"samples": 0}
-    top = max(totals)
-    mean = top + math.log10(sum(10 ** (t - top) for t in totals) / len(totals))
     return {
-        "samples": len(totals),
-        "log10States": round(mean, 2),
-        "states": _scientific(mean),
-        "meanLength": sum(lengths) / len(lengths),
-        "meanBranching": (sum(branching) / len(branching)) if branching else None,
-        "seconds": round(time.perf_counter() - started, 3),
+        "samples": k.samples,
+        "log10States": round(k.tree_log10, 2),
+        "states": _scientific(k.tree_log10),
+        "meanLength": k.depth_mean,
+        "meanBranching": k.branching or None,
+        "seconds": round(k.seconds, 3),
     }
 
 

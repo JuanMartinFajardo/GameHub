@@ -1,22 +1,22 @@
-# Especificaciones de GameHub
+# GameHub specifications
 
-Contratos formales que todos los componentes (Python, C++, web) deben cumplir.
+Formal contracts that every component (Python, C++, web) must meet.
 
-| Ruta | Contenido |
+| Path | Contents |
 |---|---|
-| `ir/v0/ops.json` | **Catálogo de operadores** de la GameIR (expresiones, sentencias, selectores): fuente única de verdad |
-| `ir/v0/ir.schema.json` | Esquema del documento completo (juego, estado, funciones, flow, nodos, acciones) |
-| `ir/v0/common.schema.json`, `type.schema.json` | Identificadores, textos, visibilidad, bloques y tipos |
-| `ir/v0/expr.schema.json`, `stmt.schema.json` | **Generados** desde `ops.json` (`gamehub ir schemas --write`); no editar a mano |
-| `ir/examples/*.ir.json` | Juegos de validación escritos a mano: tres en raya, dilema del prisionero, piedra-papel-tijera, Nim, póker de Kuhn, Mentiroso |
-| `protocol/v1/protocol.schema.json` | **Protocolo de partidas v1**: sobres y datos de cada mensaje WebSocket (cliente → servidor y servidor → cliente) y cuerpos de la API REST. Los tipos de Python se generan (`gamehub protocol types --write`); semántica en [`protocolo.md`](../docs/wiki/protocolo.md) |
-| `conformance/<juego>/seed-<n>.ghr.json` | **Trazas doradas**: partidas con semilla fija y la huella del estado en cada paso; todo motor debe reproducirlas (`gamehub conformance --check`) |
+| `ir/v0/ops.json` | The GameIR **operator catalog** (expressions, statements, selectors): the single source of truth |
+| `ir/v0/ir.schema.json` | Schema of the whole document (game, state, functions, flow, nodes, actions) |
+| `ir/v0/common.schema.json`, `type.schema.json` | Identifiers, texts, visibility, blocks and types |
+| `ir/v0/expr.schema.json`, `stmt.schema.json` | **Generated** from `ops.json` (`gamehub ir schemas --write`); do not edit by hand |
+| `ir/examples/*.ir.json` | Hand-written validation games: tic-tac-toe, prisoner's dilemma, rock-paper-scissors, Nim, Kuhn poker, Bullshit (`mentiroso`) |
+| `protocol/v1/protocol.schema.json` | **Match protocol v1**: envelopes and data of each WebSocket message (client → server and server → client) and REST API bodies. The Python and TypeScript types are generated (`gamehub protocol types --write`); semantics in [`protocol.md`](../docs/wiki/protocol.md) |
+| `conformance/<game>/seed-<n>.ghr.json` | **Golden traces**: matches with a fixed seed and the state digest at each step; every engine must reproduce them (`gamehub conformance --check`) |
 
-Validar: `cd python && uv run gamehub ir check ../spec/ir/examples/*.ir.json`
+Validate: `cd python && uv run gamehub ir check ../spec/ir/examples/*.ir.json`
 
-El JSON Schema comprueba la **forma**; `gamehub ir check` añade comprobaciones de **buena
-formación** (referencias, contextos, azar solo en nodos `chance`, sin recursión, salidas de nodos).
-La semántica está en [`docs/wiki/modelo-formal.md`](../docs/wiki/modelo-formal.md) y la IR en
+The JSON Schema checks the **shape**; `gamehub ir check` adds **well-formedness** checks
+(references, contexts, chance only in `chance` nodes, no recursion, node exits). The semantics is
+in [`docs/wiki/formal-model.md`](../docs/wiki/formal-model.md) and the IR in
 [`docs/wiki/ir.md`](../docs/wiki/ir.md).
 
-Los `$id` usan el dominio reservado `gamehub.invalid` (RFC 2606): son identificadores, no URLs.
+The `$id`s use the reserved domain `gamehub.invalid` (RFC 2606): they are identifiers, not URLs.
