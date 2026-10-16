@@ -109,6 +109,58 @@ def _parser() -> argparse.ArgumentParser:
     _match_options(perft)
     perft.set_defaults(handler=_perft)
 
+    analyze = commands.add_parser(
+        "analyze", help="teoría de juegos: viabilidad, soluciones, equilibrios, CFR, Grundy…"
+    )
+    analyze.add_argument(
+        "game", type=Path, metavar="JUEGO", help="archivo .game, .ir.json o paquete"
+    )
+    analyze.add_argument("--players", type=int)
+    for flag, text in (
+        ("feasibility", "clasificación, tamaño (Knuth) y métodos recomendados"),
+        ("count", "posiciones y partidas distintas (grafo de estados)"),
+        ("solve", "solución exacta con información perfecta (alfa-beta / inducción hacia atrás)"),
+        ("tree", "forma extensiva: nodos y conjuntos de información"),
+        ("normal-form", "forma normal con estrategias puras reducidas"),
+        ("nash", "equilibrios de Nash (puros; mixtos y suma cero con dos jugadores)"),
+        ("dominance", "eliminación iterada de estrategias dominadas"),
+        ("correlated", "equilibrio correlado de máximo bienestar"),
+        ("pareto", "óptimos de Pareto, bienestar social y precio de la anarquía"),
+        ("sequence-form", "equilibrio exacto de dos jugadores de suma cero (forma de secuencias)"),
+        ("grundy", "valor de Grundy y clase de resultado (juegos combinatorios)"),
+        ("coop", "función característica, Shapley, núcleo, nucléolo y negociación de Nash"),
+    ):
+        analyze.add_argument(f"--{flag}", action="store_true", help=text)
+    analyze.add_argument("--cfr", type=int, metavar="N", help="CFR+ con N iteraciones")
+    analyze.add_argument("--vanilla", action="store_true", help="CFR clásico en vez de CFR+")
+    analyze.add_argument(
+        "--tournament",
+        type=int,
+        nargs="?",
+        const=200,
+        metavar="RONDAS",
+        help="torneo de Axelrod sobre el juego de etapa (200 rondas por partida)",
+    )
+    analyze.add_argument("--noise", type=float, default=0.0, help="ruido del torneo (0–1)")
+    analyze.add_argument(
+        "--lp", choices=["auto", "exact", "highs"], default="auto", help="programación lineal"
+    )
+    analyze.add_argument("--max-nodes", type=int, default=1_000_000)
+    analyze.add_argument("--json", action="store_true", help="el informe en JSON")
+    _match_options(analyze)
+    analyze.set_defaults(handler=_analyze)
+
+    export = commands.add_parser("export", help="exporta un juego a otros formatos (Gambit)")
+    export.add_argument(
+        "game", type=Path, metavar="JUEGO", help="archivo .game, .ir.json o paquete"
+    )
+    export.add_argument("--to", required=True, choices=["gambit-efg", "gambit-nfg"])
+    export.add_argument("-o", "--output", type=Path, metavar="ARCHIVO")
+    export.add_argument("--players", type=int)
+    export.add_argument("--max-nodes", type=int, default=1_000_000)
+    _match_options(export)
+    export.set_defaults(handler=_export)
+
     replay = commands.add_parser("replay", help="re-simula y verifica un replay .ghr.json")
     replay.add_argument("file", type=Path, metavar="ARCHIVO.ghr.json")
     replay.add_argument(
@@ -830,6 +882,56 @@ def _perft(args: argparse.Namespace) -> int:
         total = perft(game.new_state(args.players, params), args.depth, args.skip)
     seconds = time.perf_counter() - started
     print(f"perft({args.depth}) = {total}  ({seconds:.1f} s)")
+    return 0
+
+
+def _analyze(args: argparse.Namespace) -> int:
+    from gamehub.analysis.report import ANALYSES, Options, analyze, report_lines
+
+    game = _load_game(args.game, args.name)
+    wanted = [name for name in ANALYSES if getattr(args, name, False) is True]
+    if args.cfr:
+        wanted.append("cfr")
+    if args.tournament:
+        wanted.append("tournament")
+    options = Options(
+        cfr_iterations=args.cfr or 1000,
+        cfr_plus=not args.vanilla,
+        tournament_rounds=args.tournament or 200,
+        tournament_noise=args.noise,
+        max_nodes=args.max_nodes,
+        lp=args.lp,
+        seed=args.seed,
+    )
+    report = analyze(
+        game,
+        wanted or ["auto"],
+        num_players=args.players,
+        params=_params(args.param),
+        options=options,
+    )
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print("\n".join(report_lines(report)))
+    return 1 if any(name in report["errors"] for name in wanted) else 0
+
+
+def _export(args: argparse.Namespace) -> int:
+    from gamehub.analysis.export import to_efg, to_nfg
+    from gamehub.analysis.normal_form import normal_form
+    from gamehub.analysis.tree import TreeError, build_tree
+
+    game = _load_game(args.game, args.name)
+    state = game.new_state(args.players, _params(args.param))
+    try:
+        tree = build_tree(state, max_nodes=args.max_nodes, infosets=True)
+        tree.title = game.title
+        text = to_efg(tree) if args.to == "gambit-efg" else to_nfg(normal_form(tree))
+    except TreeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    _emit(text, args.output)
     return 0
 
 
