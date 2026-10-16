@@ -17,6 +17,7 @@
 | Catálogo de operadores | operator catalog | `spec/ir/v0/ops.json`: lista cerrada de expresiones, sentencias y selectores de la IR. |
 | Cobertura de reglas | rule coverage | Cuántas veces se pasó por cada nodo, acción y transición en las partidas masivas del simulador; lo que nunca se usó se marca en el diagrama. |
 | Código de sala | room code | 6 caracteres de Crockford base32 (`K7F-Q2P`) para entrar en una sala. |
+| Código generado | codegen | Las expresiones y funciones de la IR escritas como código de Python y compiladas con `exec` (`gamehub.engine.codegen`): dan lo mismo que los cierres de referencia, unas dos veces más rápido. |
 | Combinador | combinator | Juego construido a partir de otro transformando su IR: `repeat(G, rounds: n)`, `best_of(G, rounds: n)`. |
 | Configuración | configuration | Estado completo del motor: valores + nodos activos + envíos pendientes + historial + relojes. |
 | Conjunto de información | information set | Historias que un jugador no puede distinguir (mismo estado de información). |
@@ -40,6 +41,7 @@
 | Invariante | invariant | Condición que debe cumplirse en todo estado alcanzable; `gamehub test` la comprueba en tests y partidas aleatorias. |
 | IR núcleo / resuelta | core IR | La IR sin azúcar que ejecutan los motores; la genera el compilador de Nomos. |
 | Lockfile | lockfile | `game.lock`: commit exacto de cada dependencia git de un paquete. |
+| Memo (de funciones) | memoization | Resultados de funciones de la IR guardados según de qué dependen: para siempre si solo de sus argumentos (*static*), mientras no cambie el estado si lo leen (*state*). |
 | Mod / variante | mod / variant | Juego que extiende otro (`extends`) con `override`, `remove` y `extend node`. |
 | Módulo | module | Archivo `.game` cuyas declaraciones (`enum`, `struct`, `fn`, juegos) se usan con `import`. |
 | Nodo | node | Caja del flow: `decision`, `simultaneous`, `window`, `chance`, `auto`, `phase`, `terminal` (`call`, más adelante). |
@@ -48,11 +50,14 @@
 | Observador público | public observer | Quien no ocupa ningún asiento (`PUBLIC` en el motor): ve lo que la visibilidad permite a quien no es dueño de nada. |
 | Operación (del Studio) | edit operation | Un cambio del diagrama o de un formulario (`addNode`, `addTransition`, `updateAction`…) que se aplica al árbol del `.game`; el texto se reescribe solo donde cambió. |
 | Pagos | payoffs | Vector de utilidades en un nodo terminal. |
+| Palo efectivo | effective suit | En `std.tricktaking`, el palo con el que cuenta una carta en una baza (un entero; −1 = se puede jugar siempre, como el mago o el bufón de Wizard). |
 | Paquete | package | Directorio de un juego con su `game.toml` (nombre, versión, dependencias). |
 | Participante | participant | Persona o bot en una sala: jugador (sentado) o espectador. |
 | Partida | match | Ejecución concreta de un juego: parámetros + semilla + acciones. |
+| Perft | perft | Número de secuencias de jugadas legales hasta una profundidad (`gamehub perft`); en ajedrez, la prueba estándar de un generador de jugadas (*perft(5)* = 4 865 609). |
 | Pistas de presentación | UI hints | La sección `ui { … }` de un juego: cómo dibujar sus variables, nombres traducidos, símbolos, colores, cartas, cómo elegir argumentos. No son reglas: no cuentan para el hash. |
 | Plazo / reloj | deadline / clock | Tiempo para decidir: fijo por turno (`move`) o un tiempo total por asiento con incremento (`match`); al vencer se aplica `on_timeout`. |
+| Plugin nativo | native plugin | Implementación en WebAssembly de una función `@native("m.f")`, que debe dar exactamente lo mismo que su cuerpo en Nomos (la referencia). ABI `gamehub-native/1`. |
 | Punto de decisión | decision point | Configuración en la que uno o más asientos deben actuar. |
 | Replay | replay | Tupla (hash de reglas, parámetros, semilla, acciones) que reproduce una partida exacta. |
 | Revancha | rematch | Otra partida en la misma sala y con los mismos asientos, cuando todos vuelven a declararse listos. |

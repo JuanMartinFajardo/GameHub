@@ -42,12 +42,19 @@ trazas de conformidad. Un juego también se carga desde Nomos:
 
 ```bash
 gamehub play  JUEGO.game|JUEGO.ir.json --seats human,random [--param k=v] [--save-replay x.ghr.json]
-gamehub fuzz  JUEGO.game|JUEGO.ir.json --games 100000 [--players n] [--failures DIR]
+gamehub fuzz  JUEGO.game|JUEGO.ir.json --games 100000 [--players n] [--failures DIR] [--jobs 6]
+gamehub perft JUEGO.game --depth 5 [--divide] [--skip claim_draw] [--jobs 6]
+gamehub natives list | check [--trials N] | build --check|--write
 gamehub replay PARTIDA.ghr.json [--seat n]                 # también comprueba el azar verificable
 gamehub conformance --check | --write
 ```
 
-Desde Python también: `gamehub.engine.match` (`play_match`, `RandomAgent`, `fuzz`),
+`fuzz --jobs N` reparte las partidas entre N procesos (semillas `seed + i`, el mismo informe que
+en uno) y `perft` cuenta las secuencias de jugadas legales hasta una profundidad: los puntos de
+azar suman las de todos sus resultados, `--skip` deja fuera acciones como reclamar tablas y
+`--divide` separa por primera jugada (`gamehub.analysis.perft`, ADR-061).
+
+Desde Python también: `gamehub.engine.match` (`play_match`, `RandomAgent`, `fuzz`, `fuzz_parallel`),
 `gamehub.engine.replay` (`record`, `replay`) y la API [`gamehub.build`](#8-api-builder).
 
 ## 2. Módulos
@@ -59,7 +66,9 @@ Desde Python también: `gamehub.engine.match` (`play_match`, `RandomAgent`, `fuz
 | `expr` | Los 87 operadores de expresión (un test exige cubrir todo el catálogo) |
 | `stmt` | Las 14 sentencias, lvalues, selectores y eventos |
 | `visibility` | Políticas de visibilidad y redacción de valores |
-| `game` | IR → `GameDef` compilado; parámetros y estado inicial; `Game` |
+| `game` | IR → `GameDef` compilado; parámetros y estado inicial; memo de funciones; `Game` |
+| `codegen` | Expresiones y funciones de la IR → código fuente de Python (F6, ADR-063) |
+| `natives` | Plugins nativos en WebAssembly: búsqueda, carga, ABI y comparación con la referencia (F6, ADR-062) |
 | `state` | `State` inmutable y la semántica del flow (`_Tx`) |
 | `match`, `replay`, `conformance` | Drivers, agentes, fuzzer, replays y trazas doradas |
 
@@ -197,6 +206,63 @@ escritos a mano (`tests/test_build.py`).
 
 ## 10. Rendimiento (Python, Apple Silicon)
 
+Ninguna de estas técnicas cambia la semántica: las trazas de conformidad son las mismas y un test
+comprueba que, en todos los juegos del catálogo, las partidas al azar dan la misma huella en cada
+paso con y sin ellas.
+
+### Memo de funciones
+
+`GameDef` clasifica cada función de la IR por lo que lee (análisis estático transitivo,
+`_memo_kinds`, ADR-060):
+
+- **static** (solo sus argumentos: ni estado, ni opciones, ni asientos, ni contexto): su resultado
+  se guarda para todas las partidas del juego (`GameDef.static_memo`, hasta 200 000 entradas).
+  Así las tablas del ajedrez (rayos, saltos de caballo) o el valor de una mano de póquer se
+  calculan una vez.
+- **state** (estado y opciones, pero no el nodo en curso ni los asientos de contexto): se guarda en
+  `State.memo`; cada escritura en el almacén de una transacción lo vacía, así que no hay
+  invalidación que olvidar.
+- Sin memo: las que dependen del contexto (`actor`, `owner`, `viewer`…) y las que no tienen
+  bucles ni llamadas (guardarlas costaría más que calcularlas).
+
+### Código generado
+
+`gamehub.engine.codegen` escribe cada expresión y cada función de la IR como código fuente de
+Python (un `def` por función con sus argumentos y locales como variables; `let` y las
+comprensiones como lambdas) y lo compila con `exec` (ADR-063). Llama a las mismas funciones de
+cada operador que los cierres de `expr`, así que da los mismos resultados y los mismos errores;
+los enteros tienen atajos (`add`, `lt`, `cell`…) que no pasan por los racionales. Los cierres
+siguen siendo la referencia: se usan si algo no se puede generar, con `GAMEHUB_CODEGEN=0` o con
+`Game(ir, codegen=False)`. Un test exige que el generador cubra todo el catálogo de operadores.
+
+### Plugins nativos
+
+Una función con `"native": "modulo.funcion"` ([IR](ir.md), `@native` en
+[Nomos](lenguaje-game.md#plugins-nativos)) se puede sustituir por un plugin que dé exactamente el
+mismo resultado; **su cuerpo es la implementación de referencia** (ADR-062). Los plugins son
+módulos **WebAssembly sin importaciones** (el mismo binario valdrá en el navegador y en el core
+C++), con un límite de cómputo por llamada (50 millones de unidades de combustible de
+`wasmtime`). ABI `gamehub-native/1`:
+
+- El módulo exporta `memory`, `gh_buffer() -> i32` (un búfer de al menos 64 KiB) y una función
+  por cada función nativa: `(in: i32, len: i32, out: i32) -> i32`.
+- Los argumentos van al búfer como palabras i32 en orden: `Bool` 0/1, `Int` y `Seat` tal cual,
+  `Cell` como fila y columna, un enumerado por su ordinal, un struct campo a campo, una tupla
+  elemento a elemento, una lista como su longitud y sus elementos, un opcional como 0 o como 1 y
+  el valor. La función escribe el resultado igual a partir de `out` y devuelve cuántas palabras
+  escribió (negativo = error).
+- El plugin del módulo `a.b` es `a.b.wasm` (o su fuente `a.b.wat`) en un directorio de
+  `GAMEHUB_NATIVE_PATH` o en `stdlib/std/native/`. `natives.register(id, impl)` registra una
+  implementación en Python (para tests o programas de confianza).
+- En Python hace falta `wasmtime` (extra `gamehub[wasm]`); sin él, con `GAMEHUB_NATIVES=0` o si
+  un entero no cabe en i32, se usa la referencia. `gamehub natives check` compara plugin y
+  referencia con entradas al azar (0 diferencias en `std.poker.hand_value`) y `natives build
+  --check` (en el CI) comprueba que cada `.wasm` es su `.wat` compilado.
+
+### Cifras
+
+Partidas al azar por segundo con un proceso (antes de F6):
+
 | Juego | Partidas aleatorias/s | Pasos medios |
 |---|---:|---:|
 | Dilema del prisionero / PPT | ≈ 12 000 | 2 |
@@ -207,14 +273,28 @@ escritos a mano (`tests/test_build.py`).
 
 El cuello de botella de Mentiroso es enumerar los subconjuntos de la mano (hasta 4 047 acciones
 por turno) para que el agente aleatorio elija uniformemente. Un perfil mostró que la mitad del
-tiempo se iba en deduplicar subconjuntos que ya eran distintos; corregido (×1,8). El motor C++
-(Fase 8) está pensado para multiplicar estas cifras.
+tiempo se iba en deduplicar subconjuntos que ya eran distintos; corregido (×1,8).
+
+Los juegos de F6, en la aceptación de 10⁵ partidas (`fuzz --jobs 6`, 8 núcleos):
+
+| Juego | Partidas/s | Pasos medios |
+|---|---:|---:|
+| Ajedrez | 11 | 346 |
+| Skat (3 / 4 jugadores) | 117 / 83 | 120 / 160 |
+| Wizard (3 / 6 jugadores) | 20 / 38 | 711 / 401 |
+| Parchís (2 / 4 jugadores) | 57 / 25 | 351 / 665 |
+
+*Perft* del ajedrez: el memo y la reescritura de las reglas (líneas de jaque y clavadas, el rey en
+el estado, las tablas de `std.boards`) bajaron el *perft(3)* de 52 s a 1,2 s, y el *perft(5)*
+(4 865 609 posiciones) tardó 131 s con 6 procesos; el código generado llegó después (×2).
+El motor C++ (Fase 8) está pensado para multiplicar estas cifras.
 
 ## 11. Limitaciones conocidas
 
-- Sin comprobación estática de **tipos** (llega con el compilador de Nomos, Fase 2): los errores de
+- La IR escrita a mano no se comprueba por **tipos** (Nomos sí, desde la Fase 2): sus errores de
   tipo aparecen al ejecutar como `RuleError`.
-- `rank` de los terminales se valida pero aún no se expone; sin rasgos de historial (triple
-  repetición) ni tiempo/plazos (IR v0.2).
-- Tableros solo de **rejilla**; los grafos (Parchís) llegan en la Fase 6.
+- Sin rasgos de historial ni tiempo en la IR (v0.2): el ajedrez guarda en su estado las posiciones
+  para las repeticiones, y los plazos los pone la sala.
+- Una llamada a un plugin WebAssembly cuesta ~25 µs en Python: solo compensa en funciones caras
+  (el evaluador de póquer gana ×3).
 - `information_state` recorre todo el historial (coste cuadrático si se llama en cada paso).

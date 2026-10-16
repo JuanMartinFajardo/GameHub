@@ -90,7 +90,7 @@ Lo dibuja todo a partir de la IR, la vista de cada actualización y las acciones
   pagos.
 
 Las [pistas `ui { … }`](lenguaje-game.md) del juego ponen nombres traducidos, símbolos, colores,
-cartas, dados y fichas, ocultan variables auxiliares y dicen dónde va cada cosa. Los 15 paquetes
+cartas, dados y fichas, ocultan variables auxiliares y dicen dónde va cada cosa. Los 22 paquetes
 del catálogo las tienen ([ADR-047](decisiones.md), [ADR-048](decisiones.md)).
 
 ## 4. UIs propias en menos de una hora
@@ -125,6 +125,10 @@ genérica no sabe (la línea ganadora, animaciones, un resumen). Ejemplos, hecho
 | [Tres en raya](../../games/tictactoe/ui) | Marcas dibujadas en SVG con animación, línea ganadora, vista previa de tu marca | 177 líneas + 160 de CSS |
 | [Conecta 4](../../games/connect-four/ui) | Tablero azul, fichas que caen, columna resaltada con la ficha que caería, línea ganadora | 153 líneas + 153 de CSS |
 | [Dudo](../../games/dudo/ui) | Apuesta en el tapete, historia de la ronda, cubiletes ajenos con sus dados tapados, resumen de la última dudada, selector de apuesta con dados | 268 líneas + 183 de CSS |
+| [Ajedrez](../../games/chess/ui) (F6) | Tablero girado para las negras, destinos legales al pulsar una pieza, elección de la pieza al coronar, última jugada y rey en jaque resaltados, piezas capturadas y lista de jugadas | 363 líneas + 221 de CSS |
+| [Texas Hold'em](../../games/texas-holdem/ui) (F6) | Mesa de tapete con los jugadores alrededor, fichas y apuestas de la ronda, botón, cartas comunes y bote; retirarse, pasar o igualar, y apostar o subir con una barra y atajos (mínimo, medio bote, bote, todo) | 327 líneas + 206 de CSS |
+| [Wizard](../../games/wizard/ui) (F6) | Carta de triunfo, la baza en juego y la última (sacada del registro), apuesta, bazas y puntos de cada jugador, un botón por apuesta posible, cartas que no se pueden jugar apagadas, elegir triunfo si sale un mago | 231 líneas + 132 de CSS |
+| [Parchís](../../games/parchis/ui) (F6) | Tablero en cruz de 68 casillas en SVG (seguros, salidas, pasillos, casas y meta), fichas que se pueden mover resaltadas y accesibles con el teclado, dado, premio y seises seguidos | 269 líneas + 149 de CSS + 101 de geometría |
 
 La app web registra sola las UIs de `games/*/ui` al compilarse ([ADR-050](decisiones.md)).
 
@@ -132,8 +136,9 @@ La app web registra sola las UIs de `games/*/ui` al compilarse ([ADR-050](decisi
 
 - **SDK contra el servidor de Python de verdad**: dos clientes juegan con una caída y un
   espectador; acciones progresivas.
-- **Aceptación de la UI genérica**: cada uno de los 15 juegos del catálogo se juega entero contra
-  el servidor solo pulsando controles de la UI, al azar con semilla.
+- **Aceptación de la UI genérica**: cada uno de los 22 juegos del catálogo se juega entero contra
+  el servidor solo pulsando controles de la UI, al azar con semilla (el Skat, el Solitario, el
+  Hold'em y Wizard con opciones más cortas para que el test no tarde minutos).
 - **Navegador contra terminal**: Ana juega en la app y Luis con `gamehub join` en una terminal de
   verdad, hasta el final.
 - **Sala con la app**: entrar, sentarse, poner un bot, jugar y ver el resultado; mirar como
@@ -150,4 +155,5 @@ salta). En jsdom, los clientes usan el WebSocket del paquete `ws`: el del navega
 - Animar los cambios a partir de los eventos (cartas que vuelan de una zona a otra).
 - Motor en el navegador (WASM, F8): partidas locales y replays sin servidor, y app instalable.
 - Más formas de dibujar en las pistas (recorridos, grafos, dados como argumento).
-- Revisión de accesibilidad con lector de pantalla y teclado en las tres UIs propias.
+- Revisión de accesibilidad con lector de pantalla y teclado en las siete UIs propias.
+- UIs propias para el Skat y el Solitario (hoy, la genérica).

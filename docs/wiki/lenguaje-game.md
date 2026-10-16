@@ -119,14 +119,37 @@ import prisoners_dilemma.{PrisonersDilemma}
 - Un nombre no se puede importar de dos módulos ni chocar con una declaración propia (E202); los
   ciclos de importación son un error (E504).
 
-**Biblioteca estándar v0** (`stdlib/std/`, probada con [tests en Nomos](../../python/tests/fixtures/stdlib.game)):
+**Biblioteca estándar** (`stdlib/std/`, probada con [tests en Nomos](../../python/tests/fixtures/stdlib.game); la v0 de F2 y lo que añadió la Fase 6):
 
 | Módulo | Contenido |
 |---|---|
-| `std.cards` | Baraja francesa (`Suit`, `Rank` del 2 al as, `Card`, `french52()`, `rank_value`, `is_red`) y española (`SpanishSuit`, `SpanishRank`, `SpanishCard`, `spanish40()`, `spanish48()`, `spanish_number`) |
+| `std.cards` | Baraja francesa (`Suit`, `Rank` del 2 al as, `Card`, `french52()`, `rank_value`, `is_red`), la del Skat (`skat32()`: del siete al as), la de Wizard (`WizardRank`, `WizardCard`, `wizard60()`, `is_wizard`, `is_jester`) y la española (`SpanishSuit`, `SpanishRank`, `SpanishCard`, `spanish40()`, `spanish48()`, `spanish_number`) |
 | `std.dice` | `faces`, `count_face`, `count_with_wild` (comodines), `sum_face`, `most_repeated`, `all_same`, `is_straight` |
 | `std.grid` | Direcciones (`orthogonal`, `diagonal`, `all_directions`), `shift`, `ray`, `manhattan`, `chebyshev`, `adjacent`, `touching` |
 | `std.graph` | Grafos como listas de aristas: `neighbors_of`, `successors`, `connected`, `degree`, `cycle`, `advance` |
+| `std.boards` | Tableros: direcciones de torre, alfil y dama, saltos de caballo (`rook_directions`, `bishop_directions`, `queen_directions`, `knight_jumps`), casillas dentro del tablero (`within`, `ray_within`, `hops_within`) y recorridos circulares (`loop_path`, `advance_on`, `passes`) |
+| `std.tricktaking` | Bazas a partir del **palo efectivo** (un entero; −1 = se puede jugar siempre) y la **fuerza** que cada juego da a sus cartas: `can_play`, `first_suit`, `trick_key`, `trick_winner`, `trick_order` ([ADR-064](decisiones.md)) |
+| `std.bidding` | Apuestas de bazas: `above`, `total_bid`, `all_bid`, `hook_ok` (la última apuesta no puede cuadrar el total), `sole_bidder` |
+| `std.betting` | Botes con apuestas por asiento: `pot_levels`, `pots` (bote principal y secundarios), `pot_share`, `winnings`, `to_call` |
+| `std.poker` | Manos de póquer de 5 a 7 cartas: `HandRank`, `hand_rank`, `hand_value` (un entero que ordena las manos; con [plugin nativo](#plugins-nativos)), y sus piezas (`encode`, `ranks_down`, `straight_high`, `top_ranks`, `flush_value`) |
+
+### Plugins nativos
+
+Una función de primer nivel se puede marcar como **nativa** ([ADR-062](decisiones.md)):
+
+```game
+@native("std.poker.hand_value")
+fn hand_value(cards: List<Card>) -> Int { … }   // el cuerpo es la referencia, y es obligatorio
+```
+
+Un motor puede sustituir la función por un plugin que dé **exactamente** lo mismo para cualquier
+entrada; si no lo tiene (o con `GAMEHUB_NATIVES=0`), usa el cuerpo. Los plugins son módulos
+WebAssembly sin importaciones: el del módulo `a.b` es el archivo `a.b.wasm` de
+`stdlib/std/native/` o de un directorio de `GAMEHUB_NATIVE_PATH`. El ABI está en el
+[motor](motor.md#plugins-nativos).
+La firma solo puede usar `Bool`, `Int`, `Seat`, `Cell`, enumerados, structs, tuplas, listas y
+opcionales de ellos (E211). `gamehub natives list|check|build` los lista, los compara con la
+referencia con entradas al azar y los compila desde WAT.
 
 **Paquetes** ([`gamehub.packages`](../../python/src/gamehub/packages.py)): cada juego vive en un
 directorio con su `game.toml`.
@@ -185,7 +208,7 @@ enumerado ni `seats`, `num_players`, `actor`, `viewer`, `owner`, `face_up`.
 | `Bag<T>` | multiconjunto **sin orden** (una mano) | Quien no ve su contenido solo ve su tamaño. |
 | `(A, B, …)` | tuplas | `t[0]`, `t[1]` con índice constante. |
 | `per_player T` | un `T` por asiento | `x[s]`; dueño de `x[s]` = `s` (para `@visible(owner)`). |
-| `Grid[ancho, alto] of T` | rejilla | Dimensiones constantes o nombres de opciones (`Grid[columns, rows] of Disc?`). `cells`, `lines(g, k)`, `neighbors`, `in_bounds`. |
+| `Grid[ancho, alto] of T` | rejilla | Dimensiones constantes o nombres de opciones (`Grid[columns, rows] of Disc?`). `cells`, `lines(g, k)`, `neighbors`, `in_bounds`. Se puede asignar con la lista de sus filas (`board = [[…], …]`, también en los `set` de los tests); las dimensiones se comprueban al ejecutar. |
 
 Una lista vale donde se espera una zona, una bolsa, un conjunto o un `per_player`.
 
@@ -405,7 +428,9 @@ sustituye a la del mismo hueco en la base.
 | `gamehub rules JUEGO` | Reglamento en Markdown (`--lang en`) |
 | `gamehub diff A B` · `gamehub diff REV1..REV2 archivo` | Diff semántico (texto o JSON) |
 | `gamehub new` · `fetch` · `clone` · `fork` | Paquetes (`new --template vacio\|carrera\|tablero\|cartas\|dados\|matriz`) |
-| `gamehub play` · `fuzz` · `replay` | Jugar en la terminal, partidas aleatorias, replays (aceptan `.game`) |
+| `gamehub play` · `fuzz` · `replay` | Jugar en la terminal, partidas aleatorias (`fuzz --jobs N` en varios procesos), replays (aceptan `.game`) |
+| `gamehub perft JUEGO --depth N` | Cuenta las secuencias de jugadas legales (`--divide`, `--skip`, `--jobs`, `--param`); los puntos de azar suman todos sus resultados |
+| `gamehub natives list\|check\|build` | Plugins nativos: cuáles hay, si coinciden con la referencia (`--trials`), compilar WAT a WASM (`--check`, `--write`) |
 | `gamehub studio [RUTA]` | El [Studio](studio-editor-visual.md): diseñar con el diagrama y el texto a la vez y simular (`--open`, `--port`) |
 | `gamehub lsp` | Servidor de lenguaje por la entrada estándar, para cualquier editor con LSP |
 
@@ -446,7 +471,7 @@ está).
 |---|---|
 | E101–E103 | léxico: carácter inesperado, comentario o texto sin cerrar, escape desconocido |
 | E110–E112 | sintaxis: elemento inesperado, anotación no permitida, orden en una acción |
-| E201–E210 | nombres y declaraciones: desconocido (con sugerencia), duplicado o choque, ambiguo, oculta un global, fuera de su contexto (`actor`, estado en funciones de módulo…), reservado, aridad, recursión, struct sin valores, jugadores |
+| E201–E211 | nombres y declaraciones: desconocido (con sugerencia), duplicado o choque, ambiguo, oculta un global, fuera de su contexto (`actor`, estado en funciones de módulo…), reservado, aridad, recursión, struct sin valores, jugadores, firma que no puede ser `@native` |
 | E301–E307 | tipos: incompatibles, operador no aplicable, no recorrible, `match` no exhaustivo o rama inalcanzable, dominio no finito, azar fuera de lugar, asignación a algo que no es estado |
 | E401–E406 | flow: nodos duplicados o vacíos, miembros no válidos, transiciones inalcanzables o `-> exit` fuera de fase, nodos sin salida, `start` y `flow`, acciones repetidas o en el sitio equivocado |
 | E502–E507 | módulos, mods y paquetes: `override` sin `extends`, módulo no encontrado, importación circular, mods (E505), combinadores (E506), dependencias (E507) |

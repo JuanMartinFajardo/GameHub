@@ -24,7 +24,11 @@
 - `uv run gamehub ir schemas --write` tras tocar `spec/ir/v0/ops.json` (los esquemas expr/stmt se generan)
 - `uv run gamehub conformance --write` tras cambiar la semántica del motor o un ejemplo (y explicar
   por qué en el commit: las trazas son el contrato con otros motores)
-- `uv run gamehub play|fuzz|replay …` (ver `docs/wiki/motor.md`)
+- `uv run gamehub play|fuzz|replay|perft …` (ver `docs/wiki/motor.md`; `fuzz --jobs N` en paralelo)
+- `uv run pytest -m slow`: los tests largos (perft profundos del ajedrez), fuera de la batería normal
+- `uv run gamehub natives build --check` (los `.wasm` de `stdlib/std/native` son su `.wat` compilado;
+  `--write` tras tocar un `.wat`) · `uv run gamehub natives check` (plugin = referencia)
+- Tras cambiar las reglas de un juego con UI propia: `pnpm types` en `games/<juego>/ui`
 - Separadores de comentario `# --- Título ---…` de 100 columnas como máximo (ruff E501).
 
 ## Git (política acordada el 2026-10-09)

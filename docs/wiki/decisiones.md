@@ -65,13 +65,13 @@
 | 057 | Seguridad del Studio: solo local, token, Host y Origin comprobados, archivos `.game` del directorio de trabajo | Aceptada (2026-10-16, usuario) |
 | 058 | Simulador en el servidor sobre el motor de referencia: historia inmutable, traza de transiciones y estimador de Knuth | Aceptada (2026-10-16, usuario) |
 | 059 | Tests e invariantes editables y ejecutables desde el Studio; plantillas compartidas con `gamehub new --template` | Aceptada (2026-10-16, usuario) |
-| 060 | Memo de las funciones de la IR: para siempre las que solo dependen de sus argumentos, mientras no cambie el estado las que lo leen | **Propuesta** (F6) |
-| 061 | `gamehub perft` y `gamehub fuzz --jobs` (varios procesos, el mismo informe); tests largos marcados `slow` | **Propuesta** (F6) |
-| 062 | Plugins nativos: `@native("m.f")` con el cuerpo como referencia obligatoria; WebAssembly sin importaciones (ABI `gamehub-native/1`) y `wasmtime` opcional | **Propuesta** (F6) |
-| 063 | Las expresiones de la IR se compilan a código de Python (`codegen`); los cierres siguen siendo la referencia | **Propuesta** (F6) |
-| 064 | Bibliotecas de juegos de cartas sin genéricos: palos y fuerzas como enteros en `std.tricktaking`; barajas en `std.cards` | **Propuesta** (F6) |
-| 065 | Reglas de la ola 2: FIDE, ISkO sin Kontra ni Ramsch, Parchís español, Wizard de Amigo, Hold'em sin límite y Klondike con tope de jugadas | **Propuesta** (F6) |
-| 066 | Ajustes del lenguaje de F6: los módulos no ven los nombres del juego, una rejilla se asigna con sus filas, las listas de zonas se redactan zona a zona | **Propuesta** (F6) |
+| 060 | Memo de las funciones de la IR: para siempre las que solo dependen de sus argumentos, mientras no cambie el estado las que lo leen | Aceptada (2026-10-16, usuario) |
+| 061 | `gamehub perft` y `gamehub fuzz --jobs` (varios procesos, el mismo informe); tests largos marcados `slow` | Aceptada (2026-10-16, usuario) |
+| 062 | Plugins nativos: `@native("m.f")` con el cuerpo como referencia obligatoria; WebAssembly sin importaciones (ABI `gamehub-native/1`) y `wasmtime` opcional | Aceptada (2026-10-16, usuario) |
+| 063 | Las expresiones de la IR se compilan a código de Python (`codegen`); los cierres siguen siendo la referencia | Aceptada (2026-10-16, usuario) |
+| 064 | Bibliotecas de juegos de cartas sin genéricos: palos y fuerzas como enteros en `std.tricktaking`; barajas en `std.cards` | Aceptada (2026-10-16, usuario) |
+| 065 | Reglas de la ola 2: FIDE, ISkO sin Kontra ni Ramsch, Parchís español, Wizard de Amigo, Hold'em sin límite y Klondike con tope de jugadas | Aceptada (2026-10-16, usuario) |
+| 066 | Ajustes del lenguaje de F6: los módulos no ven los nombres del juego, una rejilla se asigna con sus filas, las listas de zonas se redactan zona a zona | Aceptada (2026-10-16, usuario) |
 
 ---
 

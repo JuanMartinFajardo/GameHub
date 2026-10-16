@@ -49,11 +49,12 @@ flowchart TB
 
 ## 2. Estructura del monorepo (propuesta)
 
-> **Estado (2026-10-10, Fase 4):** existen `spec/` (IR v0, protocolo v1, trazas de conformidad),
-> `python/` (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor, presentaciones,
-> paquetes, protocolo, servidor de partidas, SDK cliente, CLI y plantilla de UIs), `web/` (SDK
-> TypeScript, UI kit, UI genérica y la app para jugar), `stdlib/`, `games/` (15 paquetes con 16
-> juegos; tres con UI propia en `games/<juego>/ui`), `editors/vscode/` y `docs/`. La parte de
+> **Estado (2026-10-16, Fase 6):** existen `spec/` (IR v0, protocolo v1, trazas de conformidad),
+> `python/` (paquete `gamehub`: lenguaje Nomos, validación, análisis, motor con plugins nativos,
+> presentaciones, paquetes, protocolo, servidor de partidas, SDK cliente, LSP, Studio, CLI y
+> plantilla de UIs), `web/` (SDK TypeScript, UI kit, UI genérica, la app para jugar y el Studio),
+> `stdlib/` (9 módulos y los plugins en `stdlib/std/native`), `games/` (22 paquetes con 23
+> juegos; siete con UI propia en `games/<juego>/ui`), `editors/vscode/` y `docs/`. La parte de
 > JavaScript es un workspace de pnpm en la raíz (`package.json`, `pnpm-workspace.yaml`,
 > `biome.json`). El resto de directorios se crea en la fase que los necesita.
 
@@ -68,8 +69,8 @@ GameHub/
 │   │                      #   combinadores, formateador, descompilador, ejecutor de tests
 │   ├── ir/                # esquema, catálogo de operadores, validación, hash canónico
 │   ├── build.py           # API Python builder → IR
-│   ├── engine/            # motor de referencia (intérprete de la IR)
-│   ├── analysis/          # avisos estáticos y clasificación (F2); viabilidad, árbol, solvers…
+│   ├── engine/            # motor de referencia (intérprete de la IR, código generado, plugins nativos)
+│   ├── analysis/          # avisos estáticos y clasificación (F2), perft (F6); viabilidad, árbol, solvers…
 │   ├── render/            # diagrama del flow, reglamento y diff semántico (F2)
 │   ├── packages.py        # game.toml, game.lock, dependencias, new/clone/fork (F2)
 │   ├── agents/            # interfaz Agent, aleatorio, minimax, MCTS, heurísticas
@@ -96,7 +97,8 @@ GameHub/
 │   ├── apps/play          # la app web (la sirve gamehub serve)
 │   ├── apps/studio        # la app del Studio (la sirve gamehub studio, F5)
 │   └── apps/hub           # web del hub (más tarde)
-├── stdlib/std/            # Módulos .game: std.cards, std.dice, std.grid, std.graph (después: std.tricktaking…)
+├── stdlib/std/            # Módulos .game: cards, dice, grid, graph, boards, tricktaking, bidding, betting,
+│                          #   poker; native/ = plugins WebAssembly (.wat y .wasm)
 ├── games/                 # Catálogo oficial: un paquete por juego (game.toml, .game con sus tests,
 │                          #   ui/ = UI propia de React, opcional)
 ├── editors/vscode/nomos/  # Extensión de VS Code (resaltado, diagnósticos, formato)
@@ -153,7 +155,7 @@ el servidor, el simulador del Studio, el entrenador RL, los torneos).
 | Área | Propuesta | Motivo | Alternativas |
 |---|---|---|---|
 | Python | 3.12+, `uv`, `ruff`, `pyright`, `pytest`, `hypothesis` | Moderno y rápido de iterar | poetry |
-| Parser | **Lark** (v0) → **tree-sitter** (para editores) | Iteración rápida; luego multi-lenguaje | ANTLR, recursivo descendente a mano |
+| Parser | Descenso recursivo escrito a mano para Nomos (F2, [ADR-027](decisiones.md)); **tree-sitter** después, para editores | Errores precisos y recuperación; luego multi-lenguaje | Lark, ANTLR |
 | Contratos | JSON Schema → `TypedDict` (Py) y `interface` (TS), generados ([ADR-045](decisiones.md)) | Una sola definición | protobuf |
 | Servidor | **Starlette + uvicorn + websockets** (F3, [ADR-036](decisiones.md)) | Async y ligero; contratos en JSON Schema | FastAPI, aiohttp |
 | Persistencia local | SQLite | Cero configuración | — |
@@ -175,16 +177,18 @@ el servidor, el simulador del Studio, el entrenador RL, los torneos).
 | Propiedades | Invariantes (`invariant total_cards == 52`), playouts aleatorios sin errores | hypothesis + fuzzer propio |
 | Trazas doradas | Misma semilla + acciones ⇒ mismos eventos, vistas y pagos | `spec/conformance/` |
 | Diferencial | Python vs C++ vs WASM sobre millones de playouts | runner de conformidad |
-| Referencias externas | *perft* de ajedrez, valor de Kuhn (−1/18), tres en raya = tablas | tests de análisis |
+| Referencias externas | *perft* de ajedrez (F6), ejemplos de la ISkO (Skat), valor de Kuhn (−1/18), tres en raya = tablas | tests de análisis y de cada juego |
+| Plugins nativos | Plugin = referencia en Nomos con entradas al azar | `gamehub natives check`, tests |
 | Fugas de información | Ninguna vista contiene datos no visibles | análisis estático + test de vistas |
 
 ## 6. Seguridad
 
 - Las reglas son **datos**: ejecutar un juego desconocido en el servidor es seguro por diseño
   (límites de pasos y memoria contra abusos).
-- **Plugins nativos** (p. ej. evaluador de manos de póker): puros, con firma declarada y
-  preferentemente en **WASM** (sandbox en servidor, navegador y C++), siempre con una
-  implementación de referencia en el lenguaje para verificarlos.
+- **Plugins nativos** (el evaluador de manos de póquer, F6, [ADR-062](decisiones.md)): funciones
+  puras marcadas `@native`, en **WebAssembly sin importaciones** (ni archivos, ni red, ni reloj)
+  y con un límite de cómputo por llamada; siempre con la implementación de referencia en Nomos,
+  que es la que manda (`gamehub natives check` las compara).
 - **Servidor autoritativo:** el cliente solo recibe su vista redactada; nunca el estado completo.
 - **Studio local** ([ADR-057](decisiones.md)): solo en 127.0.0.1 por defecto, token aleatorio,
   Host y Origin comprobados (contra el *DNS rebinding* y otras páginas del navegador), y solo

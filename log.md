@@ -5,28 +5,64 @@ Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
 
 ---
 
-## 2026-10-16 — Sesión 8: Fase 6 (en curso), catálogo ola 2
+## 2026-10-16 — F6 aprobada y fusionada a `main`
 
-**Respuesta recibida**: «ve con la fase 6». Rama `f6/catalogo-ola-2`. Petición nueva: al terminar
-F6, traducir toda la documentación al inglés (los juegos pueden seguir trayendo el español como
-traducción opcional).
+**Respuesta recibida**: «tienes mi visto bueno» a la pregunta 23: ADR-060 a 066 aceptadas y F6
+fusionada a `main`. Nada se ha subido.
 
-**Hecho (un commit por tarea)**: motor con memo de funciones puras y atajos para enteros
-(`4503ab7`), ajedrez FIDE y `std.boards` (`d469338`, *perft(5)* = 4 865 609), Wizard y
-`std.tricktaking` (`f22021a`), Skat ISkO (`cf590b1`), plugins nativos en WebAssembly, `std.poker`,
-`std.betting` y Texas Hold'em (`f3f3235`), Parchís (`6d1fd6d`), generador de código Python para
-la IR (`958a431`, ×2), Solitario Klondike (`2999017`), UIs propias de ajedrez, póker, Wizard y
-Parchís (`356225a`, revisadas en el navegador), `std.bidding` (`e2d6915`). La aceptación de la UI
-genérica juega enteros los 22 juegos del catálogo contra el servidor. ADR-060 a 066 escritas
-(propuestas) y catálogo actualizado con las fichas de análisis.
+**Nota sobre la historia**: los commits de F6 se hicieron por error directamente en `main` (no
+llegué a crear la rama). Como no se habían subido, lo que faltaba (la documentación) se hizo en
+`f6/catalogo-ola-2` y se fusionó con `--no-ff`; los commits anteriores quedan en línea en `main`
+(reescribir la historia de `main` para moverlos no compensaba).
 
-**Pendiente**: terminar la aceptación de 10⁵ partidas por juego (en marcha; la del Hold'em hay que
-relanzarla con la ruta nueva `games/texas-holdem`); actualizar el resto de la wiki (README,
-roadmap, lenguaje §4/§13/§15, motor, IR, arquitectura, cliente web, glosario, preguntas
-abiertas con la 9 y la 19 respondidas y la 23 nueva), los README y el CLAUDE.md (comandos
-nuevos); pasar la batería completa; después, la traducción al inglés.
+**Siguientes pasos**: pasar toda la documentación al inglés (petición del usuario: el proyecto
+tiene que ser profesional; el español queda como traducción opcional que trae cada juego);
+después, F7.
 
-**Progreso**: ≈ 57 % (F6 casi completa).
+**Progreso**: ≈ 59 % (F0 a F6 en `main`).
+
+---
+
+## 2026-10-16 — Sesión 8: Fase 6, catálogo ola 2
+
+**Respuesta recibida**: «ve con la fase 6». Petición nueva: al terminar F6, traducir toda la
+documentación al inglés (los juegos pueden seguir trayendo el español como traducción opcional).
+
+**Hecho (un commit por tarea)**
+- **Motor** (`4503ab7`): memo de las funciones de la IR según de qué dependen (*static*: para
+  siempre; *state*: mientras no cambie el estado), atajos para enteros, `gamehub perft` y
+  `gamehub fuzz --jobs` (ADR-060, 061). Tests largos marcados `slow`.
+- **Ajedrez** FIDE y `std.boards` (`d469338`): legalidad con líneas de jaque y clavadas, el rey en
+  el estado, enroque, al paso, coronación, repeticiones, 50/75 jugadas, material insuficiente.
+  *perft(5)* = 4 865 609 y los de Kiwipete y las posiciones 3 a 6. El *perft(3)* pasó de 52 s a
+  1,2 s.
+- **Wizard** y `std.tricktaking`, barajas de Skat y Wizard en `std.cards` (`f22021a`, ADR-064).
+- **Skat** ISkO (`cf590b1`): subasta, skat, palo / Grand / Null, Hand, Schneider, Schwarz,
+  Ouvert, matadores (ocultos hasta el final: el análisis de fugas encontró uno de verdad), juego
+  pasado de la subasta; los ejemplos de la ISkO como tests.
+- **Plugins nativos** en WebAssembly (`f3f3235`, ADR-062): `@native("m.f")` con el cuerpo como
+  referencia, ABI `gamehub-native/1`, `gamehub natives list|check|build`; `std.poker` con su
+  evaluador escrito en WAT (0 diferencias con la referencia), `std.betting` y **Texas Hold'em**
+  sin límite con botes secundarios.
+- **Parchís** español (`6d1fd6d`), también por parejas.
+- **Código generado** (`958a431`, ADR-063): las expresiones de la IR se compilan a Python; ×2 en
+  todos los juegos, con la misma huella paso a paso que los cierres.
+- **Solitario** Klondike (`2999017`), **UIs propias** de ajedrez, Hold'em, Wizard y Parchís
+  (`356225a`, revisadas en el navegador) y `std.bidding` (`e2d6915`).
+- Documentación: ADR-060 a 066, catálogo con la ola 2 y fichas de análisis, wiki al día (lenguaje,
+  motor, IR, arquitectura, cliente web, glosario, roadmap), README y CLAUDE.md.
+
+**Aceptación**: *perft(5)* correcto; Skat verificado con la ISkO; 10⁵ partidas al azar sin errores
+de ajedrez (100 000), Skat (50 000 con 3 y con 4), Wizard (25 000 con 3, 4, 5 y 6) y Parchís
+(25 000 con 2, 3, 4 y por parejas); las del Solitario y el Hold'em seguían en marcha al fusionar
+(el paquete del Hold'em se renombró a `texas-holdem` y hubo que relanzarlas); los 22 paquetes se juegan enteros con la UI
+genérica contra el servidor.
+
+**Decisiones**: ADR-060 a 066 (memo, perft y fuzz en paralelo, plugins nativos, código generado,
+bibliotecas de cartas sin genéricos, reglas de la ola 2, ajustes del lenguaje). Preguntas 9 y 19
+respondidas.
+
+**Pendiente**: bots heurísticos de los juegos nuevos (F9); UIs propias del Skat y el Solitario.
 
 ---
 
