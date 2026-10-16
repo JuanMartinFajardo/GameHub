@@ -20,13 +20,19 @@ dependencies = [
 [project.optional-dependencies]
 # Plugins nativos en WebAssembly (std.poker…): sin esto, se usa la implementación de referencia.
 wasm = ["wasmtime>=36"]
+# Teoría de juegos: HiGHS para los programas lineales grandes (sin esto, el símplex exacto).
+analysis = ["highspy>=1.7"]
+# Envolver los juegos como juegos de OpenSpiel (gamehub.analysis.openspiel).
+openspiel = ["open-spiel>=1.5"]
 
 [project.scripts]
 gamehub = "gamehub.cli:main"
 
 [dependency-groups]
 dev = [
+  "highspy>=1.7",
   "hypothesis>=6.140",
+  "open-spiel>=1.5",
   "pre-commit>=4.0",
   "pyright>=1.1.390",
   "pytest>=8.3",

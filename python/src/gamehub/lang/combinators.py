@@ -80,6 +80,12 @@ class _Builder:
             lang: f"{text}{how.get(lang, how['es'])[0]}: {how.get(lang, how['es'])[1]}."
             for lang, text in titles.items()
         }
+        # La etiqueta deja que las herramientas lo reconozcan (p. ej. el asesor de viabilidad
+        # propone un torneo de Axelrod para los juegos repetidos).
+        tag = "repeated" if combinator == "repeat" else "best-of"
+        tags = list(meta.get("tags", []))
+        if tag not in tags:
+            meta["tags"] = [*tags, tag]
 
     def build(self, combinator: str, rounds: int, payoff: str) -> dict[str, Any]:
         ir = self.ir
