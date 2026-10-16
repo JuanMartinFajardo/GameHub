@@ -1,0 +1,387 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Parchís con las reglas españolas habituales: salir con un cinco, comer (20 casillas), llegar a
+// la meta (10), barreras, seguros, el seis que repite y los tres seises. También por parejas.
+
+import std.boards.{advance_on, passes}
+
+/// Cada jugador tiene cuatro fichas en casa. Por turnos se tira un dado: con un cinco hay que sacar
+/// una ficha a la salida (si se puede); con lo demás, se avanza una ficha. Las fichas dan la vuelta
+/// al tablero (68 casillas), entran en su pasillo y tienen que llegar a la meta con la tirada
+/// justa. Caer en una casilla normal donde hay una ficha rival la manda a su casa y da 20 casillas
+/// para mover otra ficha; llegar a la meta da 10. Dos fichas del mismo color en una casilla son una
+/// barrera que nadie puede pasar, y con un seis hay que abrirla. En los seguros conviven fichas de
+/// colores distintos. Un seis da otra tirada y, si no queda ninguna ficha en casa, cuenta siete;
+/// con tres seises seguidos, la última ficha que se movió vuelve a casa. Gana quien mete antes sus
+/// cuatro fichas (por parejas, la pareja que mete las ocho).
+game Parchis {
+  meta {
+    title: { es: "Parchís", en: "Parcheesi (Spanish Parchís)" }
+    version: "1.0.0"
+    description: {
+      es: "El clásico de dados y fichas: azar, capturas y barreras. De 2 a 4 jugadores, también por parejas.",
+      en: "The classic dice and pawns race: chance, captures and blockades. 2 to 4 players, also in pairs."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["dice", "board", "race", "classic"]
+  }
+  players 2..4
+
+  params {
+    /// Por parejas (con cuatro jugadores: 0 y 2 contra 1 y 3)
+    pairs: Bool = false
+    assert not pairs or num_players == 4, "por parejas se juega con cuatro"
+  }
+
+  state {
+    /// Dónde está cada ficha: -1 en casa, del 0 (la salida) al 63 dando la vuelta, del 64 al 70
+    /// en el pasillo y 71 en la meta
+    pos: per_player List<Int> = [-1, -1, -1, -1]
+    turn: Seat = 0
+    die: Int = 1
+    /// Seises seguidos en el turno
+    sixes: Int = 0
+    /// La última ficha que movió el jugador en su turno (por si saca tres seises)
+    last_pawn: Int = -1
+    /// Casillas que hay que contar por haber comido (20) o llegado a la meta (10)
+    bonus: Int = 0
+    winner: Seat = 0
+  }
+
+  // --- El tablero --------------------------------------------------------------------------------
+
+  /// El color de cada asiento (0 amarillo, 1 azul, 2 rojo, 3 verde): con dos jugadores, colores
+  /// opuestos.
+  fn color(s: Seat) -> Int = [0, 2][s] if num_players == 2 else s
+  /// La casilla de salida de cada color: 5, 22, 39 y 56.
+  fn exit_square(s: Seat) -> Int = 5 + 17 * color(s)
+  /// La casilla del anillo (1 a 68) de la posición `i` (0 a 63) del recorrido del asiento `s`.
+  fn ring(s: Seat, i: Int) -> Int = (exit_square(s) - 1 + i) % 68 + 1
+  /// Los seguros: las salidas y las casillas 7 y 12 después de cada una (5, 12, 17, 22…).
+  fn safe(q: Int) -> Bool = (q - 5) % 17 in [0, 7, 12]
+
+  /// Dónde está una ficha en la posición `i` del asiento `s`, comparable entre jugadores: la
+  /// casilla del anillo (1 a 68), una casilla del pasillo de su color (1000 + …), -1 casa, -2 meta.
+  fn place(s: Seat, i: Int) -> Int = case {
+    i < 0 => -1
+    i <= 63 => ring(s, i)
+    i <= 70 => 1000 + 10 * color(s) + i - 64
+    else => -2
+  }
+
+  /// Cada ficha en juego: (asiento, número de ficha, dónde está).
+  fn pawns() -> List<(Seat, Int, Int)> =
+    [(t, k, place(t, pos[t][k])) for t in seats for k in 0..3 if pos[t][k] >= 0 and pos[t][k] < 71]
+
+  fn at_place(q: Int) -> List<(Seat, Int, Int)> = [w for w in pawns() if w[2] == q]
+
+  /// ¿Hay una barrera en `q`: dos fichas del mismo color?
+  fn barrier(q: Int) -> Bool = len(at_place(q)) == 2 and at_place(q)[0][0] == at_place(q)[1][0]
+
+  fn partner(s: Seat) -> Seat = (s + 2) % 4
+  fn friend(a: Seat, b: Seat) -> Bool = a == b or pairs and b == partner(a)
+  fn finished(s: Seat) -> Bool = all(k in 0..3 : pos[s][k] == 71)
+
+  /// De quién son las fichas que mueve `s`: las suyas o, por parejas y si ya ha metido las suyas,
+  /// las de su compañero.
+  fn mover(s: Seat) -> Seat = partner(s) if pairs and finished(s) else s
+
+  // --- Las jugadas -------------------------------------------------------------------------------
+
+  /// Lo que se cuenta con el dado: un seis vale siete si no queda ninguna ficha en casa.
+  fn steps() -> Int = 7 if die == 6 and all(k in 0..3 : pos[mover(turn)][k] >= 0) else die
+
+  /// ¿Puede la ficha `k` del asiento `s` avanzar `n` casillas? Sale de casa con un cinco (si en la
+  /// salida no hay dos fichas suyas) y no puede pasar por una barrera ni caer donde ya hay dos
+  /// fichas, ni pasarse de la meta.
+  fn can_move(s: Seat, k: Int, n: Int, from_die: Bool) -> Bool {
+    let i = pos[s][k]
+    case {
+      i == 71 => false
+      i < 0 => from_die and n == 5 and count(w in at_place(ring(s, 0)) : w[0] == s) < 2
+      is_none(advance_on(i, n, 72)) => false
+      else => not any(j in passes(i, n) : j < 71 and barrier(place(s, j))) and
+        (i + n == 71 or len(at_place(place(s, i + n))) < 2)
+    }
+  }
+
+  /// Las fichas que se pueden mover con la tirada, con las obligaciones: con un cinco hay que sacar
+  /// si se puede, y con un seis hay que abrir una barrera propia si se puede.
+  fn movable() -> List<Int> {
+    let s = mover(turn)
+    let n = steps()
+    let all_moves = [k for k in 0..3 if can_move(s, k, n, true)]
+    let exits = [k for k in all_moves if pos[s][k] < 0]
+    let openers = [
+      k
+      for k in all_moves
+      if pos[s][k] >= 0 and pos[s][k] < 71 and barrier(place(s, pos[s][k]))
+    ]
+    case {
+      die == 5 and len(exits) > 0 => exits
+      die == 6 and len(openers) > 0 => openers
+      else => all_moves
+    }
+  }
+
+  fn bonus_movable() -> List<Int> = [k for k in 0..3 if can_move(mover(turn), k, bonus, false)]
+
+  /// La ficha que se come al caer la ficha `k` de `s` (o al salir): la de un rival que esté sola en
+  /// una casilla normal, o, al salir, una rival si en la salida ya había dos fichas.
+  fn victim(s: Seat, k: Int, leaving: Bool) -> (Seat, Int, Int)? {
+    let q = place(s, pos[s][k])
+    let others = [w for w in at_place(q) if not (w[0] == s and w[1] == k)]
+    let rivals = [w for w in others if not friend(s, w[0])]
+    case {
+      pos[s][k] > 63 => none
+      leaving => rivals[0] if len(others) == 2 and len(rivals) > 0 else none
+      len(others) == 1 and len(rivals) == 1 and not safe(q) => rivals[0]
+      else => none
+    }
+  }
+
+  fn team_finished(s: Seat) -> Bool = finished(s) and (not pairs or finished(partner(s)))
+
+  flow {
+    start -> Roll
+
+    chance Roll {
+      die = roll(6)
+      sixes = sixes + 1 if die == 6 else 0
+      -> Punish when sixes == 3
+      -> Move when len(movable()) > 0
+      -> After
+    }
+
+    /// Mover una ficha lo que marca el dado.
+    decision Move {
+      actor: turn
+      action advance(k in movable()) {
+        let s = mover(actor)
+        let leaving = pos[s][k] < 0
+        pos[s][k] = 0 if leaving else pos[s][k] + steps()
+        last_pawn = k
+        let v = victim(s, k, leaving)
+        if not is_none(v) {
+          pos[unwrap(v)[0]][unwrap(v)[1]] = -1
+          bonus = 20
+        }
+        if pos[s][k] == 71 {
+          bonus = 10
+        }
+      }
+      -> Won when team_finished(turn) { winner = turn }
+      -> Bonus when bonus > 0 and len(bonus_movable()) > 0
+      -> After { bonus = 0 }
+    }
+
+    /// Contar las casillas del premio con una ficha (si ninguna puede, se pierden).
+    decision Bonus {
+      actor: turn
+      action count_bonus(k in bonus_movable()) {
+        let s = mover(actor)
+        pos[s][k] = pos[s][k] + bonus
+        bonus = 0
+        let v = victim(s, k, false)
+        if not is_none(v) {
+          pos[unwrap(v)[0]][unwrap(v)[1]] = -1
+          bonus = 20
+        }
+        if pos[s][k] == 71 {
+          bonus = 10
+        }
+      }
+      -> Won when team_finished(turn) { winner = turn }
+      -> Bonus when bonus > 0 and len(bonus_movable()) > 0
+      -> After { bonus = 0 }
+    }
+
+    /// Tres seises seguidos: la última ficha que se movió vuelve a casa (salvo si ya está en el
+    /// pasillo o en la meta) y pasa el turno.
+    auto Punish {
+      let s = mover(turn)
+      if last_pawn >= 0 and pos[s][last_pawn] <= 63 {
+        pos[s][last_pawn] = -1
+      }
+      -> Roll {
+        turn = next(turn)
+        sixes = 0
+        last_pawn = -1
+      }
+    }
+
+    /// Con un seis se vuelve a tirar; si no, le toca al siguiente.
+    auto After {
+      -> Roll when die == 6
+      -> Roll {
+        turn = next(turn)
+        sixes = 0
+        last_pawn = -1
+      }
+    }
+
+    terminal Won {
+      payoff: (
+        [1 if s == winner or s == partner(winner) else -1 for s in seats] if pairs else [
+          num_players - 1 if s == winner else -1
+          for s in seats
+        ]
+      )
+    }
+  }
+
+  ui {
+    pos: place(seats), label({ es: "Fichas", en: "Pawns" })
+    turn: hidden
+    die: dice, place(top), label({ es: "Dado", en: "Die" })
+    sixes: counter, label({ es: "Seises seguidos", en: "Sixes in a row" })
+    last_pawn: hidden
+    bonus: counter, place(top), label({ es: "Premio", en: "Bonus" })
+    winner: hidden
+    action advance: label({ es: "Mover", en: "Move" })
+    action advance.k: label({ es: "Ficha", en: "Pawn" })
+    action count_bonus: label({ es: "Contar el premio", en: "Count the bonus" })
+    action count_bonus.k: label({ es: "Ficha", en: "Pawn" })
+    node Roll: label({ es: "Tirada", en: "Roll" })
+    node Move: label({ es: "Mover ficha", en: "Move a pawn" })
+    node Bonus: label({ es: "Premio", en: "Bonus" })
+    node Punish: label({ es: "Tres seises", en: "Three sixes" })
+    node After: label({ es: "Fin de la jugada", en: "End of the move" })
+    node Won: label({ es: "Final", en: "End" })
+    pairs: label({ es: "Por parejas", en: "In pairs" })
+    seats: colors("#fdd835", "#1e88e5", "#e53935", "#43a047"), names(
+      { es: "Amarillo", en: "Yellow" },
+      { es: "Azul", en: "Blue" },
+      { es: "Rojo", en: "Red" },
+      { es: "Verde", en: "Green" }
+    )
+  }
+
+  test "las salidas, los seguros y los pasillos" {
+    players 4
+    expect exit_square(0) == 5 and exit_square(1) == 22 and exit_square(3) == 56
+    expect ring(0, 0) == 5 and ring(0, 63) == 68 and ring(1, 63) == 17 and ring(3, 12) == 68
+    expect safe(5) and safe(12) and safe(17) and safe(68) and safe(63) and not safe(6)
+    expect place(0, 64) == 1000 and place(2, 70) == 1026 and place(1, 71) == -2
+  }
+
+  test "con un cinco hay que sacar ficha" {
+    players 4
+    chance where die == 5
+    expect at(Move)
+    expect illegal advance(4)
+    play advance(0)
+    expect pos[0] == [0, -1, -1, -1]
+  }
+
+  test "sin poder mover, pasa el turno" {
+    players 4
+    chance where die == 3
+    chance where die == 5
+    expect turn == 1 and at(Move)
+  }
+
+  // En los siguientes, el amarillo saca un cinco y después se prepara la posición y el dado.
+
+  test "comer da 20 casillas" {
+    players 4
+    chance where die == 5
+    set pos[0] = [0, -1, -1, -1]
+    // La ficha azul está en la casilla 22 + 53 - 68 = 7; la amarilla, en la 5.
+    set pos[1] = [53, -1, -1, -1]
+    set die = 2
+    play advance(0)
+    expect pos[1] == [-1, -1, -1, -1] and bonus == 20 and at(Bonus)
+    play count_bonus(0)
+    expect pos[0] == [22, -1, -1, -1]
+  }
+
+  test "en un seguro no se come" {
+    players 4
+    chance where die == 5
+    set pos[0] = [1, -1, -1, -1]
+    // La azul está en la 12, que es un seguro.
+    set pos[1] = [58, -1, -1, -1]
+    set die = 6
+    play advance(0)
+    expect pos[0] == [7, -1, -1, -1] and pos[1] == [58, -1, -1, -1] and bonus == 0
+  }
+
+  test "una barrera no se puede pasar" {
+    players 4
+    chance where die == 5
+    set pos[1] = [53, 53, -1, -1]
+    set pos[0] = [0, 1, -1, 30]
+    set die = 4
+    expect illegal advance(0)
+    expect illegal advance(1)
+    expect legal advance(3)
+  }
+
+  test "con un seis hay que abrir la barrera propia" {
+    players 4
+    chance where die == 5
+    set pos[0] = [10, 10, 20, -1]
+    set die = 6
+    expect legal advance(0)
+    expect legal advance(1)
+    expect illegal advance(2)
+  }
+
+  test "a la meta con la tirada justa" {
+    players 4
+    chance where die == 5
+    set pos[0] = [68, 30, -1, -1]
+    set die = 4
+    expect illegal advance(0)
+    expect legal advance(1)
+    expect can_move(0, 0, 3, true)
+  }
+
+  test "tres seises: la última ficha movida vuelve a casa" {
+    players 4
+    chance where die == 5
+    set pos[0] = [10, 20, 30, 40]
+    set die = 6
+    set sixes = 1
+    play advance(0)
+    chance where die == 6
+    play advance(1)
+    chance where die == 6
+    expect pos[0] == [17, -1, 30, 40]
+  }
+
+  test "gana quien mete las cuatro" {
+    players 2
+    chance where die == 5
+    set pos[0] = [71, 71, 71, 68]
+    set die = 3
+    play advance(3)
+    expect at(Won) and payoff == [1, -1]
+  }
+
+  test "con tres jugadores, quien gana se lleva dos" {
+    players 3
+    chance where die == 5
+    set pos[0] = [71, 71, 71, 70]
+    set die = 1
+    play advance(3)
+    expect at(Won) and payoff == [2, -1, -1]
+  }
+
+  test "por parejas, quien termina mueve las fichas de su compañero" {
+    players 4
+    params { pairs: true }
+    chance where die == 5
+    set pos[0] = [71, 71, 71, 71]
+    set pos[2] = [71, 71, 71, 68]
+    set die = 3
+    play advance(3)
+    expect at(Won) and payoff == [1, -1, 1, -1]
+  }
+
+  invariant all(s in seats : all(k in 0..3 : pos[s][k] >= -1 and pos[s][k] <= 71))
+
+  /// Nunca hay más de dos fichas en una casilla.
+  invariant all(w in pawns() : len(at_place(w[2])) <= 2)
+}
