@@ -227,5 +227,8 @@ def test_the_simulator(session: Session, workspace: Path) -> None:
     assert any(k.startswith("node/Roll/") for k in stats["coverage"]["transitions"])
     size = s.request("gamehub/sim.estimate", {"uri": uri, "samples": 20})
     assert size["log10States"] > 10
+    report = s.request("gamehub/analyze", {"uri": uri, "analyses": ["feasibility", "solve"]})
+    assert report["feasibility"]["recommendations"][-1]["code"] == "approximate"
+    assert "información imperfecta" in report["errors"]["solve"]
     node = s.request("gamehub/sim.tree", {"session": sid, "index": 1, "path": [0]})
     assert node["path"] == [0] and node["children"]

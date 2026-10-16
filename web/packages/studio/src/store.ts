@@ -28,11 +28,13 @@ import type {
   Selection,
   SimSnapshot,
   SizeEstimate,
+  TheoryOptions,
+  TheoryReport,
   WorkspaceInfo,
 } from "./types";
 
 export type View = "split" | "diagram" | "text";
-export type Panel = "problems" | "sim" | "playouts" | "tree" | "diff";
+export type Panel = "problems" | "sim" | "playouts" | "tree" | "analysis" | "diff";
 export type Policy = "human" | "random" | "first";
 
 export interface SimState {
@@ -78,6 +80,10 @@ export interface StudioState {
   playouts: PlayoutStats | null;
   showCoverage: boolean;
   estimate: SizeEstimate | null;
+  /** Teoría de juegos: el informe acumulado de lo analizado sobre el archivo abierto. */
+  theory: TheoryReport | null;
+  /** Los análisis que se están calculando. */
+  theoryRunning: string[];
   diff: DiffState | null;
   relayout: number;
 }
@@ -104,9 +110,19 @@ const INITIAL: StudioState = {
   playouts: null,
   showCoverage: false,
   estimate: null,
+  theory: null,
+  theoryRunning: [],
   diff: null,
   relayout: 0,
 };
+
+/** Junta un informe nuevo con el anterior del mismo juego (lo nuevo manda). */
+export function mergeReports(previous: TheoryReport | null, next: TheoryReport): TheoryReport {
+  if (!previous || previous.game.id !== next.game.id) return next;
+  const errors = { ...previous.errors };
+  for (const key of Object.keys(next)) delete errors[key];
+  return { ...previous, ...next, errors: { ...errors, ...next.errors } };
+}
 
 function failureOf(error: unknown): EditFailure {
   if (error instanceof RequestError) {
@@ -179,6 +195,8 @@ export class Studio {
       sim: null,
       playouts: null,
       estimate: null,
+      theory: null,
+      theoryRunning: [],
       diff: null,
     });
     try {
@@ -541,6 +559,35 @@ export class Studio {
       this.set({ estimate, busy: false });
     } catch (error) {
       this.set({ busy: false, notice: { kind: "error", text: failureOf(error).message } });
+    }
+  }
+
+  // --- teoría de juegos ---------------------------------------------------------------------------
+
+  /**
+   * Pide al servidor los análisis de teoría de juegos (`gamehub/analyze`) del texto actual. Los
+   * resultados se acumulan con los anteriores del mismo juego: lo recién calculado sustituye a lo
+   * que hubiera de ese análisis.
+   */
+  async runTheory(analyses: string[], options: TheoryOptions = {}): Promise<void> {
+    const file = this.state.file;
+    if (!file) return;
+    this.set({ theoryRunning: analyses, panel: "analysis" });
+    try {
+      const report = await this.connection.request<TheoryReport>("gamehub/analyze", {
+        uri: file.uri,
+        analyses,
+        options,
+        players: this.state.sim?.players,
+        params: this.state.sim?.params,
+      });
+      if (this.state.file?.uri !== file.uri) return;
+      this.set({ theory: mergeReports(this.state.theory, report), theoryRunning: [] });
+    } catch (error) {
+      this.set({
+        theoryRunning: [],
+        notice: { kind: "error", text: failureOf(error).message },
+      });
     }
   }
 

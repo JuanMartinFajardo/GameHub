@@ -21,6 +21,7 @@ import { Palette } from "./diagram/Palette";
 import { TextEditor } from "./editor/TextEditor";
 import { Inspector } from "./inspector/Inspector";
 import { messages } from "./messages";
+import { AnalysisPanel } from "./panels/analysis";
 import { DiffPanel, PlayoutsPanel, ProblemsPanel, TreePanel } from "./panels/panels";
 import { Simulator } from "./sim/Simulator";
 import { type Panel, Studio, type View } from "./store";
@@ -433,6 +434,7 @@ function Workbench() {
               ["sim", t("sim")],
               ["playouts", t("playouts")],
               ["tree", t("tree")],
+              ["analysis", t("analysis")],
               ["diff", t("diff")],
             ] as [Panel, string][]
           ).map(([key, label]) => (
@@ -479,6 +481,7 @@ function Workbench() {
             {panel === "sim" && game ? <Simulator game={game} /> : null}
             {panel === "playouts" && game ? <PlayoutsPanel game={game} /> : null}
             {panel === "tree" ? <TreePanel /> : null}
+            {panel === "analysis" ? <AnalysisPanel /> : null}
             {panel === "diff" && game ? <DiffPanel game={game} /> : null}
           </div>
         ) : null}

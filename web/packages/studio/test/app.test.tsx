@@ -89,5 +89,15 @@ describe.skipIf(!serverAvailable)("la app del Studio", () => {
     // Viaje en el tiempo: atrás.
     await user.click(screen.getByTitle("Atrás"));
     await waitFor(() => expect(studio.getState().sim?.snapshot.index).toBe(0));
-  });
+
+    // Análisis: el asesor recomienda resolverlo; resolverlo da tablas.
+    await user.click(screen.getByRole("tab", { name: "Análisis" }));
+    await user.click(screen.getByRole("button", { name: "Viabilidad" }));
+    const advice = await screen.findByRole("region", { name: "Viabilidad" }, { timeout: 60_000 });
+    expect(within(advice).getByText(/alfa-beta/)).toBeTruthy();
+    await user.click(within(advice).getByRole("button", { name: "Calcular" }));
+    const solved = await screen.findByRole("region", { name: "Resolver" }, { timeout: 60_000 });
+    expect(within(solved).getByText("Valor: (0, 0)")).toBeTruthy();
+    expect(within(solved).getByText(/5\.?478 posiciones/)).toBeTruthy();
+  }, 180_000);
 });
