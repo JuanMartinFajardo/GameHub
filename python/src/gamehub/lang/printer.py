@@ -378,14 +378,22 @@ class Printer:
             ") -> ",
             self.type(item.returns),
         )
+        native: list[Doc | str] = []
+        if item.native is not None:
+            native = [concat("@native(", text(quote(item.native)), ")"), HARDLINE]
         body = item.body
         if isinstance(body, ast.LetBlock):
             lines = [concat("let ", n, " = ", self.expr(v)) for n, v in body.lets]
             lines.append(self.expr(body.result))
             return concat(
-                header, " {", nest(INDENT, HARDLINE, join(HARDLINE, lines)), HARDLINE, "}"
+                *native,
+                header,
+                " {",
+                nest(INDENT, HARDLINE, join(HARDLINE, lines)),
+                HARDLINE,
+                "}",
             )
-        return self.rhs(concat(header, " ="), body)
+        return concat(*native, self.rhs(concat(header, " ="), body))
 
     def i_InvariantDecl(self, item: ast.InvariantDecl) -> Doc:
         return group("invariant ", self.expr(item.expr))

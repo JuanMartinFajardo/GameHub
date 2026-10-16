@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: Apache-2.0
+// Apuestas: el bote, los botes secundarios y el reparto. Funciona con lo que ha puesto cada
+// jugador en la mano (`put`, una lista por asiento) y quién sigue en ella (`live`: los que no se han
+// retirado). Vale para cualquier juego de apuestas con fichas enteras (póquer, mus…).
+//
+//   import std.betting.{pots, winnings}
+
+/// Los niveles de los botes: lo que ha puesto cada jugador que sigue en la mano, sin repetir y de
+/// menor a mayor. Cuando alguien va «all-in» con menos, su nivel cierra un bote.
+fn pot_levels(put: List<Int>, live: List<Bool>) -> List<Int> =
+  sort_by(v in distinct([put[i] for i in 0..<len(put) if live[i] and put[i] > 0]) : v)
+
+/// Los botes, del principal a los secundarios: cuánto hay en cada uno y quién puede ganarlo (los
+/// que siguen en la mano y han puesto al menos su nivel). Lo de los que se retiraron cuenta en los
+/// botes hasta donde llegó lo que pusieron. Un bote con un solo aspirante es una apuesta que nadie
+/// igualó: vuelve a quien la hizo.
+fn pots(put: List<Int>, live: List<Bool>) -> List<(Int, List<Int>)> {
+  let levels = pot_levels(put, live)
+  [
+    (
+      sum(i in 0..<len(put) : min(put[i], levels[j]) - min(put[i], 0 if j == 0 else levels[j - 1])),
+      [i for i in 0..<len(put) if live[i] and put[i] >= levels[j]]
+    )
+    for j in 0..<len(levels)
+  ]
+}
+
+/// Lo que se lleva el jugador `i` de un bote: si está entre los que tienen la mano más fuerte
+/// (`strength`, más es mejor), su parte; las fichas que no se pueden repartir a partes iguales van,
+/// de una en una, a los ganadores en el orden de `order` (en el póquer, desde la izquierda del
+/// botón).
+fn pot_share(pot: (Int, List<Int>), strength: List<Int>, order: List<Int>, i: Int) -> Int {
+  let best = max(j in pot[1] : strength[j])
+  let winners = [j for j in order if j in pot[1] and strength[j] == best]
+  let part = pot[0] div len(winners)
+  let odd = pot[0] - part * len(winners)
+  0 if i not in winners else part + (1 if i in winners[0:odd] else 0)
+}
+
+/// Lo que se lleva cada jugador al final de la mano, sumando todos los botes.
+fn winnings(put: List<Int>, live: List<Bool>, strength: List<Int>, order: List<Int>) -> List<Int> =
+  [sum(p in pots(put, live) : pot_share(p, strength, order, i)) for i in 0..<len(put)]
+
+/// Lo que falta para igualar la apuesta más alta (`bets`: lo puesto en la ronda por cada uno),
+/// sin pasar de lo que le queda (`stack`).
+fn to_call(bets: List<Int>, i: Int, stack: Int) -> Int = min(max(bets) - bets[i], stack)

@@ -271,7 +271,7 @@ class Parser:
 
     def top_item(self) -> ast.Item:
         start = self.pos
-        doc = self.annotations_doc_only()
+        doc, native = self.decl_annotations()
         if self.at("import"):
             return self.finish(self.import_decl(), start)
         if self.at("game"):
@@ -285,7 +285,32 @@ class Parser:
         else:
             raise self.fail("se esperaba 'import', 'game', 'enum', 'struct' o 'fn'")
         item.doc = doc or item.doc
+        self.attach_native(item, native)
         return self.finish(item, start)
+
+    def decl_annotations(self) -> tuple[ast.Text | None, tuple[ast.Text, Span] | None]:
+        """`@doc(texto)` y, antes de una función, `@native("id")`."""
+        doc = None
+        native = None
+        for name, arg, span in self.annotations():
+            if name == "doc" and isinstance(arg, ast.Text):
+                doc = arg
+            elif name == "native" and isinstance(arg, ast.Text):
+                native = (arg, span)
+            else:
+                self.diagnostics.error("E111", f"anotación no permitida aquí: @{name}", span)
+        return doc, native
+
+    def attach_native(self, item: ast.Item, native: tuple[ast.Text, Span] | None) -> None:
+        if native is None:
+            return
+        arg, span = native
+        if not isinstance(item, ast.FnDecl):
+            self.diagnostics.error("E111", "@native solo vale antes de una función", span)
+        elif not isinstance(arg.value, str):
+            self.diagnostics.error("E111", "el nombre de un plugin nativo es un texto simple", span)
+        else:
+            item.native = arg.value
 
     def annotations_doc_only(self) -> ast.Text | None:
         """`@doc(texto)` antes de una declaración que no admite otras anotaciones."""
@@ -304,7 +329,7 @@ class Parser:
             name = tok.value
             self.expect("(", "'(' tras la anotación")
             arg: ast.Text | ast.Visibility
-            if name == "doc":
+            if name in ("doc", "native"):
                 arg = self.text()
             elif name in ("visible", "size_visible"):
                 arg = self.visibility()
@@ -312,7 +337,7 @@ class Parser:
                 raise self.fail(
                     f"anotación desconocida: @{name}",
                     tok.span,
-                    help="se admiten @visible, @size_visible y @doc",
+                    help="se admiten @visible, @size_visible, @doc y @native",
                 )
             self.expect(")", "')'")
             result.append((name, arg, tok.span.to(self.prev_span())))
@@ -438,9 +463,10 @@ class Parser:
         start = self.pos
         kind = self.peek().kind
         if kind == "annotation":
-            doc = self.annotations_doc_only()
+            doc, native = self.decl_annotations()
             item = self.game_item_body()
             item.doc = doc or item.doc
+            self.attach_native(item, native)
             return self.finish(item, start)
         return self.finish(self.game_item_body(), start)
 

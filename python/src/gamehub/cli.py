@@ -72,6 +72,23 @@ def _parser() -> argparse.ArgumentParser:
     _match_options(fuzz)
     fuzz.set_defaults(handler=_fuzz)
 
+    natives = commands.add_parser("natives", help="plugins nativos (WebAssembly) de la stdlib")
+    natives_commands = natives.add_subparsers(dest="natives_command", required=True)
+    natives_commands.add_parser("list", help="funciones nativas y su plugin").set_defaults(
+        handler=_natives_list
+    )
+    natives_build = natives_commands.add_parser(
+        "build", help="compila los .wat de stdlib/std/native a .wasm"
+    )
+    _check_or_write(natives_build)
+    natives_build.set_defaults(handler=_natives_build)
+    natives_check = natives_commands.add_parser(
+        "check", help="compara cada plugin con su implementación de referencia"
+    )
+    natives_check.add_argument("--trials", type=int, default=2000)
+    natives_check.add_argument("--seed", type=int, default=0)
+    natives_check.set_defaults(handler=_natives_check)
+
     perft = commands.add_parser(
         "perft", help="cuenta las secuencias de jugadas legales hasta una profundidad"
     )
@@ -739,6 +756,51 @@ def _save_failure(game: Any, failures: Path | None) -> Any:
     if failures is None:
         return None
     return lambda seed, state, exc: save_failure(game, failures, seed, state, exc)
+
+
+def _natives_list(args: argparse.Namespace) -> int:
+    from gamehub.engine import natives
+
+    if not natives.wasm_available():
+        print(
+            "aviso: wasmtime no está instalado (pip install 'gamehub[wasm]'): "
+            "se usará la implementación de referencia"
+        )
+    for native_id, path in natives.stdlib_natives().items():
+        plugin = natives.find_module(native_id)
+        where = plugin.name if plugin is not None else "sin plugin (solo la referencia)"
+        print(f"{native_id}  ({path.name})  →  {where}")
+    return 0
+
+
+def _natives_build(args: argparse.Namespace) -> int:
+    from gamehub.engine import natives
+
+    stale = natives.build(write=args.write)
+    if args.write:
+        print(f"escritos: {', '.join(stale)}" if stale else "los .wasm ya estaban al día")
+        return 0
+    if stale:
+        print(f"✗ desactualizados: {', '.join(stale)} (gamehub natives build --write)")
+        return 1
+    print("✓ los .wasm están al día")
+    return 0
+
+
+def _natives_check(args: argparse.Namespace) -> int:
+    from gamehub.engine import natives
+
+    failed = 0
+    for native_id in natives.stdlib_natives():
+        problems = natives.compare_with_reference(native_id, args.trials, args.seed)
+        if problems:
+            failed += 1
+            print(f"✗ {native_id}: {len(problems)} diferencias")
+            for problem in problems:
+                print(f"    {problem}")
+        else:
+            print(f"✓ {native_id}: {args.trials} entradas al azar, iguales que la referencia")
+    return 1 if failed else 0
 
 
 def _perft(args: argparse.Namespace) -> int:

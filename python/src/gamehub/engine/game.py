@@ -57,6 +57,10 @@ class FunctionDef:
     #: Si se guarda su resultado: "static" (para siempre), "state" (mientras no cambie el
     #: estado) o None (ver `_memo_kinds`).
     memo: str | None = None
+    #: El plugin nativo que la implementa (`body` lo usa si está disponible) y el cuerpo de
+    #: referencia, que vale siempre.
+    native: str | None = None
+    reference: Compiled | None = None
 
 
 @dataclass(frozen=True)
@@ -115,9 +119,10 @@ class NodeDef:
 
 
 class GameDef:
-    """La IR compilada: tipos, variables, funciones y nodos listos para ejecutar."""
+    """La IR compilada: tipos, variables, funciones y nodos listos para ejecutar. Con
+    `natives=False`, las funciones nativas usan siempre su implementación de referencia."""
 
-    def __init__(self, ir: dict[str, Any]) -> None:
+    def __init__(self, ir: dict[str, Any], *, natives: bool = True) -> None:
         self.ir = ir
         self.rules_hash = rules_hash(ir)
         self.min_players = ir["players"]["min"]
@@ -130,12 +135,7 @@ class GameDef:
         #: Resultados de las funciones "static": valen para todas las partidas.
         self.static_memo: dict[Any, Any] = {}
         self.functions = {
-            f["name"]: FunctionDef(
-                f["name"],
-                tuple(p[0] for p in f["params"]),
-                self.exprs.compile(f["body"]),
-                memo=memo_kinds[f["name"]],
-            )
+            f["name"]: self._function(f, memo_kinds[f["name"]], natives)
             for f in ir.get("functions", [])
         }
         self.vars = [
@@ -165,6 +165,26 @@ class GameDef:
         self.setup_is_random = _has_chance(flow.get("setup", []))
         self.nodes: dict[str, NodeDef] = {}
         self._compile_nodes(flow["nodes"], ())
+
+    def _function(self, f: dict[str, Any], memo: str | None, natives: bool) -> FunctionDef:
+        params = tuple(p[0] for p in f["params"])
+        reference = self.exprs.compile(f["body"])
+        native_id = f.get("native")
+        body = reference
+        if native_id is not None and natives:
+            from gamehub.engine import natives as plugins
+
+            impl = plugins.resolve(
+                native_id,
+                [self.types.parse(t) for _, t in f["params"]],
+                self.types.parse(f["returns"]),
+                self.types,
+            )
+            if impl is not None:
+                body = _native_body(impl, params, reference)
+        return FunctionDef(
+            f["name"], params, body, memo=memo, native=native_id, reference=reference
+        )
 
     # --- nodos ----------------------------------------------------------------------------------
 
@@ -325,15 +345,16 @@ class GameDef:
 
 
 class Game:
-    """Un juego cargado desde su IR. Crea partidas con `new_state`."""
+    """Un juego cargado desde su IR. Crea partidas con `new_state`. Con `natives=False`, sin
+    plugins nativos (solo las implementaciones de referencia)."""
 
-    def __init__(self, ir: dict[str, Any]) -> None:
+    def __init__(self, ir: dict[str, Any], *, natives: bool = True) -> None:
         problems = check(ir)
         if problems:
             listing = "\n  ".join(str(p) for p in problems[:20])
             raise RuleError(f"la IR no es válida:\n  {listing}")
         self.ir = ir
-        self.defn = GameDef(ir)
+        self.defn = GameDef(ir, natives=natives)
 
     @property
     def id(self) -> str:
@@ -386,6 +407,20 @@ def _text(value: Any) -> str | None:
     if value is None or isinstance(value, str):
         return value
     return value.get("es") or next(iter(value.values()), None)
+
+
+def _native_body(
+    impl: Callable[..., Any], params: tuple[str, ...], reference: Compiled
+) -> Compiled:
+    def body(env: Env) -> Any:
+        args = env.args
+        try:
+            return impl(*(args[p] for p in params))
+        except OverflowError:
+            # Un número que no cabe en una palabra de 32 bits: lo calcula la referencia.
+            return reference(env)
+
+    return body
 
 
 #: Operadores que hacen que una expresión dependa de algo más que el estado, las opciones y sus

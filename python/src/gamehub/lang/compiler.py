@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from gamehub.analysis.lint import lint
 from gamehub.ir import check as check_ir
@@ -38,6 +38,8 @@ class CompileResult:
     #: Modelo (declaraciones reunidas, antes de comprobar) de cada juego con cuerpo del archivo,
     #: también si la comprobación falló; las variantes ya mezcladas con su base.
     models: dict[str, GameModel] = field(default_factory=dict)
+    #: En un archivo sin juegos (un módulo), la IR de sus tipos y funciones.
+    module: dict[str, Any] | None = None
 
     @property
     def ok(self) -> bool:
@@ -83,7 +85,7 @@ def compile_source(
             result.games[item.name] = compiled
     result.models = {name: model for name, model in games.models.items() if name in games.local}
     if not tree.games:
-        check_module(tree, diagnostics, imported, index)
+        result.module = check_module(tree, diagnostics, imported, index)
     if diagnostics.has_errors:
         return result
     for name, compiled in result.games.items():
@@ -403,14 +405,15 @@ def check_module(
     diagnostics: Diagnostics,
     imported: list[Imported],
     index: SymbolIndex | None = None,
-) -> None:
-    """Un archivo sin juegos es un módulo: se comprueban sus tipos y funciones."""
+) -> dict[str, Any] | None:
+    """Un archivo sin juegos es un módulo: se comprueban sus tipos y funciones (y se devuelve su
+    IR)."""
     if not any(isinstance(i, ast.EnumDecl | ast.StructDecl | ast.FnDecl) for i in tree.items):
-        return
+        return None
     decl = ast.GameDecl(name="<módulo>")
     model = GameModel(name="<módulo>", decl=decl)
     model.externals = externals(tree, [], diagnostics, imported)
-    Checker(model, diagnostics, index).check_module()
+    return Checker(model, diagnostics, index).check_module()
 
 
 def add_item(model: GameModel, item: ast.Item, diagnostics: Diagnostics) -> None:

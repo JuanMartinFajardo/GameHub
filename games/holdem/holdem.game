@@ -1,0 +1,381 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Texas Hold'em sin límite: dos cartas propias, cinco comunes y cuatro rondas de apuestas.
+
+import std.betting.{winnings}
+import std.cards.{Card, french52}
+import std.poker.{HandRank, hand_rank, hand_value}
+
+/// Cada jugador recibe dos cartas ocultas; tras las ciegas hay una ronda de apuestas, y después
+/// se descubren tres cartas comunes (el flop), una (el turn) y otra (el river), cada vez con su
+/// ronda. Se puede apostar cualquier cantidad de lo que se tiene: subir es poner al menos lo que
+/// subió el anterior. Si quedan dos o más jugadores al final, gana el bote la mejor mano de cinco
+/// cartas entre las dos propias y las cinco comunes; quien va «all-in» solo opta a lo que pudo
+/// igualar (botes secundarios). Se juegan manos hasta que solo un jugador tiene fichas o se llega
+/// al número de manos; cada uno gana o pierde lo que tiene de más o de menos que al empezar.
+game TexasHoldem {
+  meta {
+    title: { es: "Texas Hold'em", en: "Texas Hold'em" }
+    version: "1.0.0"
+    description: {
+      es: "Póquer sin límite: faroles, botes secundarios y de 2 a 10 jugadores.",
+      en: "No-limit poker: bluffing, side pots and 2 to 10 players."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["cards", "poker", "betting", "imperfect-information"]
+  }
+  players 2..10
+
+  params {
+    /// Fichas de cada jugador al empezar
+    stack: Int = 200
+    small_blind: Int = 1
+    big_blind: Int = 2
+    /// Manos que se juegan como mucho (0 = hasta que solo quede un jugador con fichas)
+    hands: Int = 0
+    assert small_blind >= 1 and big_blind >= small_blind, "las ciegas: 1 ≤ ciega pequeña ≤ grande"
+    assert stack >= big_blind, "cada jugador tiene que poder pagar la ciega grande"
+    assert hands >= 0, "hands no puede ser negativo"
+  }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<Card> = french52()
+    /// Las dos cartas de cada uno; en el enfrentamiento se enseñan las de quien sigue en la mano
+    @visible(viewer == owner or shown and not folded[owner]) @size_visible(all)
+    hole: per_player Bag<Card>
+    board: Zone<Card>
+    chips: per_player Int = stack
+    /// Lo apostado en la ronda en curso y en toda la mano
+    bet: per_player Int = 0
+    put: per_player Int = 0
+    folded: per_player Bool = false
+    /// Si ya habló en esta ronda y si aún puede subir (una subida «all-in» que no llega al mínimo
+    /// no reabre la apuesta a quien ya habló)
+    acted: per_player Bool = false
+    can_raise: per_player Bool = true
+    /// Cuánto hay que subir como mínimo (lo que subió el último)
+    min_raise: Int = big_blind
+    button: Seat = 0
+    /// Quién puso la ciega grande en esta mano
+    big: Seat = 0
+    turn: Seat = 0
+    /// 0 = antes del flop, 1 = flop, 2 = turn, 3 = river
+    street: Int = 0
+    hand_no: Int = 1
+    shown: Bool = false
+    /// Lo que ganó cada uno en la última mano
+    won: per_player Int = 0
+  }
+
+  // --- Quién juega ---------------------------------------------------------------------------------
+
+  /// El siguiente jugador con fichas después de `s`.
+  fn active_after(s: Seat) -> Seat = first([t for t in seats_from(next(s)) if chips[t] > 0])
+  fn with_chips() -> Int = count(s in seats : chips[s] > 0)
+  /// En el mano a mano, el botón pone la ciega pequeña.
+  fn small_blind_seat() -> Seat = button if with_chips() == 2 else active_after(button)
+  fn big_blind_seat() -> Seat = active_after(small_blind_seat())
+
+  fn current() -> Int = max(s in seats : bet[s])
+  fn can_act(s: Seat) -> Bool = not folded[s] and chips[s] > 0
+  fn needs_action(s: Seat) -> Bool = can_act(s) and (not acted[s] or bet[s] < current())
+  fn round_over() -> Bool = not any(s in seats : needs_action(s))
+  fn next_to_act(s: Seat) -> Seat = first([t for t in seats_from(next(s)) if needs_action(t)])
+  fn alive() -> Int = count(s in seats : not folded[s])
+  /// ¿Puede apostar alguien más? (si todos los demás van «all-in» o se retiraron, no).
+  fn others_can_act(s: Seat) -> Bool = any(t in seats : t != s and can_act(t))
+
+  /// Las cantidades «hasta» a las que se puede subir: desde la subida mínima hasta todo lo que se
+  /// tiene (con menos de la mínima, solo «all-in»).
+  fn raise_low(s: Seat) -> Int = min(current() + min_raise, chips[s] + bet[s])
+
+  // --- El enfrentamiento ------------------------------------------------------------------------------
+
+  fn strength(s: Seat) -> Int = 0 if folded[s] else hand_value(items(hole[s]) + items(board))
+  fn showdown_order() -> List<Seat> = seats_from(next(button))
+
+  flow {
+    start -> Hand
+
+    /// Una mano: reparto, ciegas, cuatro rondas de apuestas y el reparto del bote.
+    phase Hand {
+      start -> Deal
+
+      chance Deal {
+        move all from board to deck
+        for s in seats {
+          move all from hole[s] to deck
+        }
+        shuffle deck
+        folded = [chips[s] == 0 for s in seats]
+        bet = [0 for s in seats]
+        put = [0 for s in seats]
+        won = [0 for s in seats]
+        acted = [false for s in seats]
+        can_raise = [true for s in seats]
+        shown = false
+        street = 0
+        min_raise = big_blind
+        for k in 1..2 {
+          for s in seats_from(next(button)) {
+            if not folded[s] {
+              move top 1 from deck to hole[s]
+            }
+          }
+        }
+        let sb = small_blind_seat()
+        let bb = big_blind_seat()
+        big = bb
+        let a = min(chips[sb], small_blind)
+        chips[sb] -= a
+        bet[sb] += a
+        put[sb] += a
+        let b = min(chips[bb], big_blind)
+        chips[bb] -= b
+        bet[bb] += b
+        put[bb] += b
+        -> Street when round_over() { turn = big }
+        -> Betting { turn = next_to_act(big) }
+      }
+
+      decision Betting {
+        actor: turn
+        /// Retirarse: se pierde lo apostado en la mano.
+        action fold() requires bet[actor] < current() { folded[actor] = true }
+        /// Pasar, sin apuesta que igualar.
+        action check() requires bet[actor] == current() {
+          acted[actor] = true
+          can_raise[actor] = false
+        }
+        /// Igualar la apuesta más alta (o lo que se tenga).
+        action call() requires bet[actor] < current() {
+          let a = min(current() - bet[actor], chips[actor])
+          chips[actor] -= a
+          bet[actor] += a
+          put[actor] += a
+          acted[actor] = true
+          can_raise[actor] = false
+        }
+        /// Apostar, cuando nadie ha apostado en la ronda: al menos la ciega grande (o todo).
+        action bet(amount in min(big_blind, chips[actor])..chips[actor]) requires
+            current() == 0 and others_can_act(actor) {
+          chips[actor] -= amount
+          bet[actor] = amount
+          put[actor] += amount
+          if amount >= min_raise {
+            min_raise = amount
+            for s in seats {
+              if s != actor {
+                can_raise[s] = true
+              }
+            }
+          }
+          for s in seats {
+            if s != actor {
+              acted[s] = false
+            }
+          }
+          acted[actor] = true
+          can_raise[actor] = false
+        }
+        /// Subir hasta `to` (lo que se tendrá puesto en la ronda).
+        action raise(to in raise_low(actor)..(chips[actor] + bet[actor])) requires
+            current() > 0 and can_raise[actor] and to > current() and others_can_act(actor) {
+          let size = to - current()
+          let a = to - bet[actor]
+          chips[actor] -= a
+          bet[actor] = to
+          put[actor] += a
+          if size >= min_raise {
+            min_raise = size
+            for s in seats {
+              if s != actor {
+                can_raise[s] = true
+              }
+            }
+          }
+          for s in seats {
+            if s != actor {
+              acted[s] = false
+            }
+          }
+          acted[actor] = true
+          can_raise[actor] = false
+        }
+        -> FoldWin when alive() == 1
+        -> Street when round_over()
+        -> Betting { turn = next_to_act(actor) }
+      }
+
+      /// Acaba una ronda de apuestas: se descubren cartas comunes o se llega al enfrentamiento.
+      auto Street {
+        bet = [0 for s in seats]
+        acted = [false for s in seats]
+        can_raise = [true for s in seats]
+        min_raise = big_blind
+        street += 1
+        -> Showdown when street == 4
+        -> Board
+      }
+
+      auto Board {
+        move top (3 if street == 1 else 1) from deck to board
+        -> Street when round_over() or count(s in seats : can_act(s)) <= 1
+        -> Betting { turn = next_to_act(button) }
+      }
+
+      /// Todos menos uno se han retirado: se lleva el bote sin enseñar las cartas.
+      auto FoldWin {
+        let w = first([s for s in seats if not folded[s]])
+        won[w] = sum(s in seats : put[s])
+        chips[w] += won[w]
+        -> exit
+      }
+
+      auto Showdown {
+        shown = true
+        reveal [(s, items(hole[s])) for s in seats if not folded[s]] to all as {
+          es: "Cartas en el enfrentamiento",
+          en: "Showdown cards"
+        }
+        let order = showdown_order()
+        won = winnings(
+          [put[s] for s in seats],
+          [not folded[s] for s in seats],
+          [strength(s) for s in seats],
+          order
+        )
+        for s in seats {
+          chips[s] += won[s]
+        }
+        -> exit
+      }
+
+      -> End when with_chips() <= 1 or hand_no == hands
+      -> Hand {
+        hand_no += 1
+        button = active_after(button)
+      }
+    }
+
+    terminal End { payoff: [chips[s] - stack for s in seats] }
+  }
+
+  ui {
+    deck: hidden
+    hole: hand, label({ es: "Tus cartas", en: "Your cards" })
+    board: row, label({ es: "Mesa", en: "Board" })
+    chips: chips, place(seats), label({ es: "Fichas", en: "Chips" })
+    bet: chips, place(seats), label({ es: "Apuesta", en: "Bet" })
+    put: hidden
+    folded: place(seats), label({ es: "Retirado", en: "Folded" })
+    acted: hidden
+    can_raise: hidden
+    min_raise: counter, label({ es: "Subida mínima", en: "Minimum raise" })
+    button: seat, label({ es: "Botón", en: "Button" })
+    big: hidden
+    turn: hidden
+    street: counter, place(top), label({ es: "Ronda", en: "Street" })
+    hand_no: counter, place(top), label({ es: "Mano", en: "Hand" })
+    shown: hidden
+    won: place(seats), label({ es: "Ganado en la mano", en: "Won this hand" })
+    Card: card(rank: rank, suit: suit)
+    action fold: label({ es: "Retirarse", en: "Fold" })
+    action check: label({ es: "Pasar", en: "Check" })
+    action call: label({ es: "Igualar", en: "Call" })
+    action bet: label({ es: "Apostar", en: "Bet" })
+    action bet.amount: label({ es: "Cantidad", en: "Amount" })
+    action raise: label({ es: "Subir", en: "Raise" })
+    action raise.to: label({ es: "Hasta", en: "To" })
+    node Deal: label({ es: "Reparto y ciegas", en: "Deal and blinds" })
+    node Betting: label({ es: "Apuestas", en: "Betting" })
+    node Street: label({ es: "Fin de la ronda", en: "End of the round" })
+    node Board: label({ es: "Cartas comunes", en: "Board cards" })
+    node FoldWin: label({ es: "Se retiran todos", en: "Everyone folds" })
+    node Showdown: label({ es: "Enfrentamiento", en: "Showdown" })
+    node End: label({ es: "Final", en: "End" })
+    stack: label({ es: "Fichas al empezar", en: "Starting chips" })
+    small_blind: label({ es: "Ciega pequeña", en: "Small blind" })
+    big_blind: label({ es: "Ciega grande", en: "Big blind" })
+    hands: label({ es: "Manos", en: "Hands" })
+  }
+
+  test "las ciegas y quién habla primero" {
+    players 3
+    expect bet == [0, 1, 2] and chips == [200, 199, 198] and turn == 0
+    expect legal call()
+    expect legal raise(4)
+    expect illegal raise(3)
+    expect illegal check()
+  }
+
+  test "en el mano a mano, el botón pone la pequeña y habla primero antes del flop" {
+    expect bet == [1, 2] and turn == 0
+    play call()
+    expect turn == 1
+    expect legal check()
+    expect legal raise(4)
+    play check()
+    expect street == 1 and size(board) == 3 and turn == 1
+  }
+
+  test "la ciega grande puede subir cuando todos igualan" {
+    players 3
+    play 0: call(), 1: call()
+    expect turn == 2
+    expect legal raise(4)
+    expect legal check()
+  }
+
+  test "subir es al menos lo que subió el anterior" {
+    players 3
+    play 0: raise(6)
+    expect illegal raise(9)
+    expect legal raise(10)
+  }
+
+  test "quien se retira pierde lo apostado" {
+    params { hands: 1 }
+    play raise(10), fold()
+    expect at(End) and payoff == [2, -2]
+  }
+
+  test "un all-in que no llega a la subida mínima no reabre la apuesta" {
+    players 3
+    set chips[1] = 7
+    play 0: raise(6), 1: raise(8)
+    expect turn == 2
+    play 2: call()
+    expect turn == 0
+    expect illegal raise(20)
+    expect legal call()
+  }
+
+  test "botes secundarios: el all-in corto solo gana lo que pudo igualar" {
+    players 3
+    params { hands: 1 }
+    set chips = [200, 49, 200]
+    set hole[0] = [Card { suit: Clubs, rank: Two }, Card { suit: Diamonds, rank: Seven }]
+    set hole[1] = [Card { suit: Spades, rank: Ace }, Card { suit: Hearts, rank: Ace }]
+    set hole[2] = [Card { suit: Clubs, rank: King }, Card { suit: Diamonds, rank: King }]
+    play 0: raise(100), 1: call(), 2: call()
+    set deck =
+      [
+        Card { suit: Clubs, rank: Three },
+        Card { suit: Hearts, rank: Nine },
+        Card { suit: Spades, rank: Jack },
+        Card { suit: Diamonds, rank: Four },
+        Card { suit: Clubs, rank: Eight }
+      ]
+    play 2: check(), 0: check()
+    play 2: check(), 0: check()
+    play 2: check(), 0: check()
+    expect at(End) and won == [0, 150, 100] and payoff == [-100, -50, 2]
+  }
+
+  /// Las fichas no se crean ni se pierden.
+  invariant sum(s in seats : chips[s] + put[s] - won[s]) == stack * num_players
+
+  invariant all(s in seats : chips[s] >= 0 and bet[s] <= put[s]) and size(board) <= 5
+}

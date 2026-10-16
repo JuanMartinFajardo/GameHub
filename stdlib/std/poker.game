@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: Apache-2.0
+// Póquer: el valor de una mano. `hand_value(cartas)` da un número que ordena las manos como en el
+// póquer (más es mejor; dos manos iguales dan el mismo número) con la mejor combinación de cinco
+// cartas entre las que se le pasan (las siete del Texas Hold'em, las cinco del póquer cerrado…).
+//
+//   import std.poker.{hand_value, hand_rank, HandRank}
+//
+// El cuerpo de `hand_value` es la implementación de referencia; el plugin nativo
+// `std.poker.hand_value` (WebAssembly, stdlib/std/native/std.poker.wat) hace lo mismo mucho más
+// deprisa, y los tests comprueban que coinciden con cualquier lista de cartas.
+
+import std.cards.{Card, Suit, rank_value}
+
+/// Las categorías de mano, de menor a mayor.
+enum HandRank {
+  HighCard,
+  Pair,
+  TwoPair,
+  ThreeOfAKind,
+  Straight,
+  Flush,
+  FullHouse,
+  FourOfAKind,
+  StraightFlush
+}
+
+/// La categoría de un valor de `hand_value`.
+fn hand_rank(value: Int) -> HandRank = HandRank.values[value div 1048576]
+
+/// Un valor de mano: la categoría y hasta cinco cartas que deciden los empates (del 2 al 14, el
+/// as), en base 16: categoría · 16⁵ + c₁ · 16⁴ + … + c₅.
+fn encode(category: Int, cards: List<Int>) -> Int =
+  category * 1048576 +
+    sum(i in 0..4 : (cards[i] if i < len(cards) else 0) * [65536, 4096, 256, 16, 1][i])
+
+/// Los rangos (0 = el dos … 12 = el as) de mayor a menor.
+fn ranks_down() -> List<Int> = reverse(0..12)
+
+/// La carta más alta de una escalera entre los rangos presentes (indexados del 0 al 12), o 0 si no
+/// hay: cinco seguidos, o del as al cinco (la «rueda», cuya carta alta es el cinco).
+fn straight_high(present: List<Bool>) -> Int = first(
+  [h + 2 for h in reverse(4..12) if all(i in (h - 4)..h : present[i])] +
+    ([5] if present[12] and all(i in 0..3 : present[i]) else []) + [0]
+)
+
+/// Las `k` cartas más altas de rangos distintos que no están en `skip` (para los desempates).
+fn top_ranks(counts: List<Int>, skip: List<Int>, k: Int) -> List<Int> =
+  [r + 2 for r in ranks_down() if counts[r] > 0 and r not in skip][0:k]
+
+/// El mejor color o escalera de color del palo `s` (hay al menos cinco cartas de ese palo).
+fn flush_value(cards: List<Card>, s: Suit) -> Int {
+  let mine = [rank_value(c.rank) for c in cards if c.suit == s]
+  let high = straight_high([r + 2 in mine for r in 0..12])
+  encode(8, [high]) if high > 0 else encode(5, sort_by(v in mine : 0 - v)[0:5])
+}
+
+/// El valor de la mejor mano de cinco cartas entre `cards`. Con menos de cinco, la mejor que se
+/// pueda formar (una pareja, un trío…); con cartas repetidas, se cuentan tantas veces como estén.
+@native("std.poker.hand_value")
+fn hand_value(cards: List<Card>) -> Int {
+  let counts = [count(c in cards : ord(c.rank) == r) for r in 0..12]
+  let flush = max(
+    [flush_value(cards, s) for s in Suit.values if count(c in cards : c.suit == s) >= 5] + [0]
+  )
+  let quads = [r for r in ranks_down() if counts[r] >= 4]
+  let trips = [r for r in ranks_down() if counts[r] >= 3]
+  let pairs = [r for r in ranks_down() if counts[r] >= 2]
+  let straight = straight_high([counts[r] > 0 for r in 0..12])
+  let others = [r for r in pairs if len(trips) > 0 and r != trips[0]]
+  case {
+    flush >= encode(8, []) => flush
+    len(quads) > 0 => encode(7, [quads[0] + 2] + top_ranks(counts, [quads[0]], 1))
+    len(trips) > 0 and len(others) > 0 => encode(6, [trips[0] + 2, others[0] + 2])
+    flush > 0 => flush
+    straight > 0 => encode(4, [straight])
+    len(trips) > 0 => encode(3, [trips[0] + 2] + top_ranks(counts, [trips[0]], 2))
+    len(pairs) >= 2 => encode(2, [pairs[0] + 2, pairs[1] + 2] + top_ranks(counts, pairs[0:2], 1))
+    len(pairs) == 1 => encode(1, [pairs[0] + 2] + top_ranks(counts, [pairs[0]], 3))
+    else => encode(0, top_ranks(counts, [], 5))
+  }
+}

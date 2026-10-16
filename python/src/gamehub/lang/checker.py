@@ -47,6 +47,9 @@ SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$")
 META_TEXT = ("title", "description")
 META_KEYS = ("id", "version", "title", "description", "authors", "license", "tags")
+#: Nombre de un plugin nativo: «modulo.funcion», en minúsculas.
+NATIVE_ID = re.compile(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+")
+
 CONTEXT_VALUES = ("seats", "num_players", "actor", "viewer", "owner", "face_up")
 RANDOM_CALLS = {"roll": "roll", "random": "random_choice", "sample": "sample"}
 NODE_MEMBERS = {
@@ -250,12 +253,16 @@ class Checker:
         ir = self.assemble(params_ir, constraints_ir, state_ir, flow_ir)
         return CompiledGame(m.name, ir, tests, invariants, m.decl.span)
 
-    def check_module(self) -> None:
-        """Comprueba un módulo sin juego: sus tipos y sus funciones."""
+    def check_module(self) -> dict[str, Any]:
+        """Comprueba un módulo sin juego: sus tipos y sus funciones. Devuelve su IR: los tipos y
+        las funciones que declara y las que importa (en un módulo, todo cuenta como de fuera)."""
         self.declare_types()
         self.declare_functions()
         self.check_functions()
         self.check_recursion()
+        types_ir = [self.type_decl_ir(info) for info in self.ordered_types()]
+        functions_ir = [info.ir for info in self.ordered_functions() if info.ir is not None]
+        return {"types": types_ir, "functions": functions_ir}
 
     def assemble(
         self,
@@ -785,11 +792,61 @@ class Checker:
                 "returns": T.to_ir(info.returns),
                 "body": body,
             }
+            if info.decl.native is not None:
+                self.check_native(info)
+                out["native"] = info.decl.native
             if info.decl.doc is not None:
                 out["doc"] = info.decl.doc.to_ir()
             info.ir = out
         self.owner = "game"
         self.in_module = False
+
+    def check_native(self, info: FnInfo) -> None:
+        """Una función `@native` solo admite tipos que un plugin puede recibir y devolver como
+        enteros (ADR-062): Bool, Int, Seat, Cell, enumerados, structs, tuplas, listas y opcionales
+        de esos tipos."""
+        decl = info.decl
+        assert decl.native is not None
+        if not NATIVE_ID.fullmatch(decl.native):
+            self.error(
+                "E211",
+                f"nombre de plugin nativo inválido: {decl.native!r}",
+                decl.name_span(),
+                help="minúsculas, dígitos y _, en dos partes o más: «modulo.funcion»",
+            )
+        typed = [(p, t) for p, t in info.params] + [("el resultado", info.returns)]
+        for what, ty in typed:
+            bad = self.not_plain(ty)
+            if bad is not None:
+                self.error(
+                    "E211",
+                    f"una función nativa no puede recibir ni devolver `{bad}` ({what})",
+                    decl.name_span(),
+                    help="tipos admitidos: Bool, Int, Seat, Cell, enumerados, structs, tuplas, "
+                    "listas y opcionales de ellos",
+                )
+
+    def not_plain(self, ty: Ty, seen: frozenset[str] = frozenset()) -> Ty | None:
+        """El primer tipo de `ty` que no se puede pasar a un plugin nativo (None si todos)."""
+        match ty.kind:
+            case "Bool" | "Int" | "Seat" | "Cell" | "enum" | "unknown":
+                return None
+            case "struct":
+                if ty.name in seen:
+                    return ty
+                fields = self.types[ty.name].fields if ty.name in self.types else {}
+                for f in fields.values():
+                    bad = self.not_plain(f, seen | {ty.name})
+                    if bad is not None:
+                        return bad
+                return None
+            case "list" | "option" | "tuple":
+                for a in ty.args:
+                    bad = self.not_plain(a, seen)
+                    if bad is not None:
+                        return bad
+                return None
+        return ty
 
     def check_recursion(self) -> None:
         visiting: set[str] = set()

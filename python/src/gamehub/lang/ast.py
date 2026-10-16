@@ -615,6 +615,8 @@ class FnDecl(Item):
     params: list[FnParam]
     returns: TypeExpr
     body: Expr
+    #: `@native("id")`: el cuerpo es la implementación de referencia de un plugin nativo.
+    native: str | None = None
 
 
 @dataclass(kw_only=True)

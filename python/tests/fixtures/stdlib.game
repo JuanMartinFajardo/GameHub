@@ -8,6 +8,8 @@ import std.grid.*
 import std.graph.*
 import std.boards.*
 import std.tricktaking.*
+import std.poker.*
+import std.betting.*
 
 game StdlibTests {
   players 1
@@ -28,6 +30,38 @@ game StdlibTests {
     expect len(skat32()) == 32 and all(c in skat32() : ord(c.rank) >= ord(Rank.Seven))
     expect len(wizard60()) == 60 and count(c in wizard60() : is_wizard(c)) == 4
     expect count(c in wizard60() : is_jester(c)) == 4
+  }
+
+  test "std.poker" {
+    expect hand_rank(
+      hand_value(
+        [
+          Card { suit: Hearts, rank: r }
+          for r in [Rank.Ace, Rank.King, Rank.Queen, Rank.Jack, Rank.Ten]
+        ]
+      )
+    ) ==
+      StraightFlush
+    expect hand_rank(
+      hand_value(
+        [Card { suit: Hearts, rank: r } for r in [Rank.Ace, Rank.King, Rank.Queen, Rank.Jack]] +
+          [Card { suit: Spades, rank: Rank.Ten }]
+      )
+    ) ==
+      Straight
+    expect hand_value([Card { suit: Clubs, rank: Rank.Two }]) == encode(0, [2])
+    expect straight_high([true, true, true, true] + [false for i in 0..7] + [true]) == 5
+  }
+
+  test "std.betting" {
+    // A va all-in con 50, B y C ponen 200 y D se retira tras poner 20.
+    expect pots([50, 200, 200, 20], [true, true, true, false]) == [(170, [0, 1, 2]), (300, [1, 2])]
+    // A tiene la mejor mano y B y C empatan: A gana el principal y B y C se reparten el otro.
+    expect winnings([50, 200, 200, 20], [true, true, true, false], [9, 5, 5, 0], [0, 1, 2, 3]) ==
+      [170, 150, 150, 0]
+    // Fichas impares: la que sobra, al primero según el orden.
+    expect winnings([3, 3, 1], [true, true, false], [1, 1, 0], [1, 0, 2]) == [3, 4, 0]
+    expect to_call([10, 40, 0], 0, 100) == 30 and to_call([10, 40, 0], 2, 25) == 25
   }
 
   test "std.tricktaking" {

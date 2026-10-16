@@ -258,6 +258,7 @@ class _Decompiler:
             returns=self.type(f["returns"]),
             body=body,
             doc=self.text(f.get("doc")),
+            native=f.get("native"),
         )
 
     # --- flow -----------------------------------------------------------------------------------

@@ -17,6 +17,10 @@ dependencies = [
   "zeroconf>=0.136",
 ]
 
+[project.optional-dependencies]
+# Plugins nativos en WebAssembly (std.poker…): sin esto, se usa la implementación de referencia.
+wasm = ["wasmtime>=36"]
+
 [project.scripts]
 gamehub = "gamehub.cli:main"
 
@@ -27,6 +31,7 @@ dev = [
   "pyright>=1.1.390",
   "pytest>=8.3",
   "ruff>=0.8",
+  "wasmtime>=36",
 ]
 
 [build-system]

@@ -220,6 +220,11 @@
         },
         "returns": { "$ref": "#/$defs/type" },
         "body": { "$ref": "#/$defs/expr" },
+        "native": {
+          "description": "Plugin nativo que puede sustituir al cuerpo (la implementación de referencia): «módulo.función».",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
         "doc": { "$ref": "#/$defs/text" }
       }
     },
