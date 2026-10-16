@@ -5,6 +5,22 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — F6 acceptance: the last random matches
+
+**Request**: "it is taking a long time (3 h), you could commit as you go": each result is committed
+as soon as it is in, instead of waiting for all of them.
+
+**Results so far** (`gamehub fuzz`, 0 errors and 0 truncated in every run)
+- Solitaire, draw one: 50,000 matches in 15,852 s (3/s with 6 processes), 1,001 steps on average
+  (with random agents almost every game reaches the 1,000-move cap), average score +6.9 cards on
+  the foundations.
+
+**Still running**: Solitaire with draw three and three passes (50,000), and Texas Hold'em (16,667
+each with 2, 3, 4, 6, 8 and 10 players), now in parallel on the two free cores instead of after
+Solitaire.
+
+---
+
 ## 2026-10-17 — F7 approved and merged into `main`
 
 **Answer received**: "I approve" to question 25: ADR-068 to 074 accepted (Connect Four 7×6 moves
