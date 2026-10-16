@@ -1,6 +1,6 @@
 // __TITLE__
 // Juego nuevo: un turno y un final, para empezar a diseñar (en el Studio o aquí).
-// Referencia del lenguaje: docs/wiki/lenguaje-game.md
+// Referencia del lenguaje: docs/wiki/language.md
 
 game __GAME__ {
   meta {

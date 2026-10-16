@@ -1,47 +1,47 @@
 # GameHub
 
-**GitHub para juegos.** Una plataforma y un protocolo para:
+**GitHub for games.** A platform and a protocol to:
 
-1. **Diseñar** juegos de forma axiomática, con el lenguaje **Nomos** (archivos `.game`) o con un editor visual de
-   diagramas de flujo — dos vistas de la misma especificación formal.
-2. **Ejecutarlos** como una API pura de entradas y salidas, con información oculta, azar,
-   simultaneidad y tiempo modelados con precisión.
-3. **Jugarlos** en local, en LAN u online desde cualquier interfaz (genérica, oficial o propia).
-4. **Estudiarlos**: árboles, minimax, equilibrios de Nash, Pareto, forma matricial, teoría
-   combinatoria, heurísticas, bots, arena y aprendizaje por refuerzo.
-5. **Colaborar**: publicar, clonar, bifurcar y proponer cambios de reglas con diffs semánticos.
+1. **Design** games axiomatically, with the **Nomos** language (`.game` files) or with a visual
+   flow-chart editor — two views of the same formal specification.
+2. **Run** them as a pure input/output API, with hidden information, chance, simultaneity and
+   time modeled precisely.
+3. **Play** them locally, on a LAN or online from any interface (generic, official or custom).
+4. **Study** them: trees, minimax, Nash equilibria, Pareto, the matrix form, combinatorial game
+   theory, heuristics, bots, an arena and reinforcement learning.
+5. **Collaborate**: publish, clone, fork and propose rule changes with semantic diffs.
 
-> Estado: **Fase 6 — catálogo ola 2** (≈ 59 %). Los juegos se diseñan en Nomos o en el **Studio**
-> (diagrama y texto a la vez, con simulador), y se juegan en la terminal, en red (salas con
-> código, enlace y QR en la LAN) y en una app web, también en el móvil. El catálogo tiene 23
-> juegos, entre ellos **ajedrez, Skat, Texas Hold'em, Wizard, Parchís, Solitario y Mentiroso**;
-> cualquiera se juega con la interfaz genérica, y siete (tres en raya, Conecta 4, Dudo, ajedrez,
-> Hold'em, Wizard y Parchís) tienen además la suya propia.
+> Status: **Phase 6 complete — catalog wave 2** (≈ 59 %). Games are designed in Nomos or in the
+> **Studio** (diagram and text at once, with a simulator), and played in the terminal, over the
+> network (rooms with a code, a link and a QR code on the LAN) and in a web app, also on phones.
+> The catalog has 23 games, among them **chess, Skat, Texas Hold'em, Wizard, Parchís, Solitaire
+> and Bullshit**; any of them can be played with the generic interface, and seven (tic-tac-toe,
+> Connect Four, Dudo, chess, Hold'em, Wizard and Parchís) also have their own.
 
-## Documentación
+## Documentation
 
-- 📚 [Wiki del proyecto](docs/wiki/README.md) — visión, especificaciones, arquitectura, roadmap
+- 📚 [Project wiki](docs/wiki/README.md) — vision, specifications, architecture, roadmap
 - 🗺️ [Roadmap 0 → 100 %](docs/wiki/roadmap.md)
-- 📝 [Registro de trabajo](log.md)
+- 📝 [Work log](log.md)
 
-## Desarrollo
+## Development
 
 ```bash
-pnpm install && pnpm build                       # las apps web (Node 22 + pnpm, en la raíz)
+pnpm install && pnpm build                       # the web apps (Node 22 + pnpm, at the root)
 cd python
-uv sync                                          # entorno de Python (3.12+)
-uv run gamehub studio ../games --open            # el Studio: diseñar con diagrama y texto, simular
-uv run gamehub serve ../games --open             # servidor de partidas y la app en el navegador
-uv run gamehub host ../games/dudo --players 4    # una sala en la LAN (los demás: gamehub join)
-uv run gamehub play ../games/nim --seats human,random   # en la terminal, contra un bot
+uv sync                                          # Python environment (3.12+)
+uv run gamehub studio ../games --open            # the Studio: design with diagram and text, simulate
+uv run gamehub serve ../games --open             # match server and the app in the browser
+uv run gamehub host ../games/dudo --players 4    # a room on the LAN (the others: gamehub join)
+uv run gamehub play ../games/nim --seats human,random   # in the terminal, against a bot
 uv run gamehub check ../games && uv run gamehub test ../games
-uv run gamehub perft ../games/chess --depth 4 --jobs 6   # cuenta las jugadas legales
-uv run pytest                                    # tests de Python (y pnpm test, los de la web)
+uv run gamehub perft ../games/chess --depth 4 --jobs 6   # count the legal move sequences
+uv run pytest                                    # Python tests (and pnpm test, the web ones)
 ```
 
-Licencias: Apache-2.0 en general; ver [`LICENSING.md`](LICENSING.md).
+Licenses: Apache-2.0 in general; see [`LICENSING.md`](LICENSING.md).
 
-## Así es un juego
+## What a game looks like
 
 ```game
 game TicTacToe {
@@ -81,5 +81,5 @@ game TicTacToe {
 }
 ```
 
-Ejemplo completo, con tests e invariantes: [`games/tictactoe`](games/tictactoe/tictactoe.game).
-Referencia del lenguaje: [Nomos](docs/wiki/lenguaje-game.md).
+A complete example, with tests and invariants: [`games/tictactoe`](games/tictactoe/tictactoe.game).
+Language reference: [Nomos](docs/wiki/language.md).

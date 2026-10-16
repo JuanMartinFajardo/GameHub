@@ -1,26 +1,26 @@
-# UI propia de Ajedrez
+# Custom UI for Chess
 
-Una interfaz de React para jugar a Ajedrez en GameHub. La app web la usa en vez de la UI
-genérica (con un botón para cambiar entre las dos).
+A React interface to play Chess on GameHub. The web app uses it instead of the generic UI
+(with a button to switch between the two).
 
-## Desarrollar
+## Development
 
-Desde la raíz del repositorio:
+From the repository root:
 
 ```bash
-pnpm install                                  # enlaza este paquete con los de GameHub
-cd python && uv run gamehub serve ../games    # el servidor de partidas (en otra terminal)
-cd games/chess/ui && pnpm dev          # la app solo con este juego: http://localhost:5174
+pnpm install                                  # links this package with GameHub's
+cd python && uv run gamehub serve ../games    # the match server (in another terminal)
+cd games/chess/ui && pnpm dev          # the app with only this game: http://localhost:5174
 ```
 
-Edita `src/Board.tsx`: la página se recarga sola. Crea una sala con bots para probar.
+Edit `src/Board.tsx`: the page reloads by itself. Create a room with bots to try it.
 
-- `src/game.ts` tiene los tipos del juego (vista, acciones, opciones), generados de las reglas.
-  Si cambian las reglas, regenéralos con `pnpm types` y TypeScript te dirá qué hay que tocar.
-- Los componentes de `@gamehub/ui-kit` (rejilla, cartas, manos, dados, fichas, relojes…) y sus
-  variables de estilo (`--gh-…`) están en la galería de la app: http://localhost:5174/kit.
-- `pnpm test` pasa los tests (`test/`) y `pnpm typecheck`, los tipos; el formato y el lint, desde
-  la raíz del repositorio: `pnpm lint`.
+- `src/game.ts` has the game's types (view, actions, options), generated from the rules. If the
+  rules change, regenerate them with `pnpm types` and TypeScript will tell you what to change.
+- The `@gamehub/ui-kit` components (grid, cards, hands, dice, tokens, clocks…) and their style
+  variables (`--gh-…`) are in the app's gallery: http://localhost:5174/kit.
+- `pnpm test` runs the tests (`test/`) and `pnpm typecheck`, the types; formatting and lint, from
+  the repository root: `pnpm lint`.
 
-Para usarla en la app de verdad, compila la app web (`pnpm build` en la raíz): las UIs de
-`games/*/ui` se registran solas.
+To use it in the real app, build the web app (`pnpm build` at the root): the UIs in `games/*/ui`
+are registered by themselves.

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Ejecución de los bloques `test` e `invariant` de un juego compilado (`gamehub test`).
 
-Semántica de un test (referencia en docs/wiki/lenguaje-game.md):
+Semántica de un test (referencia en docs/wiki/language.md):
 
 - `players`, `params` y `seed` configuran la partida y van al principio. Por defecto: el mínimo
   de jugadores, los valores por defecto de los parámetros y la semilla 0.

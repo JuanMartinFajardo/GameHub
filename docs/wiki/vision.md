@@ -1,136 +1,137 @@
-# Visión de GameHub
+# GameHub vision
 
-> **En una frase:** GameHub es a los juegos lo que GitHub es al código: un sitio donde los juegos se
-> *especifican* con precisión matemática, se *versionan* y *bifurcan*, se *ejecutan* como una API,
-> se *juegan* desde cualquier interfaz y se *estudian* con teoría de juegos, heurísticas e IA.
+> **In one sentence:** GameHub is to games what GitHub is to code: a place where games are
+> *specified* with mathematical precision, *versioned* and *forked*, *run* as an API, *played*
+> from any interface and *studied* with game theory, heuristics and AI.
 
 ---
 
-## 1. El problema
+## 1. The problem
 
-Hoy, quien quiere trabajar con un juego "en serio" tiene que reescribirlo una y otra vez:
+Today, anyone who wants to work with a game "seriously" has to rewrite it again and again:
 
-- El diseñador lo describe en lenguaje natural (reglamentos ambiguos, llenos de excepciones).
-- El programador lo reimplementa a mano para cada propósito: una versión para jugar online, otra
-  para entrenar un bot, otra para calcular equilibrios, otra para la interfaz…
-- Cada reimplementación introduce discrepancias. Nadie sabe con certeza qué "versión de las reglas"
-  usó un bot, un análisis o una partida.
-- Las herramientas existentes cubren trozos sueltos: OpenSpiel (algoritmos), Ludii (descripción
-  de juegos), Gambit (equilibrios), boardgame.io / Board Game Arena (multijugador), Tabletop
-  Simulator (mesa virtual sin reglas formales). Ninguna une *especificación + ejecución +
-  análisis + colaboración*.
+- The designer describes it in natural language (ambiguous rulebooks, full of exceptions).
+- The programmer reimplements it by hand for each purpose: one version to play online, another
+  to train a bot, another to compute equilibria, another for the interface…
+- Every reimplementation introduces discrepancies. Nobody knows for sure which "version of the
+  rules" a bot, an analysis or a match used.
+- Existing tools cover separate pieces: OpenSpiel (algorithms), Ludii (game description), Gambit
+  (equilibria), boardgame.io / Board Game Arena (multiplayer), Tabletop Simulator (virtual table
+  without formal rules). None of them brings together *specification + execution + analysis +
+  collaboration*.
 
-## 2. La propuesta
+## 2. The proposal
 
-**Una única especificación formal del juego, de la que se deriva todo lo demás.**
+**A single formal specification of the game, from which everything else is derived.**
 
 ```
                          ┌──────────────────────────────┐
-  Texto .game  ────────► │                              │ ──► Motor (Python / C++ / WASM)
-  Editor visual ───────► │   GameIR (fuente de verdad)  │ ──► Servidor de partidas (API)
-  API Python (builder) ─►│   JSON canónico + hash       │ ──► Análisis (árbol, Nash, CGT…)
-                         │                              │ ──► Entornos RL / bots / arena
-                         └──────────────────────────────┘ ──► Reglamento autogenerado, SDKs, UI
+  .game text  ─────────► │                              │ ──► Engine (Python / C++ / WASM)
+  Visual editor ───────► │   GameIR (source of truth)   │ ──► Match server (API)
+  Python API (builder) ─►│   canonical JSON + hash      │ ──► Analysis (tree, Nash, CGT…)
+                         │                              │ ──► RL environments / bots / arena
+                         └──────────────────────────────┘ ──► Generated rulebook, SDKs, UI
 ```
 
-GameHub tiene cuatro capas:
+GameHub has four layers:
 
-| Capa | Qué hace | Ejemplos |
+| Layer | What it does | Examples |
 |---|---|---|
-| **Especificar** | Diseñar el juego con precisión absoluta | Lenguaje `.game`, Studio (editor de diagramas), API Python |
-| **Ejecutar** | El juego se comporta como una API pura de entradas/salidas | Motor de referencia, motor C++, servidor de salas, protocolo |
-| **Jugar** | Cualquier interfaz se conecta a los endpoints | UI genérica automática, UI kit, SDKs TS/Python/Godot, LAN y online |
-| **Estudiar y competir** | Matemáticas e inteligencia sobre el juego | Minimax, Nash, Pareto, CGT, heurísticas, RL, arena de bots |
+| **Specify** | Design the game with absolute precision | `.game` language, Studio (diagram editor), Python API |
+| **Run** | The game behaves as a pure input/output API | Reference engine, C++ engine, room server, protocol |
+| **Play** | Any interface connects to the endpoints | Automatic generic UI, UI kit, TS/Python/Godot SDKs, LAN and online |
+| **Study and compete** | Mathematics and intelligence on top of the game | Minimax, Nash, Pareto, CGT, heuristics, RL, bot arena |
 
-Y una capa transversal: **Colaborar** (el "GitHub"): publicar, clonar, bifurcar (*fork*), ramas,
-*pull requests* con diff semántico de reglas, versiones con hash, registro de paquetes.
+And one cross-cutting layer: **Collaborate** (the "GitHub"): publish, clone, fork, branches, pull
+requests with a semantic diff of the rules, hashed versions, package registry.
 
-## 3. Flujo de usuario
+## 3. User flow
 
 ```mermaid
 flowchart LR
-  A[Diseñar<br/>.game o Studio] --> B[gamehub check<br/>tipos, alcanzabilidad, fugas de info]
-  B --> C[gamehub test<br/>escenarios + fuzzing]
-  C --> D{¿Publicar?}
-  D -- sí --> E[Hub: repo + versión + hash]
+  A[Design<br/>.game or Studio] --> B[gamehub check<br/>types, reachability, info leaks]
+  B --> C[gamehub test<br/>scenarios + fuzzing]
+  C --> D{Publish?}
+  D -- yes --> E[Hub: repo + version + hash]
   D -- no --> F[Local]
   E --> G[clone / fork / branch / PR]
-  F --> H[Usar el juego]
+  F --> H[Use the game]
   G --> H
-  H --> H1[Jugar: host → código → unirse]
-  H --> H2[UI propia contra los endpoints]
-  H --> H3[Analizar: árbol, matriz, Nash…]
-  H --> H4[Heurísticas, bots, RL, arena]
-  H --> H5[Mods / variantes → nueva rama]
+  H --> H1[Play: host → code → join]
+  H --> H2[Custom UI against the endpoints]
+  H --> H3[Analyze: tree, matrix, Nash…]
+  H --> H4[Heuristics, bots, RL, arena]
+  H --> H5[Mods / variants → new branch]
 ```
 
-## 4. Principios de diseño
+## 4. Design principles
 
-1. **Una sola fuente de verdad.** La *GameIR* (representación intermedia canónica en JSON) es el
-   juego. El texto `.game` y el diagrama de flujo son dos *vistas* editables de la misma IR, con
-   ida y vuelta sin pérdidas.
-2. **Las reglas son datos, no código arbitrario.** El lenguaje de expresiones es puro, tipado y
-   con bucles acotados. Consecuencias: el juego es portable (Python, C++, navegador), seguro de
-   ejecutar en un servidor y *analizable* (se puede razonar sobre él estáticamente).
-3. **Determinismo total.** Mismas reglas + mismos parámetros + misma semilla + mismas acciones ⇒
-   misma partida, bit a bit. Esto da replays, tests, depuración con viaje en el tiempo y
-   verificación cruzada entre motores.
-4. **La información es de primera clase.** Quién sabe qué y cuándo se declara en el modelo, no se
-   programa a mano. Las vistas por jugador se derivan automáticamente y el servidor nunca envía a
-   un cliente información que no le corresponde.
-5. **El azar es explícito y visible.** Solo los nodos de azar introducen aleatoriedad, con
-   distribuciones conocidas. En el diagrama se ve dónde entra la suerte.
-6. **El juego es una API.** Servidor autoritativo + protocolo estándar. La interfaz gráfica es
-   intercambiable: genérica, oficial o hecha por terceros en cualquier tecnología.
-7. **Modularidad radical.** Biblioteca estándar (barajas, dados, tableros, bazas, apuestas),
-   `import`, herencia/parches para mods (`extends` / `override`) y combinadores de juegos
-   (`repeat`, `best_of`, suma de juegos…).
-8. **Analizable por diseño.** Cada juego se clasifica automáticamente (información perfecta,
-   azar, simultaneidad, suma cero…) y un *asesor de viabilidad* estima si un cálculo es factible
-   antes de lanzarlo.
-9. **Todo artefacto se ata a un hash de reglas.** Bots, replays, análisis, ratings e interfaces
-   referencian la versión exacta de las reglas con las que se hicieron.
-10. **Local-first.** Todo funciona sin la nube: CLI, Studio local, partidas en LAN. El hub online
-    es una capa opcional de colaboración.
-11. **Escalera de rendimiento.** Motor de referencia en Python (claridad) → VM en C++ (velocidad)
-    → generación de código nativo para juegos "calientes" — siempre verificados entre sí.
-12. **Interoperabilidad antes que reinvención.** Exportar a OpenSpiel, Gambit y PettingZoo da
-    acceso inmediato a décadas de algoritmos; lo propio se construye donde aporta valor.
+1. **A single source of truth.** The *GameIR* (canonical intermediate representation in JSON) is
+   the game. The `.game` text and the flow diagram are two editable *views* of the same IR, with
+   lossless round trips.
+2. **Rules are data, not arbitrary code.** The expression language is pure, typed and has bounded
+   loops. Consequences: the game is portable (Python, C++, browser), safe to run on a server and
+   *analyzable* (it can be reasoned about statically).
+3. **Total determinism.** Same rules + same parameters + same seed + same actions ⇒ the same
+   match, bit for bit. This gives replays, tests, time-travel debugging and cross-checking between
+   engines.
+4. **Information is first-class.** Who knows what and when is declared in the model, not
+   programmed by hand. Per-player views are derived automatically and the server never sends a
+   client information it is not entitled to.
+5. **Chance is explicit and visible.** Only chance nodes introduce randomness, with known
+   distributions. The diagram shows where luck comes in.
+6. **The game is an API.** Authoritative server + standard protocol. The graphical interface is
+   interchangeable: generic, official or made by third parties with any technology.
+7. **Radical modularity.** Standard library (decks, dice, boards, tricks, betting), `import`,
+   inheritance/patches for mods (`extends` / `override`) and game combinators (`repeat`,
+   `best_of`, sums of games…).
+8. **Analyzable by design.** Every game is classified automatically (perfect information, chance,
+   simultaneity, zero-sum…) and a *feasibility advisor* estimates whether a computation is
+   tractable before launching it.
+9. **Every artifact is tied to a rules hash.** Bots, replays, analyses, ratings and interfaces
+   reference the exact version of the rules they were made with.
+10. **Local-first.** Everything works without the cloud: CLI, local Studio, LAN matches. The online
+    hub is an optional collaboration layer.
+11. **Performance ladder.** Reference engine in Python (clarity) → C++ VM (speed) → native code
+    generation for "hot" games — always cross-checked against each other.
+12. **Interoperability before reinvention.** Exporting to OpenSpiel, Gambit and PettingZoo gives
+    immediate access to decades of algorithms; our own pieces are built where they add value.
 
-## 5. Qué NO es GameHub (no-objetivos)
+## 5. What GameHub is NOT (non-goals)
 
-- **No es un motor de videojuegos** con física, render 3D o tiempo continuo. GameHub modela juegos
-  de **estados discretos** (incluidos juegos de velocidad con acciones discretas con marca de
-  tiempo). Godot, Unity o un navegador pueden ser la *interfaz* de un juego GameHub.
-- **No es una mesa virtual sin reglas** (como Tabletop Simulator): aquí el motor *conoce y aplica*
-  las reglas.
-- **No ejecuta código arbitrario dentro de las reglas.** Los "plugins nativos" existen como vía de
-  escape para rendimiento, pero son puros, con firma declarada y ejecutados en sandbox.
+- **It is not a video game engine** with physics, 3D rendering or continuous time. GameHub models
+  **discrete-state** games (including speed games with discrete, timestamped actions). Godot, Unity
+  or a browser can be the *interface* of a GameHub game.
+- **It is not a virtual table without rules** (like Tabletop Simulator): here the engine *knows and
+  enforces* the rules.
+- **It does not run arbitrary code inside the rules.** "Native plugins" exist as an escape hatch
+  for performance, but they are pure, have a declared signature, run sandboxed and always come
+  with a reference implementation in Nomos.
 
-## 6. Arte previo y posicionamiento
+## 6. Prior art and positioning
 
-| Proyecto | Qué aporta | Qué le falta respecto a GameHub |
+| Project | What it brings | What it lacks compared to GameHub |
 |---|---|---|
-| **OpenSpiel** (DeepMind) | API de juegos + decenas de algoritmos (CFR, MCTS, AlphaZero…) | Juegos escritos a mano en C++/Python; sin lenguaje de diseño ni colaboración ni multijugador |
-| **Ludii** (Digital Ludeme Project) | Lenguaje de *ludemas*, >1000 juegos de tablero | Poco foco en cartas/info oculta/teoría de juegos clásica; sin API multijugador abierta |
-| **GDL / GDL-II** (Stanford GGP) | Lenguaje lógico formal de juegos, con info incompleta (GDL-II) | Muy lento de ejecutar, difícil de escribir para humanos |
-| **Gambit** | Formatos `.efg`/`.nfg` y solvers de equilibrios | Solo análisis de juegos pequeños; no ejecución/juego |
-| **boardgame.io / BGA Studio** | Máquinas de estados de turnos, multijugador, `playerView` | Reglas en código JS/PHP; no analizables; sin especificación formal |
-| **PettingZoo / Gymnasium / RLCard** | API estándar para RL multiagente | Solo la interfaz de entrenamiento |
-| **CGSuite** | Teoría combinatoria de juegos | Nicho; sin ejecución general |
+| **OpenSpiel** (DeepMind) | Game API + dozens of algorithms (CFR, MCTS, AlphaZero…) | Games hand-written in C++/Python; no design language, collaboration or multiplayer |
+| **Ludii** (Digital Ludeme Project) | *Ludeme* language, >1000 board games | Little focus on cards/hidden information/classical game theory; no open multiplayer API |
+| **GDL / GDL-II** (Stanford GGP) | Formal logical game language, with incomplete information (GDL-II) | Very slow to run, hard for humans to write |
+| **Gambit** | `.efg`/`.nfg` formats and equilibrium solvers | Analysis of small games only; no execution or play |
+| **boardgame.io / BGA Studio** | Turn state machines, multiplayer, `playerView` | Rules in JS/PHP code; not analyzable; no formal specification |
+| **PettingZoo / Gymnasium / RLCard** | Standard API for multi-agent RL | Only the training interface |
+| **CGSuite** | Combinatorial game theory | Niche; no general execution |
 
-**Posicionamiento:** *Ludii/GDL (especificación) × OpenSpiel/Gambit (algoritmos) ×
-boardgame.io (multijugador) × GitHub (colaboración) × editor de statecharts (diseño visual).*
+**Positioning:** *Ludii/GDL (specification) × OpenSpiel/Gambit (algorithms) × boardgame.io
+(multiplayer) × GitHub (collaboration) × a statechart editor (visual design).*
 
-## 7. A quién sirve
+## 7. Who it is for
 
-- **Diseñadores de juegos:** prototipar reglas, detectar bucles infinitos, reglas muertas,
-  ventajas del primer jugador, estrategias dominantes — antes de imprimir una sola carta.
-- **Investigadores (teoría de juegos, IA):** un catálogo enorme de juegos formalmente idénticos
-  en todos los motores, listos para algoritmos.
-- **Desarrolladores de interfaces:** construir la UI que quieran sin reimplementar reglas.
-- **Jugadores y comunidades:** jugar cualquier juego/variante con amigos por LAN u online.
-- **Docentes:** enseñar teoría de juegos con juegos reales y visualizaciones interactivas.
+- **Game designers:** prototype rules, detect infinite loops, dead rules, first-player advantages
+  and dominant strategies — before printing a single card.
+- **Researchers (game theory, AI):** a huge catalog of games that are formally identical across
+  all engines, ready for algorithms.
+- **Interface developers:** build whatever UI they want without reimplementing rules.
+- **Players and communities:** play any game or variant with friends over LAN or online.
+- **Teachers:** teach game theory with real games and interactive visualizations.
 
-Ver también: [Ideas y mejoras](ideas-y-mejoras.md) · [Modelo formal](modelo-formal.md) ·
+See also: [Ideas and improvements](ideas.md) · [Formal model](formal-model.md) ·
 [Roadmap](roadmap.md)

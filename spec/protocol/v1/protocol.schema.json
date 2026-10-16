@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://gamehub.invalid/spec/protocol/v1/protocol.schema.json",
   "title": "Protocolo de partidas de GameHub, versión 1",
-  "description": "Mensajes WebSocket entre clientes (personas, bots, interfaces) y el servidor de partidas, y cuerpos de la API REST. Cada mensaje es un sobre {v, type, id?, data} (cliente) o {v, type, re?, data} (servidor). Semántica: docs/wiki/protocolo.md.",
+  "description": "Mensajes WebSocket entre clientes (personas, bots, interfaces) y el servidor de partidas, y cuerpos de la API REST. Cada mensaje es un sobre {v, type, id?, data} (cliente) o {v, type, re?, data} (servidor). Semántica: docs/wiki/protocol.md.",
   "$defs": {
     "ClientMessage": {
       "description": "Cualquier mensaje del cliente al servidor.",

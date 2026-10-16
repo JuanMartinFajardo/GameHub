@@ -1,17 +1,17 @@
-# Licencia del contenido de los juegos
+# License of the games' content
 
-Las reglas, textos y demás contenido de los juegos oficiales de este directorio (`games/`) se
-publican bajo la licencia **Creative Commons Atribución 4.0 Internacional (CC BY 4.0)**.
+The rules, texts and other content of the official games in this directory (`games/`) are
+published under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license.
 
-- Resumen: https://creativecommons.org/licenses/by/4.0/deed.es
-- Texto legal: https://creativecommons.org/licenses/by/4.0/legalcode.es
+- Summary: https://creativecommons.org/licenses/by/4.0/
+- Legal code: https://creativecommons.org/licenses/by/4.0/legalcode
 
-Puedes copiar, modificar y redistribuir estos juegos (también con fines comerciales) siempre que
-reconozcas la autoría ("GameHub y colaboradores"), enlaces a la licencia e indiques si hiciste
-cambios.
+You may copy, modify and redistribute these games (also for commercial purposes) as long as you
+give credit ("GameHub and contributors"), link to the license and indicate whether you made
+changes.
 
-El código de las interfaces propias de los juegos (`games/*/ui/`) es Apache-2.0, como el resto del
-repositorio ([`LICENSE`](../LICENSE)). Las reglas de juegos clásicos (tres en raya, Nim, póker…) son de
-dominio público como ideas; la licencia cubre su formulación concreta en Nomos.
+The code of the games' custom interfaces (`games/*/ui/`) is Apache-2.0, like the rest of the
+repository ([`LICENSE`](../LICENSE)). The rules of classic games (tic-tac-toe, Nim, poker…) are in
+the public domain as ideas; the license covers their concrete formulation in Nomos.
 
-Copyright 2026 Juan Martin Fajardo y colaboradores de GameHub.
+Copyright 2026 Juan Martin Fajardo and GameHub contributors.

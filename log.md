@@ -1,597 +1,628 @@
-# Log de trabajo
+# Work log
 
-Registro cronológico de lo que se hace en el proyecto. La entrada más reciente va arriba.
-Formato: fecha · qué se hizo · decisiones · pendientes / siguientes pasos.
-
----
-
-## 2026-10-16 — F6 aprobada y fusionada a `main`
-
-**Respuesta recibida**: «tienes mi visto bueno» a la pregunta 23: ADR-060 a 066 aceptadas y F6
-fusionada a `main`. Nada se ha subido.
-
-**Nota sobre la historia**: los commits de F6 se hicieron por error directamente en `main` (no
-llegué a crear la rama). Como no se habían subido, lo que faltaba (la documentación) se hizo en
-`f6/catalogo-ola-2` y se fusionó con `--no-ff`; los commits anteriores quedan en línea en `main`
-(reescribir la historia de `main` para moverlos no compensaba).
-
-**Siguientes pasos**: pasar toda la documentación al inglés (petición del usuario: el proyecto
-tiene que ser profesional; el español queda como traducción opcional que trae cada juego);
-después, F7.
-
-**Progreso**: ≈ 59 % (F0 a F6 en `main`).
+A chronological record of what is done in the project. The most recent entry goes on top.
+Format: date · what was done · decisions · pending / next steps.
 
 ---
 
-## 2026-10-16 — Sesión 8: Fase 6, catálogo ola 2
+## 2026-10-16 — Session 9: the documentation in English
 
-**Respuesta recibida**: «ve con la fase 6». Petición nueva: al terminar F6, traducir toda la
-documentación al inglés (los juegos pueden seguir trayendo el español como traducción opcional).
+**Request**: once F6 was finished, translate all the documentation into English: the project has
+to be professional. Games may keep Spanish as optional information they ship (a platform that
+uses the games as an API has to be translatable).
 
-**Hecho (un commit por tarea)**
-- **Motor** (`4503ab7`): memo de las funciones de la IR según de qué dependen (*static*: para
-  siempre; *state*: mientras no cambie el estado), atajos para enteros, `gamehub perft` y
-  `gamehub fuzz --jobs` (ADR-060, 061). Tests largos marcados `slow`.
-- **Ajedrez** FIDE y `std.boards` (`d469338`): legalidad con líneas de jaque y clavadas, el rey en
-  el estado, enroque, al paso, coronación, repeticiones, 50/75 jugadas, material insuficiente.
-  *perft(5)* = 4 865 609 y los de Kiwipete y las posiciones 3 a 6. El *perft(3)* pasó de 52 s a
-  1,2 s.
-- **Wizard** y `std.tricktaking`, barajas de Skat y Wizard en `std.cards` (`f22021a`, ADR-064).
-- **Skat** ISkO (`cf590b1`): subasta, skat, palo / Grand / Null, Hand, Schneider, Schwarz,
-  Ouvert, matadores (ocultos hasta el final: el análisis de fugas encontró uno de verdad), juego
-  pasado de la subasta; los ejemplos de la ISkO como tests.
-- **Plugins nativos** en WebAssembly (`f3f3235`, ADR-062): `@native("m.f")` con el cuerpo como
-  referencia, ABI `gamehub-native/1`, `gamehub natives list|check|build`; `std.poker` con su
-  evaluador escrito en WAT (0 diferencias con la referencia), `std.betting` y **Texas Hold'em**
-  sin límite con botes secundarios.
-- **Parchís** español (`6d1fd6d`), también por parejas.
-- **Código generado** (`958a431`, ADR-063): las expresiones de la IR se compilan a Python; ×2 en
-  todos los juegos, con la misma huella paso a paso que los cierres.
-- **Solitario** Klondike (`2999017`), **UIs propias** de ajedrez, Hold'em, Wizard y Parchís
-  (`356225a`, revisadas en el navegador) y `std.bidding` (`e2d6915`).
-- Documentación: ADR-060 a 066, catálogo con la ola 2 y fichas de análisis, wiki al día (lenguaje,
-  motor, IR, arquitectura, cliente web, glosario, roadmap), README y CLAUDE.md.
+**Done** (branch `docs/english`)
+- The whole wiki translated, with English page names: `architecture.md`, `decisions.md`,
+  `engine.md`, `formal-model.md`, `game-catalog.md`, `game-theory.md`, `glossary.md`,
+  `heuristics-and-ai.md`, `ideas.md`, `language.md`, `open-questions.md`, `protocol.md`,
+  `structure-py-analysis.md`, `studio.md`, `web-client.md` (plus `README.md`, `hub.md`, `ir.md`,
+  `roadmap.md` and `vision.md`). Links and anchors updated, also in code docstrings that pointed
+  to the old pages.
+- This log, the root `README.md`, `CLAUDE.md` (talk to the user in Spanish; everything written, in
+  English), `LICENSING.md`, `games/LICENSE.md`, `spec/README.md`, `python/README.md`,
+  `web/README.md`, the VS Code extension's README and manifest, and the custom UI template's
+  README (and the seven UIs' READMEs generated from it; the template now takes the game's English
+  title).
+- ADR-067 (documentation in English; supersedes ADR-015) and question 24 (how far the switch goes:
+  code comments, CLI messages, the default language of games and UIs, commit messages).
+- Small fixes found while translating: the architecture's technology table still said "Lark"
+  (the parser has been hand-written since F2, ADR-027); stale counts (15 → 22 catalog packages).
 
-**Aceptación**: *perft(5)* correcto; Skat verificado con la ISkO; 10⁵ partidas al azar sin errores
-de ajedrez (100 000), Skat (50 000 con 3 y con 4), Wizard (25 000 con 3, 4, 5 y 6) y Parchís
-(25 000 con 2, 3, 4 y por parejas); las del Solitario y el Hold'em seguían en marcha al fusionar
-(el paquete del Hold'em se renombró a `texas-holdem` y hubo que relanzarlas); los 22 paquetes se juegan enteros con la UI
-genérica contra el servidor.
+**F6 acceptance, continued**: Solitaire's 10⁵ random matches (50,000 with draw one, then 50,000
+with draw three and three passes) are still running: with the 1,000-move cap almost every random
+match goes the full length, about one match per second per process. Hold'em's (16,667 each with 2,
+3, 4, 6, 8 and 10 players, under the new path `games/texas-holdem`) are queued after them.
 
-**Decisiones**: ADR-060 a 066 (memo, perft y fuzz en paralelo, plugins nativos, código generado,
-bibliotecas de cartas sin genéricos, reglas de la ola 2, ajustes del lenguaje). Preguntas 9 y 19
-respondidas.
+**Waiting on you**: question 24 and approval to merge `docs/english` into `main`.
 
-**Pendiente**: bots heurísticos de los juegos nuevos (F9); UIs propias del Skat y el Solitario.
+**Progress**: ≈ 59 % (the translation does not change the roadmap percentage).
 
 ---
 
-## 2026-10-16 — F5 aprobada y fusionada a `main`
+## 2026-10-16 — F6 approved and merged into `main`
 
-**Respuesta recibida**: «Sí» a la pregunta 22: ADR-052 a 059 aceptadas (entre ellas **CodeMirror en
-vez de Monaco**, que cambia la ADR-012) y `f5/studio` fusionada a `main` con `--no-ff`. Nada se ha
-subido.
+**Answer received**: "you have my approval" to question 23: ADR-060 to 066 accepted and F6 merged
+into `main`. Nothing has been pushed.
 
-**Siguientes pasos**: F6, catálogo ola 2 (los 7 juegos pedidos) y biblioteca estándar madura, en la
-rama `f6/…`.
+**A note on the history**: the F6 commits were made directly on `main` by mistake (the branch was
+never created). Since they had not been pushed, what was missing (the documentation) was done on
+`f6/catalogo-ola-2` and merged with `--no-ff`; the earlier commits stay linear on `main`
+(rewriting `main`'s history to move them was not worth it).
 
-**Progreso**: ≈ 51 % (F0 a F5 en `main`).
+**Next steps**: translate all the documentation into English (the user's request: the project has
+to be professional; Spanish remains as an optional translation each game ships); then, F7.
 
----
-
-## 2026-10-12 — Sesión 7: Fase 5, el Studio
-
-**Respuestas recibidas**: «ve con la fase 5», que se tomó como visto bueno a las ADR-044 a 051 y a
-fusionar F4 (hecho, `d14ae62`; nada se ha subido). F5 se trabaja en la rama `f5/studio`.
-
-**Hecho (un commit por tarea)**
-- **Núcleo** (`2cde02a`): posición de cada nombre en el árbol, **índice de símbolos** del
-  comprobador (declaraciones, usos resueltos y tipos de cada expresión), referencia de lo
-  predefinido, fragmentos sueltos con errores situados, el **motor de ediciones** (~45 operaciones
-  sobre el árbol con reescritura mínima del texto, comprobada volviendo a analizar) y el **modelo
-  del documento** para el diagrama y los formularios. Compilar para el editor se salta el JSON
-  Schema (era el 90 % del tiempo).
-- **Servidor de lenguaje** (`cff47a3`) con pygls: diagnósticos, autocompletado con el texto a
-  medias, hover, definición, referencias, renombrar con comprobación de choques, formato, esquema,
-  plegado, firmas y arreglos rápidos; `gamehub lsp` por stdio y el mismo servidor por el WebSocket
-  del Studio.
-- **Servidor del Studio** (`8c4277e`): `gamehub studio` (API del espacio de trabajo, disposición
-  en `<juego>.layout.json`, juegos nuevos desde plantillas, historia de git), seguridad (solo
-  local, token, Host y Origin), **simulador** (historia con viaje en el tiempo, correr hasta
-  puntos de ruptura, recargar reglas, partidas masivas con cobertura gracias a la traza de
-  transiciones del motor, árbol, recuento, tamaño con el estimador de Knuth) y **plantillas**
-  (`gamehub new --template`).
-- **Tests e invariantes en el Studio** y **aceptación** (`7e62df0`): operaciones para editarlos y
-  `gamehub/tests` para ejecutarlos (sin ellas, la plantilla vacía no compilaba en cuanto se tocaba
-  su acción); pruebas de aceptación contra el servidor de verdad.
-- **El Studio web** (`428b6f4`): `@gamehub/nomos` (Nomos para CodeMirror), `@gamehub/studio`
-  (diagrama con React Flow + ELK, editor y campos con CodeMirror y el LSP, inspector, diseñador
-  de componentes, simulador con la UI genérica, partidas masivas, árbol, comparar, exportar SVG y
-  PNG) y la app; pruebas unitarias, de integración y de la app entera en jsdom.
-- **Rueda y CI** (`16d9b6e`): la rueda lleva el Studio compilado; la CI compila las dos apps.
-- **Aceptación**: el tres en raya se construye desde la plantilla vacía con 24 gestos del
-  diagrama y del inspector, pasa sus tests, se juega en el simulador y es el mismo juego que el
-  del catálogo (mismas jugadas legales y pagos en 40 partidas al azar); Dudo se cambia en el
-  diagrama (nodo nuevo, flecha reconectada —una línea de texto—, acciones reordenadas, la ronda
-  metida en una fase) sin perder ningún comentario, y lo escrito en el texto, también roto y
-  arreglado, llega al diagrama. Revisado a mano en el navegador integrado.
-- **Fallos encontrados y corregidos al probar en el navegador**: guardar daba siempre conflicto
-  (la versión del archivo iba en nanosegundos y no cabe exacta en un número de JavaScript: ahora
-  en microsegundos); las flechas tapaban las asas de salida y no se podía tirar otra desde un nodo
-  que ya tenía alguna; ELK ponía el nodo de apuestas de Dudo por encima del inicio (rompía el
-  ciclo por la flecha equivocada: ahora por el orden del texto); al cambiar de vista el diagrama
-  quedaba fuera del encuadre; un nodo nuevo quedaba fuera de la vista; del clic al diagrama
-  pasaban más de 0,65 s (el editor esperaba medio segundo para sincronizar el texto y el servidor
-  otros 150 ms para analizarlo: ahora ~70 ms); en las partidas masivas un empate contaba como victoria de los dos (69 % + 44 %);
-  «Contar» el árbol podía tardar medio minuto sin dar señales (ahora con límite y «Contando…»); el
-  generador de dados creaba un nodo de azar sin transición; los selectores de idioma y tema
-  ocupaban todo el ancho; «1 avisos»; los tipos de nodo salían en español con la interfaz en
-  inglés; dos copias de `@lezer/highlight`; el WebSocket del Studio rechazaba mensajes de más de
-  64 KB (un `.game` grande al abrirlo).
-- Docs: página del [Studio](docs/wiki/studio-editor-visual.md) reescrita (implementado),
-  lenguaje §4 y §13 (`gamehub studio`, `gamehub lsp`, plantillas), arquitectura, motor (traza),
-  roadmap, licencias (elkjs es EPL-2.0), READMEs; ADR-052 a 059. Tests: 798 de Python y 113 de la
-  parte web.
-
-**Decisiones** (propuestas): ADR-052 a 059; la más visible, **CodeMirror en vez de Monaco**
-(ADR-054, cambia la ADR-012): más ligero y pensado para decenas de campos con su cliente LSP.
-
-**Limitaciones**: sin edición colaborativa; sin bloques tipo Scratch (pregunta 6); mover una
-acción de un nodo a otro se hace en el texto; la extensión de VS Code aún no usa el LSP; el Studio
-necesita el servidor local (sin él, con el WASM de F8 y el hub de F10). El panel del navegador
-integrado era pequeño: el diseño de escritorio se comprobó midiendo la página y con capturas a ese
-tamaño, no a pantalla completa.
-
-**Pendiente de ti**: revisar las ADR-052 a 059 y dar el visto bueno para fusionar `f5/studio` a
-`main` (pregunta 22).
-
-**Siguiente**: F6, catálogo ola 2 (los 7 juegos pedidos) y biblioteca estándar madura.
-
-**Progreso global**: ≈ 51 %.
+**Progress**: ≈ 59 % (F0 to F6 in `main`).
 
 ---
 
-## 2026-10-11 — Fase 4 aprobada y fusionada
+## 2026-10-16 — Session 8: Phase 6, catalog wave 2
 
-- «Ve con la fase 5»: se toman como aprobadas las ADR-044 a 051 y la fusión. La rama
-  `f4/cliente-web` se fusiona a `main` y la Fase 5 (el Studio: editor visual bidireccional con
-  simulador) arranca en la rama `f5/studio`.
-- Pregunta 21 movida a respondidas.
-- Progreso global: ≈ 41 %.
+**Answer received**: "go on with phase 6". New request: when F6 is finished, translate all the
+documentation into English (games may keep shipping Spanish as an optional translation).
 
----
+**Done (one commit per task)**
+- **Engine** (`4503ab7`): memoization of IR functions according to what they depend on
+  (*static*: forever; *state*: while the state does not change), integer shortcuts,
+  `gamehub perft` and `gamehub fuzz --jobs` (ADR-060, 061). Long tests marked `slow`.
+- FIDE **chess** and `std.boards` (`d469338`): legality with check and pin lines, the king in the
+  state, castling, en passant, promotion, repetitions, 50/75 moves, insufficient material.
+  *perft(5)* = 4,865,609 and those of Kiwipete and positions 3 to 6. *perft(3)* went from 52 s to
+  1.2 s.
+- **Wizard** and `std.tricktaking`, the Skat and Wizard decks in `std.cards` (`f22021a`, ADR-064).
+- ISkO **Skat** (`cf590b1`): bidding, the skat, suit / Grand / Null, Hand, Schneider, Schwarz,
+  Ouvert, matadors (hidden until the end: the leak analysis found a real one), overbidding; the
+  ISkO examples as tests.
+- **Native plugins** in WebAssembly (`f3f3235`, ADR-062): `@native("m.f")` with the body as the
+  reference, ABI `gamehub-native/1`, `gamehub natives list|check|build`; `std.poker` with its
+  evaluator written in WAT (0 differences from the reference), `std.betting` and no-limit **Texas
+  Hold'em** with side pots.
+- Spanish **Parchís** (`6d1fd6d`), also in pairs.
+- **Generated code** (`958a431`, ADR-063): IR expressions are compiled to Python; ×2 in every game,
+  with the same digest at every step as the closures.
+- Klondike **Solitaire** (`2999017`), **custom UIs** for chess, Hold'em, Wizard and Parchís
+  (`356225a`, reviewed in the browser) and `std.bidding` (`e2d6915`).
+- Documentation: ADR-060 to 066, the catalog with wave 2 and analysis sheets, the wiki up to date
+  (language, engine, IR, architecture, web client, glossary, roadmap), README and CLAUDE.md.
 
-## 2026-10-11 — Sesión 6: Fase 4, jugar en el navegador
+**Acceptance**: correct *perft(5)*; Skat verified against the ISkO; 10⁵ random matches without
+errors of chess (100,000), Skat (50,000 with 3 and with 4), Wizard (25,000 with 3, 4, 5 and 6) and
+Parchís (25,000 with 2, 3, 4 and in pairs); Solitaire's and Hold'em's were still running at merge
+time (the Hold'em package was renamed to `texas-holdem` and they had to be relaunched); the 22
+packages are played to the end with the generic UI against the server.
 
-**Respuestas recibidas**: aprobar las ADR-036 a 043, fusionar F3 a `main` (hecho, `0607c1b`) y
-arrancar F4 en la rama `f4/cliente-web`.
+**Decisions**: ADR-060 to 066 (memoization, perft and fuzz in parallel, native plugins, generated
+code, card libraries without generics, wave-2 rules, language adjustments). Questions 9 and 19
+answered.
 
-**Hecho (un commit por tarea)**
-- **Monorepo de JavaScript** (ADR-044): workspace de pnpm en la raíz con `web/packages/*`,
-  `web/apps/*` y `games/*/ui` (empezó dentro de `web/`; se movió a la raíz porque pnpm no lo
-  encontraba al trabajar dentro de una UI de `games/`). Node 22, TypeScript 7 estricto, React 19,
-  Vite 8, Biome y Vitest, con versiones exactas en un catálogo; trabajo nuevo en el CI.
-- **`@gamehub/protocol`**: los tipos de TypeScript salen del mismo generador que los de Python
-  (`gamehub protocol types` escribe y comprueba los dos, ADR-045). En el esquema, `Number`,
-  `Event` y `Error` pasan a `ExactNumber`, `GameEvent` y `ErrorInfo` (la red no cambia).
-- **`@gamehub/client`**, el SDK de TypeScript: conexión con reconexión y `resume`, latido, ids
-  únicos, resync si falta una actualización, fin si otra pestaña toma la sesión; estado inmutable
-  con un reductor puro; acciones enumeradas y progresivas; sesiones en localStorage; API REST.
-  Probado contra el servidor de Python de verdad (dos clientes, una caída y un espectador).
-- **Sección `ui { … }` de Nomos** (ADR-047): pistas de presentación con destino (variables,
-  opciones, tipos, acciones y sus parámetros, nodos, asientos) y un catálogo cerrado (cómo y dónde
-  dibujar, nombres traducidos, símbolos, colores, cartas, cómo elegir un argumento), comprobadas
-  (E701–E704), con formato, descompilador y mezcla en variantes. En la IR, una clave `ui`
-  opcional que no cuenta para el hash: las trazas de conformidad no cambian.
-- **`@gamehub/ui-kit`** (rejilla accesible, cartas en SVG con palos franceses y españoles, mano en
-  abanico, montón, mazo, dados, fichas, recorrido, grafo, jugador, marcador, reloj, barra de
-  acciones; variables CSS con tema claro y oscuro) e **`@gamehub/i18n`** (es/en).
-- **`@gamehub/auto-ui`, la UI genérica** (ADR-048): el aspecto de cada variable sale de su tipo y
-  sus pistas; cómo se elige cada argumento, de su dominio (`cells(G)` → casillas,
-  `subsets(items(Z))` → marcar cartas) o de una pista; un constructor de acciones con los valores
-  que dan las acciones legales, calculados una vez por actualización. Registro de eventos en
-  frases y resultado. Y **`@gamehub/react`** (hooks sobre el SDK).
-- **El servidor sirve la app** (ADR-046): `gamehub serve`/`host` (`--open`, `--no-web`); el enlace y
-  el QR de cada sala abren la app; QR en SVG y replays estado a estado (`/frames?seat=`). La rueda
-  de Python lleva la app compilada (probado instalándola en un entorno limpio).
-- **La app para jugar** (`@gamehub/shell` y `web/apps/play`): inicio (código, crear sala, salas
-  abiertas, partidas recientes), crear sala (opciones del juego, reloj, espectadores, bots), sala
-  (jugador o espectador, sesión guardada al recargar, lobby con código, enlace y QR, asientos,
-  bots, configuración, listo, chat, revancha), partida con la UI genérica o una propia, replays
-  paso a paso desde cualquier perspectiva, **partidas en un mismo dispositivo** con pantalla de
-  privacidad (ADR-049) y galería del kit en `/kit`. Español e inglés, tema claro u oscuro, móvil.
-- **Pistas `ui` en los 15 paquetes del catálogo** (nombres en es/en, símbolos, colores, cartas,
-  dados, la columna de Conecta 4…).
-- **UIs propias** (ADR-050): `gamehub sdk ts` (tipos de un juego, con formato de Biome y
-  `--check`) y `gamehub ui new` (plantilla que funciona a la primera: tipos, tablero inicial,
-  test, servidor de desarrollo con la app solo para ese juego). Con ella, las UIs del **tres en
-  raya** (marcas dibujadas, línea ganadora), **Conecta 4** (fichas que caen, columna resaltada) y
-  **Dudo** (apuesta en el tapete, historia de la ronda, cubiletes, última dudada, selector de
-  apuesta con dados); la app las registra sola.
-- **Aceptación**: los 15 juegos del catálogo se juegan enteros contra el servidor solo pulsando
-  la UI genérica (test de integración, al azar con semilla); **Ana en la app contra Luis con
-  `gamehub join` en una terminal de verdad**, hasta el final; sala con la app contra un bot y
-  modo espectador. Revisado a mano en el navegador integrado, también a tamaño de móvil.
-- **Fallos encontrados y corregidos**: el QR salía roto (`svg_inline` no lleva `xmlns` y un
-  `<img>` no lo dibuja); los jugadores de los replays venían por posición y no por asiento; el
-  registro ponía dobles paréntesis y lo revelado antes que la jugada; Mentiroso tardaba 170 s en
-  el test de aceptación (el constructor recalculaba miles de subconjuntos en cada pulsación: ahora
-  35 s); el catálogo del servidor incluía el juego de tests del PD iterado (ahora, de cada
-  paquete, su archivo principal); en jsdom, el WebSocket del navegador simulado (undici) choca con
-  su clase `Event`: los tests usan `ws`.
-- Docs: página nueva del [cliente web](docs/wiki/cliente-web.md), lenguaje §12 (`ui`), IR,
-  protocolo, arquitectura, glosario, ideas, READMEs (el de la raíz seguía en la Fase 1); ADR-044
-  a 051. Tests: 673 de Python y 85 de la parte web (con los de las UIs propias).
-
-**Decisiones** (propuestas): ADR-044 a 051.
-
-**Limitaciones**: sin motor en el navegador, el modo local necesita el servidor que sirve la app
-(hasta el WASM de F8); no hay animaciones; lo de «una UI propia en menos de una hora» se apoya en
-la plantilla y en las tres UIs de ejemplo, no en una medición con otra persona; Windows sigue sin
-probar.
-
-**Pendiente de ti**: revisar las ADR-044 a 051 y dar el visto bueno para fusionar
-`f4/cliente-web` a `main` (pregunta 21).
-
-**Siguiente**: F5, el Studio: editor visual bidireccional (diagrama ↔ texto) con simulador, el
-**MVP de diseño**.
-
-**Progreso global**: ≈ 41 %.
+**Pending**: heuristic bots for the new games (F9); custom UIs for Skat and Solitaire.
 
 ---
 
-## 2026-10-10 — Fase 3 aprobada y fusionada
+## 2026-10-16 — F5 approved and merged into `main`
 
-- Apruebas las ADR-036 a 043 y la fusión: la rama `f3/servidor-partidas` se fusiona a `main` y la
-  Fase 4 (cliente web: SDK TypeScript, UI genérica, UI kit, app para jugar) arranca en la rama
-  `f4/cliente-web`.
-- Pregunta 18 movida a respondidas.
-- Progreso global: ≈ 32 %.
+**Answer received**: "Yes" to question 22: ADR-052 to 059 accepted (among them **CodeMirror instead
+of Monaco**, which changes ADR-012) and `f5/studio` merged into `main` with `--no-ff`. Nothing has
+been pushed.
 
----
+**Next steps**: F6, catalog wave 2 (the 7 requested games) and a mature standard library, on the
+`f6/…` branch.
 
-## 2026-10-10 — Sesión 5: Fase 3, el servidor de partidas y el juego en red
-
-**Respuestas recibidas**: aprobar las ADR-027 a 035, fusionar F2 a `main` (hecho, `a178967`) y
-arrancar F3 en la rama `f3/servidor-partidas`.
-
-**Hecho (un commit por tarea)**
-- **Motor**: vista y eventos de un **espectador** (`PUBLIC`, no ocupa asiento; un predicado que no
-  se puede evaluar sin asiento cuenta como falso), **puesto final** (`ranking`, del `rank` del
-  terminal o de los pagos), acciones legales perezosas y decodificación sin estado.
-  **Azar verificable** `gamehub-fair/1` (compromiso, semillas de los jugadores, semilla de 53
-  bits, revelación) y `gamehub replay` que lo comprueba. Las trazas de conformidad no cambian.
-- **Protocolo v1** en JSON Schema (`spec/protocol/v1`): 15 mensajes del cliente, 11 del servidor y
-  la API REST; tipos de Python generados (`gamehub protocol types`, en CI).
-- **Servidor de partidas** (Starlette + uvicorn + websockets, ADR-036): núcleo de salas **puro**,
-  sin red ni reloj propio (ADR-037), probado con un reloj simulado. Salas con código, asientos
-  `open/reserved/human/bot`, anfitrión, configuración; una actualización por entrada con `seq` sin
-  huecos y rechazo por **turno vigente** (sin rechazos espurios en nodos simultáneos, ADR-038);
-  acciones enumeradas o progresivas; reconexión con token y `resume`; espectadores con vista
-  pública u omnisciente y retardo; bots del servidor; relojes `move`/`match` con `on_timeout`;
-  **abandonos** (último puesto y un bot termina por el asiento, ADR-041); revancha; anulación si
-  las reglas fallan; límites (tasa, tamaños, salas, conexiones) y limpieza de salas vacías.
-- **Persistencia** en SQLite: cada paso al jugarse; tras una caída, las partidas a medias se
-  cierran como anuladas con su replay verificable. `gamehub serve`.
-- **SDK cliente de Python** (reconexión automática, peticiones con respuesta) y **bots en red con
-  la misma interfaz `Agent`** que en proceso (ADR-043); `gamehub bot run agente.py --room CÓDIGO`.
-- **Juego en la LAN** (ADR-042): `gamehub host juego` (código, enlace `/r/CÓDIGO`, QR en la
-  terminal, anuncio mDNS), `gamehub join CÓDIGO|enlace` (busca la sala en la LAN; guarda la
-  sesión para volver tras cerrar la terminal), `gamehub rooms`; cliente de terminal con lobby,
-  comandos (`/listo`, `/chat`, `/bot`…), menús de jugadas, relojes, resultado y revancha.
-- **Rendimiento**: perfilando Mentiroso por red, `to_json` despacha por tipo exacto y la
-  enumeración de acciones reutiliza la conversión de cada carta (servidor ×3,7) y el cliente
-  decodifica las acciones solo cuando el agente las mira: partida de 3 bots de 52 s a ~5 s.
-  **Prueba de carga** (`gamehub loadtest`): 100 salas simultáneas, Dudo a 4 (400 conexiones)
-  ≈ 890 jugadas/s y Nim ≈ 1 300/s, sin fallos.
-- **Aceptación** con procesos reales en la red local (`tests/test_acceptance_f3.py`,
-  `GAMEHUB_LAN_TESTS=1`): cuatro `gamehub join` como cuatro ordenadores juegan Dudo en una sala
-  de `gamehub host` (dos la encuentran por mDNS, dos por el enlace); a uno se le cae la terminal en
-  su turno y vuelve; en la revancha entra un bot por el código. Cinco de cinco.
-- **Fallos encontrados y corregidos**: los ids de mensaje del cliente se repetían entre procesos
-  y el servidor descartaba como reintentos las jugadas de quien retomaba la sesión desde otra
-  terminal (lo encontró la aceptación); al retomar sin nada pendiente no llegaba ninguna
-  actualización y el cliente no sabía que era su turno; un nombre largo dejaba sin respuesta el
-  `hello`; la salida de `gamehub host` a una tubería se quedaba en el búfer; los tests escribían
-  sesiones en `~/.local/share/gamehub` (ahora, un directorio temporal).
-- Docs: `protocolo.md` reescrita (v1 implementada, rendimiento), `motor.md`, `arquitectura.md`,
-  `heuristicas-e-ia.md` (interfaz `Agent`), glosario, ADR-036 a 043; 604 tests.
-
-**Decisiones** (propuestas): ADR-036 a 043.
-
-**Pendiente de ti**: revisar las ADR-036 a 043 y dar el visto bueno para fusionar
-`f3/servidor-partidas` a `main` (pregunta 18); preguntas nuevas 19 (`on_timeout` por juego) y 20
-(jugar por internet antes del hub).
-
-**Siguiente**: F4, el cliente web (SDK TypeScript con tipos generados del mismo esquema, UI
-genérica a partir de la IR, UI kit, lobby): el **MVP jugable**.
-
-**Progreso global**: ≈ 32 %.
+**Progress**: ≈ 51 % (F0 to F5 in `main`).
 
 ---
 
-## 2026-10-10 — Fase 2 aprobada y fusionada
+## 2026-10-12 — Session 7: Phase 5, the Studio
 
-- Apruebas las ADR-027 a 035 y la fusión: la rama `f2/compilador-nomos` se fusiona a `main` y la
-  Fase 3 (servidor de partidas y protocolo) arranca en la rama `f3/servidor-partidas`.
-- Pregunta 17 movida a respondidas. Corregido un recuento de la wiki: son 15 paquetes de juego con
-  16 juegos (el paquete del PD iterado trae también su juego de tests).
-- Progreso global: ≈ 24 %.
+**Answers received**: "go on with phase 5", taken as approval of ADR-044 to 051 and of merging F4
+(done, `d14ae62`; nothing has been pushed). F5 is worked on in the `f5/studio` branch.
 
----
+**Done (one commit per task)**
+- **Core** (`2cde02a`): the position of each name in the tree, the checker's **symbol index**
+  (declarations, resolved uses and the type of each expression), a reference of the built-ins,
+  loose fragments with located errors, the **edit engine** (~45 operations on the tree with a
+  minimal rewrite of the text, checked by parsing again) and the **document model** for the diagram
+  and the forms. Compiling for the editor skips the JSON Schema (it was 90 % of the time).
+- **Language server** (`cff47a3`) with pygls: diagnostics, completion with half-written text,
+  hover, definition, references, rename with clash checks, formatting, outline, folding,
+  signatures and quick fixes; `gamehub lsp` over stdio and the same server over the Studio's
+  WebSocket.
+- **Studio server** (`8c4277e`): `gamehub studio` (workspace API, layout in `<game>.layout.json`,
+  new games from templates, git history), security (local only, token, Host and Origin),
+  **simulator** (history with time travel, running until breakpoints, reloading rules, batch runs
+  with coverage thanks to the engine's transition trace, tree, counting, size with Knuth's
+  estimator) and **templates** (`gamehub new --template`).
+- **Tests and invariants in the Studio** and **acceptance** (`7e62df0`): operations to edit them
+  and `gamehub/tests` to run them (without them, the empty template stopped compiling as soon as
+  its action was touched); acceptance tests against the real server.
+- **The web Studio** (`428b6f4`): `@gamehub/nomos` (Nomos for CodeMirror), `@gamehub/studio`
+  (diagram with React Flow + ELK, editor and fields with CodeMirror and the LSP, inspector,
+  component designer, simulator with the generic UI, batch runs, tree, compare, SVG and PNG
+  export) and the app; unit tests, integration tests and tests of the whole app in jsdom.
+- **Wheel and CI** (`16d9b6e`): the wheel ships the built Studio; CI builds both apps.
+- **Acceptance**: tic-tac-toe is built from the empty template with 24 gestures in the diagram and
+  the inspector, passes its tests, is played in the simulator and is the same game as the
+  catalog's (same legal moves and payoffs in 40 random matches); Dudo is changed in the diagram (a
+  new node, a reconnected arrow —one line of text—, reordered actions, the round put inside a
+  phase) without losing a single comment, and what is written in the text, also broken and then
+  fixed, reaches the diagram. Reviewed by hand in the built-in browser.
+- **Bugs found and fixed while testing in the browser**: saving always reported a conflict (the
+  file version was in nanoseconds, which does not fit exactly in a JavaScript number: now in
+  microseconds); arrows covered the output handles and another one could not be dragged from a
+  node that already had one; ELK put Dudo's bidding node above the start (it broke the cycle at
+  the wrong arrow: now by text order); when switching views the diagram fell out of frame; a new
+  node ended up out of view; more than 0.65 s passed from the click to the diagram (the editor
+  waited half a second to sync the text and the server another 150 ms to parse it: now ~70 ms); in
+  batch runs a draw counted as a win for both (69 % + 44 %); "Count" on the tree could take half a
+  minute without any feedback (now with a limit and "Counting…"); the dice generator created a
+  chance node without a transition; the language and theme selectors took the whole width; "1
+  warnings"; node kinds appeared in Spanish with the interface in English; two copies of
+  `@lezer/highlight`; the Studio's WebSocket rejected messages over 64 KB (a large `.game` when
+  opening it).
+- Docs: the [Studio](docs/wiki/studio.md) page rewritten (implemented), language §4 and §13
+  (`gamehub studio`, `gamehub lsp`, templates), architecture, engine (trace), roadmap, licenses
+  (elkjs is EPL-2.0), READMEs; ADR-052 to 059. Tests: 798 Python and 113 web.
 
-## 2026-10-09 — Sesión 4: Fase 2, el lenguaje Nomos y sus herramientas
+**Decisions** (proposed): ADR-052 to 059; the most visible one, **CodeMirror instead of Monaco**
+(ADR-054, it changes ADR-012): lighter and designed for dozens of fields with its LSP client.
 
-**Respuestas recibidas**: fusionar F1 a `main` (hecho, `bc6b203`) y arrancar F2 en la rama
-`f2/compilador-nomos`.
+**Limitations**: no collaborative editing; no Scratch-like blocks (question 6); moving an action
+from one node to another is done in the text; the VS Code extension does not use the LSP yet; the
+Studio needs the local server (without it, with F8's WASM and F10's hub). The built-in browser
+panel was small: the desktop layout was checked by measuring the page and with screenshots at that
+size, not full screen.
 
-**Hecho (un commit por tarea)**
-- Parser de Nomos escrito a mano (descenso recursivo + precedencias) con recuperación de errores,
-  diagnósticos al estilo rustc y comentarios conservados como trivia.
-- Formateador canónico `gamehub fmt` (idempotente, conserva comentarios); en CI y pre-commit.
-- Comprobador de tipos y traducción a GameIR (`gamehub compile`, `gamehub check`); `play`, `fuzz`
-  y `replay` aceptan `.game`. **Los seis juegos de F1 escritos en Nomos (`games/`) compilan con el
-  mismo hash de reglas que su IR escrita a mano.**
-- Descompilador IR → Nomos (`gamehub decompile`): ida y vuelta exacta en los 6 ejemplos y en un
-  juego «fregadero» que usa todas las construcciones (`python/tests/fixtures/kitchen-sink.game`).
-- Corregido un fallo del validador de F1: `at(Nodo)` en la visibilidad del estado o en funciones
-  se daba por nodo desconocido.
-- Formateador, segunda vuelta: las cadenas aritméticas largas rellenan líneas y las de `and`/`or`
-  van una por línea; un valor que no cabe tras `=` pasa a la línea siguiente, o se abre junto al
-  `=` si empieza por un corchete y tampoco cabe allí; se conservan las líneas en blanco alrededor
-  de los comentarios. Fallo latente corregido: el formateador podía partir tras `=`, `requires`,
-  `when` o `clave:` y el parser no lo admitía. `fmt --diff` ya no escribe. Test de estrés: todos
-  los juegos, formateados a anchos de 24 a 80 columnas, vuelven al mismo árbol sintáctico.
-- **`gamehub test`**: ejecuta los bloques `test` (azar resuelto con la semilla del test,
-  `chance where` condicionado a la probabilidad, `play` con asiento implícito si solo uno puede
-  actuar, `expect`, `expect legal/illegal`, `set`) y comprueba los invariantes en cada estado del
-  test y en partidas aleatorias (`--playouts`, 20 por defecto). Los fallos se explican al estilo
-  rustc con los valores en juego (`payoff == [1, -1]` es falso: `payoff` vale [2, -2]) y las
-  jugadas legales. Errores nuevos: E601/E602 (configuración del test) y E610–E614 (fallos).
-  Motor: `State.evaluate`, `State.edited` e `illegal_reason`. Los 19 tests y 4 invariantes de los
-  juegos pasan; en CI.
-- **Análisis de `gamehub check`** (paquete `gamehub.analysis`, sobre la IR, así que sirven también
-  para IR escrita a mano o por el futuro editor visual): nodos inalcanzables (W401), transiciones
-  que pueden no cubrir todos los casos (W402, reconoce parejas `c`/`not c`, `a < b`/`a >= b` y
-  enums completos), nodos sin camino a un final (W403), bucles de nodos `auto` sin efectos
-  (W404), **fugas de información v1** (W405: datos ocultos que llegan a estado o eventos públicos,
-  también por un `if`; quién juega o qué nodo sigue según datos ocultos; jugadas legales que
-  dependen de lo que el actor no ve), declaraciones sin usar (W406; los usos en tests cuentan) y
-  transiciones tapadas en IR a mano (W407). **Clasificación** estática (jugadores, azar,
-  información, simultaneidad, suma cero si se puede asegurar). Los avisos se sitúan en el texto
-  con un mapa de fuentes. Los seis juegos no dan ningún aviso; el fregadero da los esperables.
-  `gamehub test` juega siempre las partidas aleatorias e informa si los pagos suman constante.
-- **Módulos e `import`** (`import a.b.{X, Y}`, `import a.b.*`): `std.…` en la biblioteca
-  estándar y el resto relativo al archivo; importar un nombre trae lo que necesita, y solo llega
-  a la IR lo que el juego usa. Errores: módulo no encontrado (E503), nombre inexistente (E201,
-  con sugerencia), importación circular (E504), choques de nombres (E202). Un archivo sin
-  juegos es un módulo y `gamehub check` lo comprueba. Las casillas se pueden indexar (`c[0]`
-  fila, `c[1]` columna).
-- **Biblioteca estándar v0** (`stdlib/std/`): `std.cards` (baraja francesa de 52 y española de
-  40/48, `rank_value`, `is_red`…), `std.dice` (caras, recuentos con comodín, escaleras…),
-  `std.grid` (direcciones, rayos, distancias) y `std.graph` (grafos como listas de aristas,
-  ciclos, vecinos). Probada con tests escritos en Nomos (`tests/fixtures/stdlib.game`).
-- **Mods**: `game V extends Base { … }` (la base puede ser del archivo, importada o un
-  combinador) con declaraciones nuevas, `override` (fn, tipos, nodos —también dentro de fases—,
-  params, state; un `override params` con `assert` sustituye las restricciones), `remove` y
-  `extend node` (acciones al final, transiciones delante). Meta mezclado sin `id`/`version`; tests
-  e invariantes no se heredan; la base no cambia. Errores E505.
-- **Combinadores**: `game G = repeat(Base, rounds: n, payoff: sum|mean)` y
-  `best_of(Base, rounds: n)`, como transformaciones de la IR (fase de ronda, terminales que
-  apuntan el resultado, nodo «Siguiente», terminal final; `rounds` pasa a ser un parámetro; nombres
-  nuevos sin choques). Errores E506. Un combinador se puede extender (se descompila), p. ej. para
-  añadirle tests. Probado: PD iterado (9/9 cooperando, media 3 y 4/3), al mejor de 3 (suma cero),
-  variantes del tres en raya (inverso, con pase, 4×4).
-- En un `import`, `prisoners_dilemma` encuentra también `prisoners-dilemma.game`.
-- **Paquetes** (`gamehub.packages`): `game.toml` (nombre, versión, archivo principal, licencia,
-  autores, `forked_from`, `[dependencies]` por `path` o `git` + `rev`), `game.lock` con el commit
-  de cada dependencia git (también las transitivas) y caché en `~/.cache/gamehub/git`. Los
-  `import` buscan en `std`, después en las dependencias del paquete y después junto al archivo.
-  Comandos: `gamehub new` (paquete con un juego mínimo que compila y pasa su test: una carrera
-  hasta la meta), `fetch [--update]`, `clone` y `fork` (anota `forked_from` con el commit y deja
-  el remoto original como `upstream`). Los seis juegos de `games/` ya son paquetes. Probado con
-  repositorios git locales (sin red).
-- **`gamehub viz`** (Mermaid o Graphviz): cada nodo con su forma según el tipo, quién juega, sus
-  acciones y el pago; flechas con la acción y la condición en Nomos; las fases como subgrafos con
-  marcas de entrada y salida. Comprobado renderizando los diagramas con Mermaid en el navegador.
-- **`gamehub rules`**: reglamento en Markdown generado de la IR (clasificación, opciones,
-  componentes, qué hay en la mesa y quién lo ve, el diagrama, cada nodo con sus acciones,
-  condiciones y efectos en Nomos, definiciones), en el idioma pedido.
-- **`gamehub diff A B`** o **`gamehub diff REV1..REV2 archivo`**: diff semántico por elementos
-  (no por líneas), en texto o JSON, que dice si cambian las reglas o solo los textos.
-- **Extensión de VS Code** (`editors/vscode/nomos`, JavaScript sin compilación): gramática
-  TextMate, configuración del lenguaje, diagnósticos de `gamehub check --format json` al abrir y
-  guardar (también en módulos importados) y formato con `gamehub fmt --stdin` (nuevo). Un test
-  comprueba que la gramática cubre todas las palabras reservadas y funciones del lenguaje.
-  Corregido: un juego sin `flow` daba un error sin posición (ahora uno solo, en el juego).
-- **Juegos nuevos en Nomos**, cada uno un paquete con tests (64 comprobaciones en total, todas
-  en verde, sin avisos):
-  - **Conecta 4** (tablero y línea parametrizables; invariante: las fichas no flotan);
-  - **familia 2×2**: base `two-by-two` (dos tablas de pagos como opciones) y las variantes
-    **caza del ciervo**, **gallina**, **pares o nones** y **batalla de los sexos** con `extends`
-    (`override enum` para renombrar las opciones, `override params` para los pagos);
-  - **dilema del prisionero iterado** con `repeat(PrisonersDilemma, rounds: 10)` y un
-    `tests.game` que lo extiende;
-  - **póker de Leduc** (dos rondas, límite de subidas, carta común);
-  - **Dudo** de 2 a 4 jugadores, que usa `std.dice`.
-- Mejoras que salieron al escribirlos: el análisis de fugas entiende `reveal … to all`; las
-  funciones de módulo tienen su propio ámbito (sus parámetros pueden llamarse como cosas del
-  juego); la recuperación de errores del parser respeta los corchetes anidados (un error dentro
-  de un texto ya no cierra el bloque y lo arrastra todo); los textos traducibles admiten saltos
-  de línea entre idiomas.
+**Waiting on you**: review ADR-052 to 059 and approve merging `f5/studio` into `main` (question
+22).
 
-- **Documentación**: `lenguaje-game.md` reescrita como referencia de Nomos v0.1 (léxico,
-  módulos y paquetes, tipos, visibilidad, expresiones, efectos y flow, tests, mods, herramientas,
-  traducción a la IR, diagnósticos, formato y diferencias con el RFC); ADR-027 a 035; estado,
-  arquitectura, IR, motor, glosario, catálogo y preguntas abiertas al día.
-- `spec/` y `stdlib/` viajan dentro de la rueda de Python: probado instalándola en un entorno
-  aislado, fuera del repositorio (Dudo, que importa `std.dice`, compila y pasa sus tests).
+**Next**: F6, catalog wave 2 (the 7 requested games) and a mature standard library.
 
-**Decisiones (propuestas, ADR-027 a 035)**: parser a mano en vez de Lark; ningún local oculta un
-global salvo en funciones de módulo; azúcar guiado por los tipos con traducción en una pasada;
-tests e invariantes fuera de la IR; módulos con poda y resolución std → dependencias →
-relativa; mods sobre el modelo y combinadores sobre la IR; paquetes con `game.toml` y `game.lock`;
-análisis estáticos sobre la IR; formato canónico al estilo Prettier.
-
-**Aceptación de la Fase 2** ✅
-- Los 16 juegos de la ola 1 están en `.game` y pasan sus tests: `gamehub test ../games` da 64
-  comprobaciones en verde (tests, invariantes y partidas aleatorias) y `gamehub check`, ningún
-  aviso. Los 6 de F1 compilan con el mismo hash de reglas que su IR escrita a mano.
-- `fmt` idempotente y estable a cualquier ancho (todos los juegos, de 24 a 100 columnas).
-- `texto → IR → texto` estable: ida y vuelta exacta con el descompilador.
-- `viz`: una caja por nodo y una flecha por transición en todos los juegos (test).
-- 500 tests de Python; `ruff`, `pyright`, `gamehub ir check` y las trazas de conformidad en verde.
-
-**Pendiente de ti**: revisar las ADR-027 a 035 y dar el visto bueno para fusionar
-`f2/compilador-nomos` a `main` (pregunta 17); variantes de Mentiroso (9b).
-
-**Siguientes pasos**: Fase 3, servidor de partidas (salas con código, protocolo WebSocket + JSON
-con JSON Schema, proyección por asiento, reconexión, LAN) para jugar en red desde la terminal.
-
-**Progreso:** ≈ 24 % (F0, F1 y F2 completas).
+**Overall progress**: ≈ 51 %.
 
 ---
 
-## 2026-10-09 — Sesión 3: Fase 1, motor de referencia en Python
+## 2026-10-11 — Phase 4 approved and merged
 
-**Respuestas recibidas**
-- Commits: uno por tarea. → Fase 0 en `main` (3 commits); Fase 1 en la rama `f1/motor-referencia`
-  (un commit por tarea), pendiente de fusionar con el visto bueno del usuario (ADR-026).
-- Arrancar la Fase 1: sí. Las ADR propuestas se consideran aceptadas (sin objeciones).
+- "Go on with phase 5": ADR-044 to 051 and the merge are taken as approved. The `f4/cliente-web`
+  branch is merged into `main` and Phase 5 (the Studio: a bidirectional visual editor with a
+  simulator) starts on the `f5/studio` branch.
+- Question 21 moved to answered.
+- Overall progress: ≈ 41 %.
 
-**Qué se hizo**
-- `gamehub.ir.hashing`: hash de reglas (JSON canónico + SHA-256), insensible a `meta`, `doc` y
-  valores por defecto (ADR-025). Validación: `pass` reservado en ventanas, sin transiciones por
-  acción en nodos simultáneos, fases de las que se sale con `$exit` con transiciones.
-- **Motor de referencia** (`gamehub.engine`):
-  - valores inmutables con orden canónico; tipos; JSON;
-  - **PCG32** idéntico a la implementación de referencia en C (vector de prueba verificado),
-    sorteos reproducibles y **enumeración exacta** de resultados de azar (ADR-022);
-  - los 87 operadores y las 14 sentencias del catálogo, compilados a funciones;
-  - semántica del flow: decisiones, simultáneos, ventanas (priority/collect/race), azar, fases con
-    `on_enter`/`on_exit`/`$exit` (ADR-024), avance hasta quiescencia sin recursión;
-  - visibilidad: vistas redactadas, eventos resueltos por asiento, estados de información con
-    recuerdo perfecto (verificado: en Kuhn el asiento 1 no distingue KQ de JQ);
-  - acciones legales, forma canónica y construcción progresiva (`options`);
-  - instantánea y huella del estado; replays `.ghr.json` verificados paso a paso.
-- Drivers: `play_match`, `RandomAgent`, `fuzz`; **trazas doradas** en `spec/conformance` (6 juegos).
-- **API builder** (`gamehub.build`): tres juegos reconstruidos con ella dan el mismo hash de reglas
-  que sus JSON escritos a mano.
-- **CLI**: `gamehub play` (hot-seat y bots, pantalla de cambio de jugador), `fuzz`, `replay`,
+---
+
+## 2026-10-11 — Session 6: Phase 4, playing in the browser
+
+**Answers received**: approve ADR-036 to 043, merge F3 into `main` (done, `0607c1b`) and start F4
+on the `f4/cliente-web` branch.
+
+**Done (one commit per task)**
+- **JavaScript monorepo** (ADR-044): a pnpm workspace at the root with `web/packages/*`,
+  `web/apps/*` and `games/*/ui` (it started inside `web/`; it moved to the root because pnpm did
+  not find it when working inside a UI in `games/`). Node 22, strict TypeScript 7, React 19,
+  Vite 8, Biome and Vitest, with exact versions in a catalog; a new CI job.
+- **`@gamehub/protocol`**: the TypeScript types come from the same generator as the Python ones
+  (`gamehub protocol types` writes and checks both, ADR-045). In the schema, `Number`, `Event` and
+  `Error` become `ExactNumber`, `GameEvent` and `ErrorInfo` (the wire does not change).
+- **`@gamehub/client`**, the TypeScript SDK: connection with reconnection and `resume`, heartbeat,
+  unique ids, resync if an update is missing, shutdown if another tab takes over the session;
+  immutable state with a pure reducer; enumerated and progressive actions; sessions in
+  localStorage; REST API. Tested against the real Python server (two clients, a dropped connection
+  and a spectator).
+- **Nomos's `ui { … }` section** (ADR-047): presentation hints with a target (variables, options,
+  types, actions and their parameters, nodes, seats) and a closed catalog (how and where to draw,
+  translated names, symbols, colors, cards, how to pick an argument), checked (E701–E704), with
+  formatting, decompiler and merging in variants. In the IR, an optional `ui` key that does not
+  count for the hash: the conformance traces do not change.
+- **`@gamehub/ui-kit`** (accessible grid, SVG cards with French and Spanish suits, fanned hand,
+  pile, deck, dice, tokens, track, graph, player, scoreboard, clock, action bar; CSS variables with
+  light and dark themes) and **`@gamehub/i18n`** (es/en).
+- **`@gamehub/auto-ui`, the generic UI** (ADR-048): the look of each variable comes from its type
+  and its hints; how each argument is picked, from its domain (`cells(G)` → squares,
+  `subsets(items(Z))` → mark cards) or from a hint; an action builder with the values given by
+  the legal actions, computed once per update. An event log in sentences and the result. And
+  **`@gamehub/react`** (hooks on top of the SDK).
+- **The server serves the app** (ADR-046): `gamehub serve`/`host` (`--open`, `--no-web`); each
+  room's link and QR code open the app; QR as SVG and state-by-state replays (`/frames?seat=`). The
+  Python wheel ships the built app (tested by installing it in a clean environment).
+- **The play app** (`@gamehub/shell` and `web/apps/play`): home (code, create room, open rooms,
+  recent matches), create room (game options, clock, spectators, bots), room (player or
+  spectator, session kept on reload, lobby with code, link and QR code, seats, bots, settings,
+  ready, chat, rematch), match with the generic UI or a custom one, step-by-step replays from any
+  perspective, **matches on a single device** with a privacy screen (ADR-049) and the kit gallery
+  at `/kit`. Spanish and English, light or dark theme, phones.
+- **`ui` hints in the 15 catalog packages** (es/en names, symbols, colors, cards, dice, Connect
+  Four's column…).
+- **Custom UIs** (ADR-050): `gamehub sdk ts` (a game's types, with Biome's formatting and
+  `--check`) and `gamehub ui new` (a template that works on the first try: types, a starting
+  board, a test, a development server with the app only for that game). With it, the UIs of
+  **tic-tac-toe** (drawn marks, winning line), **Connect Four** (falling discs, highlighted column)
+  and **Dudo** (the bid on the felt, the round's history, cups, the last challenge, a bid selector
+  with dice); the app registers them by itself.
+- **Acceptance**: the 15 catalog games are played to the end against the server only by clicking
+  the generic UI (integration test, at random with a seed); **Ana in the app against Luis with
+  `gamehub join` in a real terminal**, until the end; a room with the app against a bot, and
+  spectator mode. Reviewed by hand in the built-in browser, also at phone size.
+- **Bugs found and fixed**: the QR code came out broken (`svg_inline` has no `xmlns` and an
+  `<img>` does not draw it); replay players came by position rather than by seat; the log printed
+  double parentheses and what was revealed before the move; Bullshit took 170 s in the acceptance
+  test (the builder recomputed thousands of subsets on every click: now 35 s); the server's
+  catalog included the iterated PD's test game (now, its main file from each package); in jsdom,
+  the simulated browser's WebSocket (undici) clashes with its `Event` class: the tests use `ws`.
+- Docs: a new [web client](docs/wiki/web-client.md) page, language §12 (`ui`), IR, protocol,
+  architecture, glossary, ideas, READMEs (the root one was still at Phase 1); ADR-044 to 051.
+  Tests: 673 Python and 85 web (including the custom UIs').
+
+**Decisions** (proposed): ADR-044 to 051.
+
+**Limitations**: without an engine in the browser, local mode needs the server that serves the app
+(until F8's WASM); there are no animations; "a custom UI in less than an hour" rests on the
+template and the three example UIs, not on a measurement with another person; Windows is still
+untested.
+
+**Waiting on you**: review ADR-044 to 051 and approve merging `f4/cliente-web` into `main`
+(question 21).
+
+**Next**: F5, the Studio: a bidirectional visual editor (diagram ↔ text) with a simulator, the
+**design MVP**.
+
+**Overall progress**: ≈ 41 %.
+
+---
+
+## 2026-10-10 — Phase 3 approved and merged
+
+- You approve ADR-036 to 043 and the merge: the `f3/servidor-partidas` branch is merged into
+  `main` and Phase 4 (web client: TypeScript SDK, generic UI, UI kit, play app) starts on the
+  `f4/cliente-web` branch.
+- Question 18 moved to answered.
+- Overall progress: ≈ 32 %.
+
+---
+
+## 2026-10-10 — Session 5: Phase 3, the match server and network play
+
+**Answers received**: approve ADR-027 to 035, merge F2 into `main` (done, `a178967`) and start F3
+on the `f3/servidor-partidas` branch.
+
+**Done (one commit per task)**
+- **Engine**: the view and events of a **spectator** (`PUBLIC`, holds no seat; a predicate that
+  cannot be evaluated without a seat counts as false), **final place** (`ranking`, from the
+  terminal's `rank` or from the payoffs), lazy legal actions and stateless decoding. **Provably
+  fair chance** `gamehub-fair/1` (commitment, players' seeds, 53-bit seed, reveal) and
+  `gamehub replay` checking it. The conformance traces do not change.
+- **Protocol v1** in JSON Schema (`spec/protocol/v1`): 15 client messages, 11 server messages and
+  the REST API; generated Python types (`gamehub protocol types`, in CI).
+- **Match server** (Starlette + uvicorn + websockets, ADR-036): a **pure** room core, with no
+  network or clock of its own (ADR-037), tested with a simulated clock. Rooms with a code, seats
+  `open/reserved/human/bot`, host, settings; one update per input with `seq` without gaps and
+  rejection by **current turn** (no spurious rejections in simultaneous nodes, ADR-038); enumerated
+  or progressive actions; reconnection with token and `resume`; spectators with a public or
+  omniscient view and a delay; server bots; `move`/`match` clocks with `on_timeout`; **forfeits**
+  (last place and a bot finishes for the seat, ADR-041); rematch; aborting if the rules fail;
+  limits (rate, sizes, rooms, connections) and cleanup of empty rooms.
+- **Persistence** in SQLite: each step as it is played; after a crash, unfinished matches are
+  closed as aborted with their verifiable replay. `gamehub serve`.
+- **Python client SDK** (automatic reconnection, requests with replies) and **network bots with
+  the same `Agent` interface** as in process (ADR-043); `gamehub bot run agent.py --room CODE`.
+- **LAN play** (ADR-042): `gamehub host game` (code, `/r/CODE` link, QR code in the terminal,
+  mDNS announcement), `gamehub join CODE|link` (it looks for the room on the LAN; it stores the
+  session to go back after closing the terminal), `gamehub rooms`; a terminal client with a lobby,
+  commands (`/listo`, `/chat`, `/bot`…), move menus, clocks, result and rematch.
+- **Performance**: profiling Bullshit over the network, `to_json` dispatches on the exact type and
+  action enumeration reuses each card's conversion (server ×3.7) and the client decodes actions
+  only when the agent looks at them: a match of 3 bots from 52 s to ~5 s. **Load test**
+  (`gamehub loadtest`): 100 simultaneous rooms, Dudo with 4 (400 connections) ≈ 890 moves/s and
+  Nim ≈ 1,300/s, without failures.
+- **Acceptance** with real processes on the local network (`tests/test_acceptance_f3.py`,
+  `GAMEHUB_LAN_TESTS=1`): four `gamehub join`s acting as four computers play Dudo in a
+  `gamehub host` room (two find it over mDNS, two through the link); one of them loses their
+  terminal on their turn and comes back; in the rematch a bot joins by code. Five out of five.
+- **Bugs found and fixed**: the client's message ids repeated across processes and the server
+  discarded as retries the moves of whoever resumed the session from another terminal (found by
+  the acceptance test); when resuming with nothing pending no update arrived and the client did
+  not know it was its turn; a long name left `hello` unanswered; `gamehub host`'s output to a pipe
+  stayed in the buffer; the tests wrote sessions in `~/.local/share/gamehub` (now, a temporary
+  directory).
+- Docs: `protocol.md` rewritten (v1 implemented, performance), `engine.md`, `architecture.md`,
+  `heuristics-and-ai.md` (the `Agent` interface), glossary, ADR-036 to 043; 604 tests.
+
+**Decisions** (proposed): ADR-036 to 043.
+
+**Waiting on you**: review ADR-036 to 043 and approve merging `f3/servidor-partidas` into `main`
+(question 18); new questions 19 (per-game `on_timeout`) and 20 (playing over the internet before
+the hub).
+
+**Next**: F4, the web client (a TypeScript SDK with types generated from the same schema, a generic
+UI from the IR, UI kit, lobby): the **playable MVP**.
+
+**Overall progress**: ≈ 32 %.
+
+---
+
+## 2026-10-10 — Phase 2 approved and merged
+
+- You approve ADR-027 to 035 and the merge: the `f2/compilador-nomos` branch is merged into `main`
+  and Phase 3 (match server and protocol) starts on the `f3/servidor-partidas` branch.
+- Question 17 moved to answered. A count in the wiki corrected: there are 15 game packages with 16
+  games (the iterated PD package also ships its test game).
+- Overall progress: ≈ 24 %.
+
+---
+
+## 2026-10-09 — Session 4: Phase 2, the Nomos language and its tools
+
+**Answers received**: merge F1 into `main` (done, `bc6b203`) and start F2 on the
+`f2/compilador-nomos` branch.
+
+**Done (one commit per task)**
+- A hand-written Nomos parser (recursive descent + precedences) with error recovery, rustc-style
+  diagnostics and comments kept as trivia.
+- The canonical formatter `gamehub fmt` (idempotent, keeps comments); in CI and pre-commit.
+- Type checker and translation to GameIR (`gamehub compile`, `gamehub check`); `play`, `fuzz` and
+  `replay` accept `.game`. **The six F1 games written in Nomos (`games/`) compile to the same rules
+  hash as their hand-written IR.**
+- An IR → Nomos decompiler (`gamehub decompile`): an exact round trip on the 6 examples and on a
+  "kitchen sink" game that uses every construct (`python/tests/fixtures/kitchen-sink.game`).
+- Fixed a bug in the F1 validator: `at(Node)` in state visibility or in functions was reported as
+  an unknown node.
+- Formatter, second pass: long arithmetic chains fill lines and `and`/`or` chains go one per line;
+  a value that does not fit after `=` moves to the next line, or opens next to the `=` if it starts
+  with a bracket and does not fit there either; blank lines around comments are kept. A latent bug
+  fixed: the formatter could break after `=`, `requires`, `when` or `key:` and the parser did not
+  accept it. `fmt --diff` no longer writes. Stress test: every game, formatted at widths from 24 to
+  80 columns, goes back to the same syntax tree.
+- **`gamehub test`**: runs the `test` blocks (chance resolved with the test's seed, `chance where`
+  conditioned on the probability, `play` with an implicit seat if only one can act, `expect`,
+  `expect legal/illegal`, `set`) and checks the invariants in each state of the test and on random
+  matches (`--playouts`, 20 by default). Failures are explained rustc-style with the values
+  involved (`payoff == [1, -1]` is false: `payoff` is [2, -2]) and the legal moves. New errors:
+  E601/E602 (test configuration) and E610–E614 (failures). Engine: `State.evaluate`,
+  `State.edited` and `illegal_reason`. The games' 19 tests and 4 invariants pass; in CI.
+- **`gamehub check` analyses** (the `gamehub.analysis` package, on the IR, so they also work for
+  hand-written IR or the future visual editor): unreachable nodes (W401), transitions that may not
+  cover every case (W402, it recognizes pairs `c`/`not c`, `a < b`/`a >= b` and complete enums),
+  nodes without a path to an end (W403), loops of `auto` nodes without effects (W404),
+  **information leaks v1** (W405: hidden data reaching public state or events, also through an
+  `if`; who plays or which node follows depending on hidden data; legal moves that depend on what
+  the actor cannot see), unused declarations (W406; uses in tests count) and shadowed transitions
+  in hand-written IR (W407). Static **classification** (players, chance, information,
+  simultaneity, zero-sum when it can be guaranteed). Warnings are placed in the text through a
+  source map. The six games give no warnings; the kitchen sink gives the expected ones.
+  `gamehub test` always plays the random matches and reports whether payoffs add up to a constant.
+- **Modules and `import`** (`import a.b.{X, Y}`, `import a.b.*`): `std.…` in the standard library
+  and the rest relative to the file; importing a name brings what it needs, and only what the game
+  uses reaches the IR. Errors: module not found (E503), nonexistent name (E201, with a suggestion),
+  circular import (E504), name clashes (E202). A file without games is a module and
+  `gamehub check` checks it. Cells can be indexed (`c[0]` row, `c[1]` column).
+- **Standard library v0** (`stdlib/std/`): `std.cards` (the French 52-card deck and the Spanish
+  40/48-card deck, `rank_value`, `is_red`…), `std.dice` (faces, counts with wildcards,
+  straights…), `std.grid` (directions, rays, distances) and `std.graph` (graphs as edge lists,
+  cycles, neighbors). Tested with tests written in Nomos (`tests/fixtures/stdlib.game`).
+- **Mods**: `game V extends Base { … }` (the base can be from the file, imported or a combinator)
+  with new declarations, `override` (fn, types, nodes —also inside phases—, params, state; an
+  `override params` with `assert`s replaces the constraints), `remove` and `extend node` (actions
+  at the end, transitions before). Meta merged without `id`/`version`; tests and invariants are not
+  inherited; the base does not change. Errors E505.
+- **Combinators**: `game G = repeat(Base, rounds: n, payoff: sum|mean)` and
+  `best_of(Base, rounds: n)`, as IR transformations (a round phase, terminals that record the
+  result, a "Next" node, a final terminal; `rounds` becomes a parameter; new names without
+  clashes). Errors E506. A combinator can be extended (it is decompiled), e.g. to add tests to it.
+  Tested: iterated PD (9/9 cooperating, average 3 and 4/3), best of 3 (zero-sum), tic-tac-toe
+  variants (misère, with a pass, 4×4).
+- In an `import`, `prisoners_dilemma` also finds `prisoners-dilemma.game`.
+- **Packages** (`gamehub.packages`): `game.toml` (name, version, main file, license, authors,
+  `forked_from`, `[dependencies]` by `path` or `git` + `rev`), `game.lock` with the commit of each
+  git dependency (also the transitive ones) and a cache in `~/.cache/gamehub/git`. `import`s look
+  in `std`, then in the package's dependencies and then next to the file. Commands: `gamehub new`
+  (a package with a minimal game that compiles and passes its test: a race to the finish line),
+  `fetch [--update]`, `clone` and `fork` (it records `forked_from` with the commit and keeps the
+  original remote as `upstream`). The six games in `games/` are now packages. Tested with local git
+  repositories (no network).
+- **`gamehub viz`** (Mermaid or Graphviz): each node with its shape according to its kind, who
+  plays, its actions and the payoff; arrows with the action and the condition in Nomos; phases as
+  subgraphs with entry and exit marks. Checked by rendering the diagrams with Mermaid in the
+  browser.
+- **`gamehub rules`**: a Markdown rulebook generated from the IR (classification, options,
+  components, what is on the table and who sees it, the diagram, each node with its actions,
+  conditions and effects in Nomos, definitions), in the requested language.
+- **`gamehub diff A B`** or **`gamehub diff REV1..REV2 file`**: a semantic diff by element (not by
+  line), as text or JSON, saying whether the rules or only the texts change.
+- **VS Code extension** (`editors/vscode/nomos`, JavaScript without a build step): a TextMate
+  grammar, language configuration, diagnostics from `gamehub check --format json` on open and save
+  (also in imported modules) and formatting with `gamehub fmt --stdin` (new). A test checks that
+  the grammar covers every reserved word and function of the language. Fixed: a game without a
+  `flow` gave an error without a position (now a single one, on the game).
+- **New games in Nomos**, each a package with tests (64 checks in total, all green, no warnings):
+  - **Connect Four** (parameterizable board and line; invariant: discs do not float);
+  - the **2×2 family**: the base `two-by-two` (two payoff tables as options) and the variants
+    **stag hunt**, **chicken**, **matching pennies** and **battle of the sexes** with `extends`
+    (`override enum` to rename the choices, `override params` for the payoffs);
+  - the **iterated prisoner's dilemma** with `repeat(PrisonersDilemma, rounds: 10)` and a
+    `tests.game` that extends it;
+  - **Leduc poker** (two rounds, a raise limit, a community card);
+  - **Dudo** for 2 to 4 players, using `std.dice`.
+- Improvements that came out of writing them: the leak analysis understands `reveal … to all`;
+  module functions have their own scope (their parameters may be named like things in the game);
+  the parser's error recovery respects nested brackets (an error inside a text no longer closes the
+  block and drags everything along); translatable texts accept line breaks between languages.
+
+- **Documentation**: `language.md` rewritten as the Nomos v0.1 reference (lexical structure,
+  modules and packages, types, visibility, expressions, effects and flow, tests, mods, tools,
+  translation to the IR, diagnostics, formatting and differences from the RFC); ADR-027 to 035;
+  status, architecture, IR, engine, glossary, catalog and open questions up to date.
+- `spec/` and `stdlib/` travel inside the Python wheel: tested by installing it in an isolated
+  environment, outside the repository (Dudo, which imports `std.dice`, compiles and passes its
+  tests).
+
+**Decisions (proposed, ADR-027 to 035)**: a hand-written parser instead of Lark; no local shadows
+a global except in module functions; type-directed sugar with single-pass translation; tests and
+invariants outside the IR; modules with pruning and resolution std → dependencies → relative; mods
+on the model and combinators on the IR; packages with `game.toml` and `game.lock`; static analyses
+on the IR; Prettier-style canonical formatting.
+
+**Phase 2 acceptance** ✅
+- The 16 wave-1 games are in `.game` and pass their tests: `gamehub test ../games` gives 64 green
+  checks (tests, invariants and random matches) and `gamehub check`, no warnings. The 6 F1 games
+  compile to the same rules hash as their hand-written IR.
+- `fmt` idempotent and stable at any width (every game, from 24 to 100 columns).
+- `text → IR → text` stable: an exact round trip with the decompiler.
+- `viz`: one box per node and one arrow per transition in every game (test).
+- 500 Python tests; `ruff`, `pyright`, `gamehub ir check` and the conformance traces green.
+
+**Waiting on you**: review ADR-027 to 035 and approve merging `f2/compilador-nomos` into `main`
+(question 17); Bullshit variants (9b).
+
+**Next steps**: Phase 3, the match server (rooms with a code, a WebSocket + JSON protocol with JSON
+Schema, per-seat projection, reconnection, LAN) to play over the network from the terminal.
+
+**Progress:** ≈ 24 % (F0, F1 and F2 complete).
+
+---
+
+## 2026-10-09 — Session 3: Phase 1, the reference engine in Python
+
+**Answers received**
+- Commits: one per task. → Phase 0 on `main` (3 commits); Phase 1 on the `f1/motor-referencia`
+  branch (one commit per task), to be merged with the user's approval (ADR-026).
+- Start Phase 1: yes. The proposed ADRs are considered accepted (no objections).
+
+**What was done**
+- `gamehub.ir.hashing`: the rules hash (canonical JSON + SHA-256), insensitive to `meta`, `doc`
+  and default values (ADR-025). Validation: `pass` reserved in windows, no per-action transitions
+  in simultaneous nodes, phases left with `$exit` have transitions.
+- **Reference engine** (`gamehub.engine`):
+  - immutable values with a canonical order; types; JSON;
+  - **PCG32** identical to the reference C implementation (test vector verified), reproducible
+    draws and **exact enumeration** of chance outcomes (ADR-022);
+  - the catalog's 87 operators and 14 statements, compiled into functions;
+  - flow semantics: decisions, simultaneous nodes, windows (priority/collect/race), chance, phases
+    with `on_enter`/`on_exit`/`$exit` (ADR-024), advancing to quiescence without recursion;
+  - visibility: redacted views, events resolved per seat, information states with perfect recall
+    (verified: in Kuhn, seat 1 cannot tell KQ from JQ);
+  - legal actions, canonical form and progressive building (`options`);
+  - state snapshot and digest; `.ghr.json` replays verified step by step.
+- Drivers: `play_match`, `RandomAgent`, `fuzz`; **golden traces** in `spec/conformance` (6 games).
+- **Builder API** (`gamehub.build`): three games rebuilt with it give the same rules hash as their
+  hand-written JSON.
+- **CLI**: `gamehub play` (hot-seat and bots, a player-change screen), `fuzz`, `replay`,
   `conformance`.
-- Juegos nuevos: **piedra-papel-tijera** y **Nim** (con variante misère).
-- Docs: `docs/wiki/motor.md` (semántica operacional exacta), ADR-022 a 026, roadmap, arquitectura,
-  glosario, README.
-- 132 tests; `ruff` y `pyright` limpios.
-- Perfilado de Mentiroso: la mitad del tiempo era deduplicar subconjuntos ya distintos; corregido (×1,8) sin cambiar las trazas de conformidad.
+- New games: **rock-paper-scissors** and **Nim** (with a misère variant).
+- Docs: `docs/wiki/engine.md` (exact operational semantics), ADR-022 to 026, roadmap,
+  architecture, glossary, README.
+- 132 tests; `ruff` and `pyright` clean.
+- Profiling Bullshit: half the time went into deduplicating subsets that were already distinct;
+  fixed (×1.8) without changing the conformance traces.
 
-**Aceptación de la Fase 1**
+**Phase 1 acceptance**
 
-| Juego | Partidas aleatorias | Errores | Partidas/s | Comprobación |
+| Game | Random matches | Errors | Matches/s | Check |
 |---|---:|---:|---:|---|
-| Tres en raya | 100 000 | 0 | 1 579 | Pago medio de X +0,294 (teórico +0,297) |
-| Dilema del prisionero | 100 000 | 0 | 11 972 | Pago medio 2,249 (exacto 9/4) |
-| Piedra, papel o tijera | 100 000 | 0 | 11 790 | Pago medio −0,003 (exacto 0) |
-| Nim (3, 5, 7) | 100 000 | 0 | 2 805 | — |
-| Póker de Kuhn | 100 000 | 0 | 4 600 | Pago medio +0,133 (exacto 1/8) |
-| Mentiroso (3 jugadores) | 1 000 | 0 | 0,4 (≈ 0,9 tras optimizar) | 391 pasos de media; gana un 31,6 / 32,2 / 36,2 % por asiento: el asiento 0 recibe 18 cartas y los demás 17 |
+| Tic-tac-toe | 100,000 | 0 | 1,579 | X's average payoff +0.294 (theoretical +0.297) |
+| Prisoner's dilemma | 100,000 | 0 | 11,972 | Average payoff 2.249 (exactly 9/4) |
+| Rock-paper-scissors | 100,000 | 0 | 11,790 | Average payoff −0.003 (exactly 0) |
+| Nim (3, 5, 7) | 100,000 | 0 | 2,805 | — |
+| Kuhn poker | 100,000 | 0 | 4,600 | Average payoff +0.133 (exactly 1/8) |
+| Bullshit (3 players) | 1,000 | 0 | 0.4 (≈ 0.9 after optimizing) | 391 steps on average; wins 31.6 / 32.2 / 36.2 % per seat: seat 0 gets 18 cards and the others 17 |
 
-Además: valor exacto del juego aleatorio calculado sobre el árbol completo (Kuhn = 1/8, dilema = 9/4,
-PPT = 0); replays idénticos bit a bit; vistas sin fugas; partida completa jugable en la terminal.
+Also: the exact value of the random game computed over the full tree (Kuhn = 1/8, dilemma = 9/4,
+RPS = 0); replays identical bit for bit; views without leaks; a full match playable in the
+terminal.
 
-**Decisiones**: ADR-022 (PCG32), 023 (sin pydantic), 024 (orden de `$exit`), 025 (hash), 026 (ramas).
+**Decisions**: ADR-022 (PCG32), 023 (no pydantic), 024 (order of `$exit`), 025 (hash), 026
+(branches).
 
-**Pendiente / siguientes pasos**
-- Del usuario: fusionar `f1/motor-referencia` en `main`; variantes de Mentiroso (pregunta 9b).
-- F2: compilador de Nomos (`.game` → IR) con tipos, formateador, stdlib v0 y paquetes.
+**Pending / next steps**
+- From the user: merge `f1/motor-referencia` into `main`; Bullshit variants (question 9b).
+- F2: the Nomos compiler (`.game` → IR) with types, formatter, stdlib v0 and packages.
 
-**Progreso:** ≈ 13 % (F0 y F1 completas).
-
----
-
-## 2026-10-09 — Sesión 2: respuestas del usuario y Fase 0 completada
-
-**Respuestas recibidas**
-- Mensaje cortado ("También quiero tener una…"): no lo recuerda → pregunta cerrada.
-- Licencias propuestas: aceptadas (ADR-016).
-- Mentiroso = *Bullshit*: cartas boca abajo con un *claim* ("3 cuatros"); si te acusan y era
-  mentira, te llevas el montón; si era verdad, se lo lleva quien acusó.
-- Nombre **Nomos** y palabras clave en inglés: aceptados (ADR-017, ADR-018).
-- Inicializar git y arrancar la Fase 0: sí.
-
-**Qué se hizo**
-- `git init -b main` (sin commits: política de commits pendiente). `.gitignore`, `.editorconfig`,
-  `LICENSE` (texto canónico de Apache-2.0, md5 verificado), `LICENSING.md`.
-- **Especificación de la IR núcleo v0.1** en `spec/ir/v0/`:
-  - `ops.json`: catálogo de 87 expresiones, 14 sentencias y 6 selectores (aridad, tipos de
-    argumento, aleatoriedad, documentación). Fuente única de verdad (ADR-020).
-  - `ir.schema.json`, `common.schema.json`, `type.schema.json` (a mano) y `expr.schema.json`,
-    `stmt.schema.json` (generados desde el catálogo).
-- **Juegos de validación** en `spec/ir/examples/`: tres en raya, dilema del prisionero (con
-  restricciones T > R > P > S), póker de Kuhn y **Mentiroso** (adelantado desde la ola 2).
-- **Paquete Python `gamehub`** (`python/`, gestionado con `uv`): validación por JSON Schema +
-  comprobador de buena formación (referencias, contextos, azar confinado, sin recursión,
-  salidas de nodos), CLI `gamehub ir check` y `gamehub ir schemas --check|--write`.
-- 35 tests (20 casos de error deliberados); `ruff`, `pyright` (0 errores) y formato en verde.
-- CI de GitHub Actions y hooks de `pre-commit` locales.
-- Mejora del modelo de información (ADR-019): se descartan los *handles* opacos (filtraban qué
-  carta jugaba un rival) en favor de zonas ordenadas con posiciones públicas y **bolsas** sin
-  orden; las componentes ocultas no exponen identidad; `reveal` es un evento.
-- Wiki actualizada: preguntas, decisiones (ADR-016 a 021), modelo formal, Nomos (Mentiroso
-  completo), IR (validación), protocolo, catálogo, roadmap, glosario, arquitectura, estado.
-
-**Decisiones**
-- Aceptadas: ADR-016 (licencias), 017 (Nomos), 018 (sintaxis).
-- Propuestas e implementadas: ADR-019 (visibilidad), 020 (catálogo), 021 (IR de autor en F2).
-
-**Pendiente / siguientes pasos**
-- Del usuario: política de commits, variantes de Mentiroso (pregunta 9b), visto bueno a las ADR.
-- F1: intérprete de la IR en Python (expresiones, efectos, flow, azar con semilla, vistas
-  redactadas, replays) hasta jugar las 4 IR en terminal.
-
-**Progreso:** ≈ 4 % (F0: 9/9).
+**Progress:** ≈ 13 % (F0 and F1 complete).
 
 ---
 
-## 2026-10-09 — Sesión 1: brainstorming, diseño y roadmap
+## 2026-10-09 — Session 2: the user's answers and Phase 0 completed
 
-**Contexto de partida**
-- El repo solo contenía `structure.py` (prototipo de mayo 2026: `GameState` singleton, `Node`,
-  `Action`, `Flowchart`, permisos por variable). Sin git.
+**Answers received**
+- Cut-off message ("I also want to have a…"): the user does not remember it → question closed.
+- Proposed licenses: accepted (ADR-016).
+- Mentiroso = *Bullshit*: cards face down with a *claim* ("3 fours"); if you are called and it was
+  a lie, you take the pile; if it was true, the caller takes it.
+- The name **Nomos** and English keywords: accepted (ADR-017, ADR-018).
+- Initialize git and start Phase 0: yes.
 
-**Qué se hizo**
-- Análisis de `structure.py`: intuiciones que se conservan, 6 errores que impiden ejecutarlo y
-  7 problemas de diseño → [`docs/wiki/analisis-structure-py.md`](docs/wiki/analisis-structure-py.md).
-- Brainstorming completo: 17 huecos de la idea original, 27 mejoras, ideas futuras y riesgos →
-  [`ideas-y-mejoras.md`](docs/wiki/ideas-y-mejoras.md).
-- Diseño (borradores v0.1):
-  - [Visión](docs/wiki/vision.md): principios, no-objetivos, posicionamiento frente a OpenSpiel,
-    Ludii, GDL, Gambit, boardgame.io, BGA, PettingZoo.
-  - [Modelo formal](docs/wiki/modelo-formal.md): forma extensiva + FOSG + statecharts; 8 tipos de
-    nodo; acciones con dominios; azar explícito; visibilidad por ubicación con handles opacos;
-    simultaneidad, ventanas de reacción y carreras; tiempo; historial; propiedades derivadas.
-  - [Lenguaje `.game`](docs/wiki/lenguaje-game.md): sintaxis con ejemplos (tres en raya, dilema del
-    prisionero, Kuhn, fragmento de Mentiroso), módulos, mods con `extends`, combinadores.
-  - [GameIR](docs/wiki/ir.md): IR de autor vs. resuelta, S-expresiones en JSON, hash de reglas y
-    hash de interfaz, layout en sidecar.
-  - [Arquitectura](docs/wiki/arquitectura.md), [protocolo](docs/wiki/protocolo.md),
-    [Studio](docs/wiki/studio-editor-visual.md), [hub](docs/wiki/hub.md),
-    [teoría de juegos](docs/wiki/teoria-de-juegos.md),
-    [heurísticas e IA](docs/wiki/heuristicas-e-ia.md), [catálogo](docs/wiki/catalogo-de-juegos.md).
-- [Roadmap](docs/wiki/roadmap.md) en 13 fases (F0–F12) con pesos, entregables, criterios de
-  aceptación y dependencias. MVP jugable al 41 %, MVP de diseño al 51 %, IA al final.
-- [Registro de decisiones](docs/wiki/decisiones.md) (16 ADR) y
-  [preguntas abiertas](docs/wiki/preguntas-abiertas.md) (15, dos bloqueantes).
-- `README.md` raíz, índice de la wiki con estado, `CLAUDE.md` con las normas de mantenimiento.
+**What was done**
+- `git init -b main` (no commits: commit policy pending). `.gitignore`, `.editorconfig`,
+  `LICENSE` (the canonical Apache-2.0 text, md5 verified), `LICENSING.md`.
+- **Core IR v0.1 specification** in `spec/ir/v0/`:
+  - `ops.json`: a catalog of 87 expressions, 14 statements and 6 selectors (arity, argument types,
+    randomness, documentation). The single source of truth (ADR-020).
+  - `ir.schema.json`, `common.schema.json`, `type.schema.json` (by hand) and `expr.schema.json`,
+    `stmt.schema.json` (generated from the catalog).
+- **Validation games** in `spec/ir/examples/`: tic-tac-toe, prisoner's dilemma (with the
+  constraints T > R > P > S), Kuhn poker and **Bullshit** (brought forward from wave 2).
+- **The `gamehub` Python package** (`python/`, managed with `uv`): validation by JSON Schema + a
+  well-formedness checker (references, contexts, confined chance, no recursion, node exits), the
+  `gamehub ir check` and `gamehub ir schemas --check|--write` CLI.
+- 35 tests (20 deliberate error cases); `ruff`, `pyright` (0 errors) and formatting green.
+- GitHub Actions CI and local `pre-commit` hooks.
+- An improvement to the information model (ADR-019): opaque *handles* are discarded (they leaked
+  which card an opponent played) in favor of ordered zones with public positions and unordered
+  **bags**; hidden components expose no identity; `reveal` is an event.
+- Wiki updated: questions, decisions (ADR-016 to 021), formal model, Nomos (full Bullshit), IR
+  (validation), protocol, catalog, roadmap, glossary, architecture, status.
 
-**Decisiones**
-- Aceptadas (por el usuario): Python 3 + C++; extensión `.game`.
-- Propuestas (pendientes de visto bueno): ADR 001–012 y 015 (IR canónica, expresiones puras,
-  azar explícito, estados inmutables, visibilidad declarativa, statecharts, Python primero,
-  git como backend, WebSocket+JSON, interoperabilidad, monorepo, TS+React).
+**Decisions**
+- Accepted: ADR-016 (licenses), 017 (Nomos), 018 (syntax).
+- Proposed and implemented: ADR-019 (visibility), 020 (catalog), 021 (authoring IR in F2).
 
-**Pendiente / siguientes pasos**
-- Respuestas a las preguntas 🔴 (mensaje cortado en "También quiero tener una…", licencia).
-- Cerrar F0: `git init`, monorepo y herramientas, JSON Schema de la IR, 3 IR de validación.
+**Pending / next steps**
+- From the user: commit policy, Bullshit variants (question 9b), approval of the ADRs.
+- F1: an IR interpreter in Python (expressions, effects, flow, seeded chance, redacted views,
+  replays) until the 4 IRs can be played in the terminal.
 
-**Progreso:** ≈ 0,5 % (F0: 1/8).
+**Progress:** ≈ 4 % (F0: 9/9).
+
+---
+
+## 2026-10-09 — Session 1: brainstorming, design and roadmap
+
+**Starting point**
+- The repository only contained `structure.py` (the May 2026 prototype: a `GameState` singleton,
+  `Node`, `Action`, `Flowchart`, per-variable permissions). No git.
+
+**What was done**
+- Analysis of `structure.py`: intuitions that are kept, 6 bugs that prevent running it and 7
+  design problems → [`docs/wiki/structure-py-analysis.md`](docs/wiki/structure-py-analysis.md).
+- Full brainstorming: 17 gaps in the original idea, 27 improvements, future ideas and risks →
+  [`ideas.md`](docs/wiki/ideas.md).
+- Design (v0.1 drafts):
+  - [Vision](docs/wiki/vision.md): principles, non-goals, positioning against OpenSpiel, Ludii,
+    GDL, Gambit, boardgame.io, BGA, PettingZoo.
+  - [Formal model](docs/wiki/formal-model.md): extensive form + FOSG + statecharts; 8 node kinds;
+    actions with domains; explicit chance; visibility per location with opaque handles;
+    simultaneity, reaction windows and races; time; history; derived properties.
+  - [The `.game` language](docs/wiki/language.md): syntax with examples (tic-tac-toe, prisoner's
+    dilemma, Kuhn, a Bullshit fragment), modules, mods with `extends`, combinators.
+  - [GameIR](docs/wiki/ir.md): authoring vs. resolved IR, S-expressions in JSON, rules hash and
+    interface hash, layout in a sidecar.
+  - [Architecture](docs/wiki/architecture.md), [protocol](docs/wiki/protocol.md),
+    [Studio](docs/wiki/studio.md), [hub](docs/wiki/hub.md),
+    [game theory](docs/wiki/game-theory.md),
+    [heuristics and AI](docs/wiki/heuristics-and-ai.md), [catalog](docs/wiki/game-catalog.md).
+- A [roadmap](docs/wiki/roadmap.md) in 13 phases (F0–F12) with weights, deliverables, acceptance
+  criteria and dependencies. Playable MVP at 41 %, design MVP at 51 %, AI at the end.
+- A [decision record](docs/wiki/decisions.md) (16 ADRs) and
+  [open questions](docs/wiki/open-questions.md) (15, two of them blocking).
+- The root `README.md`, the wiki index with the status, `CLAUDE.md` with the maintenance rules.
+
+**Decisions**
+- Accepted (by the user): Python 3 + C++; the `.game` extension.
+- Proposed (waiting for approval): ADR 001–012 and 015 (canonical IR, pure expressions, explicit
+  chance, immutable states, declarative visibility, statecharts, Python first, git as the backend,
+  WebSocket+JSON, interoperability, monorepo, TS+React).
+
+**Pending / next steps**
+- Answers to the 🔴 questions (message cut off at "I also want to have a…", license).
+- Close F0: `git init`, monorepo and tools, the IR's JSON Schema, 3 validation IRs.
+
+**Progress:** ≈ 0.5 % (F0: 1/8).

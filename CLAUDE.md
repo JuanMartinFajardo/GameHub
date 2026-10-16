@@ -1,44 +1,53 @@
-# GameHub — instrucciones para Claude
+# GameHub — instructions for Claude
 
-## Idioma
-- Comunicación y documentación en **español**. Código, identificadores y palabras clave del
-  lenguaje `.game` en inglés.
+## Language
+- Talk to the user in **Spanish**.
+- Documentation (wiki, READMEs, `log.md`, this file), code, identifiers and the keywords of the
+  `.game` language are in **English** (ADR-067). Games may ship Spanish as an optional translation
+  of their texts (`{ en: …, es: … }`); UIs keep their es/en catalogs.
+- Until [question 24](docs/wiki/open-questions.md) is answered, code comments, CLI messages and
+  commit messages keep their current language (Spanish); do not translate them piecemeal.
 
-## Mantenimiento obligatorio (petición explícita del usuario)
-- Al terminar cualquier bloque de trabajo:
-  1. Añadir una entrada **arriba** en `log.md` (fecha, qué se hizo, decisiones, siguientes pasos, % de progreso).
-  2. Actualizar la wiki en `docs/wiki/`: el "Estado del proyecto" de `docs/wiki/README.md`, los
-     checkboxes de `docs/wiki/roadmap.md` y las páginas afectadas.
-  3. Registrar decisiones de arquitectura en `docs/wiki/decisiones.md` (formato ADR) y mover las
-     preguntas respondidas de `docs/wiki/preguntas-abiertas.md` a "Respondidas".
+## Mandatory maintenance (the user's explicit request)
+- At the end of every block of work:
+  1. Add an entry **at the top** of `log.md` (date, what was done, decisions, next steps,
+     progress %).
+  2. Update the wiki in `docs/wiki/`: the "Project status" in `docs/wiki/README.md`, the
+     checkboxes in `docs/wiki/roadmap.md` and the affected pages.
+  3. Record architecture decisions in `docs/wiki/decisions.md` (ADR format) and move answered
+     questions in `docs/wiki/open-questions.md` to "Answered".
 
-## Prioridades del proyecto
-1. Diseñar juegos: lenguaje `.game` + editor visual (Studio), todo muy modular.
-2. Jugar: servidor/protocolo + UIs que se conectan a los endpoints (local, LAN, online).
-3. Después: catálogo, teoría de juegos, core C++, heurísticas, hub web.
-4. Lo último: IA (RL, Deep RL, LLM).
+## Project priorities
+1. Designing games: the `.game` language + the visual editor (Studio), everything very modular.
+2. Playing: server/protocol + UIs that connect to the endpoints (local, LAN, online).
+3. Then: catalog, game theory, C++ core, heuristics, web hub.
+4. Last: AI (RL, Deep RL, LLM).
 
-## Comandos (desde `python/`)
+## Commands (from `python/`)
 - `uv run pytest` · `uv run ruff check .` · `uv run ruff format .` · `uv run pyright`
-- `uv run gamehub ir check ../spec/ir/examples/*.ir.json` (validar IR)
-- `uv run gamehub ir schemas --write` tras tocar `spec/ir/v0/ops.json` (los esquemas expr/stmt se generan)
-- `uv run gamehub conformance --write` tras cambiar la semántica del motor o un ejemplo (y explicar
-  por qué en el commit: las trazas son el contrato con otros motores)
-- `uv run gamehub play|fuzz|replay|perft …` (ver `docs/wiki/motor.md`; `fuzz --jobs N` en paralelo)
-- `uv run pytest -m slow`: los tests largos (perft profundos del ajedrez), fuera de la batería normal
-- `uv run gamehub natives build --check` (los `.wasm` de `stdlib/std/native` son su `.wat` compilado;
-  `--write` tras tocar un `.wat`) · `uv run gamehub natives check` (plugin = referencia)
-- Tras cambiar las reglas de un juego con UI propia: `pnpm types` en `games/<juego>/ui`
-- Separadores de comentario `# --- Título ---…` de 100 columnas como máximo (ruff E501).
+- `uv run gamehub ir check ../spec/ir/examples/*.ir.json` (validate the IR)
+- `uv run gamehub ir schemas --write` after touching `spec/ir/v0/ops.json` (the expr/stmt schemas
+  are generated)
+- `uv run gamehub conformance --write` after changing the engine's semantics or an example (and
+  explain why in the commit: the traces are the contract with other engines)
+- `uv run gamehub play|fuzz|replay|perft …` (see `docs/wiki/engine.md`; `fuzz --jobs N` in
+  parallel)
+- `uv run pytest -m slow`: the long tests (deep chess perft), outside the normal suite
+- `uv run gamehub natives build --check` (the `.wasm` files in `stdlib/std/native` are their
+  compiled `.wat`; `--write` after touching a `.wat`) · `uv run gamehub natives check`
+  (plugin = reference)
+- After changing the rules of a game with a custom UI: `pnpm types` in `games/<game>/ui`
+- Comment separators `# --- Title ---…` of at most 100 columns (ruff E501).
 
-## Git (política acordada el 2026-10-09)
-- **Un commit por tarea terminada**, con mensaje en español y el trailer de coautoría.
-- `main` contiene lo aprobado. Cada fase se trabaja en su rama (`f1/motor-referencia`, …) y se
-  fusiona a `main` solo con el visto bueno del usuario. Nunca hacer push sin que lo pida.
-- Antes de cada commit: tests, `ruff`, `pyright` y `gamehub ir check` en verde.
+## Git (policy agreed on 2026-10-09)
+- **One commit per finished task**, with a message in Spanish and the co-authorship trailer.
+- `main` holds what has been approved. Each phase is worked on in its own branch
+  (`f1/motor-referencia`, …) and merged into `main` only with the user's approval. Never push
+  unless asked.
+- Before each commit: tests, `ruff`, `pyright` and `gamehub ir check` green.
 
-## Referencias
-- Semántica: `docs/wiki/modelo-formal.md` · Sintaxis: `docs/wiki/lenguaje-game.md` ·
-  IR: `docs/wiki/ir.md` · Arquitectura: `docs/wiki/arquitectura.md` · Roadmap: `docs/wiki/roadmap.md`.
-- `structure.py` es el prototipo original del usuario: no modificarlo (análisis en
-  `docs/wiki/analisis-structure-py.md`).
+## References
+- Semantics: `docs/wiki/formal-model.md` · Syntax: `docs/wiki/language.md` · IR:
+  `docs/wiki/ir.md` · Architecture: `docs/wiki/architecture.md` · Roadmap: `docs/wiki/roadmap.md`.
+- `structure.py` is the user's original prototype: do not modify it (analysis in
+  `docs/wiki/structure-py-analysis.md`).

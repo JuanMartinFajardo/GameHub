@@ -1,24 +1,26 @@
-# Licencias de GameHub
+# GameHub licensing
 
-| Parte del repositorio | Licencia | Archivo |
+| Part of the repository | License | File |
 |---|---|---|
-| Todo, salvo lo indicado abajo (motor, lenguaje Nomos, especificaciones, SDKs, herramientas, documentación) | Apache-2.0 | [`LICENSE`](LICENSE) |
-| Servidor del hub (`hub/`, cuando exista) | AGPL-3.0-or-later | `hub/LICENSE` (se añadirá en la Fase 10) |
-| Contenido de los juegos oficiales en `games/` (reglas, textos, arte) | CC-BY-4.0 | [`games/LICENSE.md`](games/LICENSE.md) |
-| Código de las interfaces de los juegos en `games/*/ui/` | Apache-2.0 | [`LICENSE`](LICENSE) |
+| Everything, except what is listed below (engine, the Nomos language, specifications, SDKs, tools, documentation) | Apache-2.0 | [`LICENSE`](LICENSE) |
+| The hub server (`hub/`, once it exists) | AGPL-3.0-or-later | `hub/LICENSE` (to be added in Phase 10) |
+| Content of the official games in `games/` (rules, texts, art) | CC-BY-4.0 | [`games/LICENSE.md`](games/LICENSE.md) |
+| Code of the games' interfaces in `games/*/ui/` | Apache-2.0 | [`LICENSE`](LICENSE) |
 
-- Cada archivo de código fuente lleva su identificador SPDX en la cabecera
+- Every source file carries its SPDX identifier in the header
   (`SPDX-License-Identifier: Apache-2.0`).
-- Los juegos publicados por terceros en el hub llevan la licencia que elija su autor
-  (recomendada: CC-BY-4.0).
-- Decisión registrada en [ADR-016](docs/wiki/decisiones.md).
+- Games published on the hub by third parties carry the license their author chooses
+  (recommended: CC-BY-4.0).
+- Decision recorded in [ADR-016](docs/wiki/decisions.md).
 
-## Dependencias de terceros en las apps web
+## Third-party dependencies in the web apps
 
-Las apps compiladas (`web/apps/*/dist`, que también viajan en la rueda de Python) incluyen
-dependencias con sus propias licencias, sin modificar: React, React Flow (`@xyflow/react`),
-CodeMirror y `marked` (MIT), y **elkjs (EPL-2.0)**, la disposición automática del Studio, cuyo
-código fuente está en <https://github.com/kieler/elkjs>. Las versiones exactas están en
-`pnpm-lock.yaml`.
+The built apps (`web/apps/*/dist`, which also travel in the Python wheel) include dependencies
+with their own licenses, unmodified: React, React Flow (`@xyflow/react`), CodeMirror and `marked`
+(MIT), and **elkjs (EPL-2.0)**, the Studio's automatic layout, whose source code is at
+<https://github.com/kieler/elkjs>. The exact versions are in `pnpm-lock.yaml`.
 
-Copyright 2026 Juan Martin Fajardo y colaboradores de GameHub.
+The optional `wasmtime` dependency (native plugins, the `gamehub[wasm]` extra) is Apache-2.0
+with the LLVM exception.
+
+Copyright 2026 Juan Martin Fajardo and GameHub contributors.

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Parser de Nomos: descenso recursivo para declaraciones y sentencias, precedencia de
-operadores para expresiones (ver la gramática en docs/wiki/lenguaje-game.md).
+operadores para expresiones (ver la gramática en docs/wiki/language.md).
 
 Recuperación de errores: un error dentro de un elemento (declaración, miembro de nodo,
 sentencia) se informa y el parser salta hasta el final de ese elemento (salto de línea o `}`

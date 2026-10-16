@@ -1,57 +1,59 @@
-# Wiki de GameHub
+# GameHub wiki
 
-> Plataforma y protocolo para **diseñar juegos con precisión matemática**, versionarlos como en
-> GitHub, jugarlos desde cualquier interfaz y estudiarlos con teoría de juegos, heurísticas e IA.
+> A platform and a protocol to **design games with mathematical precision**, version them as on
+> GitHub, play them from any interface and study them with game theory, heuristics and AI.
 
-## Estado del proyecto
+## Project status
 
 | | |
 |---|---|
-| **Última actualización** | 2026-10-16 |
-| **Fase actual** | F0 a F6 completas y en `main` (la F6, catálogo ola 2, fusionada el 2026-10-16) → siguiente: documentación en inglés y F7 |
-| **Progreso global** | ≈ 59 % (F0 a F6 completas) |
-| **Qué funciona** | Se diseñan juegos escribiendo **Nomos** (`.game`) —compilador a GameIR con tipos y errores claros, avisos, clasificación, tests e invariantes, formateador, módulos y biblioteca estándar, variantes y combinadores, paquetes, diagrama, reglamento, diff semántico, pistas de presentación— o **en el Studio** (`gamehub studio`): diagrama y texto sincronizados, inspector, servidor de lenguaje y simulador. **Se juega en red** (salas con código, enlace y QR, LAN, espectadores, bots, relojes, reconexión, azar verificable) y **en el navegador**. El catálogo ya tiene los juegos pedidos: **ajedrez** (FIDE, *perft(5)* exacto), **Skat** (ISkO), **Texas Hold'em** sin límite con botes secundarios, **Wizard**, **Parchís** (también por parejas), **Solitario** Klondike y Mentiroso. El motor guarda los resultados de las funciones puras y compila la IR a código de Python; las funciones caras pueden tener un **plugin nativo** en WebAssembly (el evaluador de póquer), con el cuerpo en Nomos como referencia. |
-| **Código** | [`spec/`](../../spec/README.md) (IR v0, protocolo v1, trazas) · [`python/`](../../python) (`gamehub`: lenguaje, LSP, análisis, motor, plugins nativos, servidor, Studio, cliente, CLI; 966 tests, 6 de ellos largos) · [`web/`](../../web) (SDK TypeScript, UI kit, UI genérica, app para jugar, Studio; 136 tests con los de las UIs propias) · [`stdlib/`](../../stdlib/std) (9 módulos) · [`games/`](../../games) (22 paquetes, 23 juegos, 7 UIs propias) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
-| **Calidad** | Aceptación de F6: *perft(5)* del ajedrez = 4 865 609 y los *perft* de referencia de otras cinco posiciones; los valores de juego del Skat cuadran con los ejemplos de la ISkO; 10⁵ partidas al azar sin un error de ajedrez, Skat, Wizard y Parchís (las del Solitario y el Hold'em, en marcha al fusionar); los 22 paquetes del catálogo se juegan enteros con la UI genérica contra el servidor. El evaluador nativo de póquer da lo mismo que la referencia en miles de manos al azar, y el código generado, lo mismo que los cierres en todos los juegos |
-| **Decisiones recientes** | Aceptadas (2026-10-16) las de F6, ADR-060 a 066: memo de funciones de la IR; `perft` y `fuzz --jobs`; **plugins nativos en WebAssembly** con referencia obligatoria; código de Python generado desde la IR; bibliotecas de cartas sin genéricos; reglas de la ola 2; ajustes del lenguaje |
-| **Pendiente de ti** | El resto de [preguntas abiertas](preguntas-abiertas.md) |
-| **Siguiente paso** | Pasar la documentación al inglés; después, F7: teoría de juegos v1 |
+| **Last updated** | 2026-10-16 |
+| **Current phase** | F0 to F6 complete and in `main` (F6, the second catalog wave, merged on 2026-10-16); the documentation, translated into English on the `docs/english` branch → next: F7 |
+| **Overall progress** | ≈ 59 % (F0 to F6 complete) |
+| **What works** | Games are designed by writing **Nomos** (`.game`) —a compiler to GameIR with types and clear errors, warnings, classification, tests and invariants, a formatter, modules and a standard library, variants and combinators, packages, diagram, rulebook, semantic diff, presentation hints— or **in the Studio** (`gamehub studio`): diagram and text kept in sync, inspector, language server and simulator. They are **played over the network** (rooms with a code, link and QR code, LAN, spectators, bots, clocks, reconnection, provably fair chance) and **in the browser**. The catalog already has the requested games: **chess** (FIDE, exact *perft(5)*), **Skat** (ISkO), no-limit **Texas Hold'em** with side pots, **Wizard**, **Parchís** (also in pairs), Klondike **Solitaire** and Bullshit. The engine memoizes pure functions and compiles the IR to Python code; expensive functions can have a **native plugin** in WebAssembly (the poker evaluator), with the Nomos body as the reference. |
+| **Code** | [`spec/`](../../spec/README.md) (IR v0, protocol v1, traces) · [`python/`](../../python) (`gamehub`: language, LSP, analysis, engine, native plugins, server, Studio, client, CLI; 966 tests, 6 of them long-running) · [`web/`](../../web) (TypeScript SDK, UI kit, generic UI, play app, Studio; 136 tests including the custom UIs') · [`stdlib/`](../../stdlib/std) (9 modules) · [`games/`](../../games) (22 packages, 23 games, 7 custom UIs) · [`editors/vscode/nomos`](../../editors/vscode/nomos) |
+| **Quality** | F6 acceptance: chess *perft(5)* = 4,865,609 and the reference *perft* counts of five other positions; Skat game values match the ISkO examples; 10⁵ random matches without a single error of chess, Skat, Wizard and Parchís (Solitaire's and Hold'em's still running); the 22 catalog packages are played to the end with the generic UI against the server. The native poker evaluator gives the same results as the reference on thousands of random hands, and the generated code the same as the closures in every game |
+| **Recent decisions** | ADR-067: the documentation in English, Spanish only as an optional translation shipped by each game. Accepted (2026-10-16) the F6 ones, ADR-060 to 066: memoization of IR functions; `perft` and `fuzz --jobs`; **native WebAssembly plugins** with a mandatory reference; Python code generated from the IR; card-game libraries without generics; the rules of the second wave; language adjustments |
+| **Waiting on you** | [Question 24](open-questions.md) (how far the English switch goes: code comments, CLI messages, games' default language, commit messages) and approval to merge `docs/english`; the rest of the [open questions](open-questions.md) |
+| **Next step** | F7: game theory v1 |
 
-Historial detallado: [`log.md`](../../log.md). Prototipo original: [`structure.py`](../../structure.py) ([análisis](analisis-structure-py.md)).
+Detailed history: [`log.md`](../../log.md). Original prototype: [`structure.py`](../../structure.py) ([analysis](structure-py-analysis.md)).
 
-## Mapa de la wiki
+## Wiki map
 
-**Visión y diseño**
-- [Visión](vision.md) — qué es GameHub, principios, no-objetivos, arte previo
-- [Brainstorming: huecos, mejoras e ideas](ideas-y-mejoras.md)
-- [Análisis de `structure.py`](analisis-structure-py.md) — qué se conserva y qué cambia
+**Vision and design**
+- [Vision](vision.md) — what GameHub is, principles, non-goals, prior art
+- [Brainstorming: gaps, improvements and ideas](ideas.md)
+- [Analysis of `structure.py`](structure-py-analysis.md) — what is kept and what changes
 
-**Especificaciones**
-- [Modelo formal](modelo-formal.md) — la semántica: nodos, acciones, azar, información, tiempo, pagos
-- [Nomos, el lenguaje `.game`](lenguaje-game.md) — referencia v0.1: sintaxis, tipos, flow, tests, módulos, mods, herramientas, diagnósticos
-- [GameIR](ir.md) — representación intermedia canónica, hashes, versionado, validación ([`spec/`](../../spec/README.md))
-- [Motor de referencia](motor.md) — semántica operacional exacta, azar, eventos, formatos, rendimiento
-- [Protocolo de partidas](protocolo.md) — v1 implementada: salas, mensajes, turnos, espectadores, relojes, LAN, azar verificable, rendimiento
-- [Cliente web](cliente-web.md) — jugar en el navegador: la app, la UI genérica, el kit, las UIs propias y su plantilla
+**Specifications**
+- [Formal model](formal-model.md) — the semantics: nodes, actions, chance, information, time, payoffs
+- [Nomos, the `.game` language](language.md) — reference v0.1: syntax, types, flow, tests, modules, mods, tools, diagnostics
+- [GameIR](ir.md) — canonical intermediate representation, hashes, versioning, validation ([`spec/`](../../spec/README.md))
+- [Reference engine](engine.md) — exact operational semantics, chance, events, formats, performance
+- [Match protocol](protocol.md) — v1 implemented: rooms, messages, turns, spectators, clocks, LAN, provably fair chance, performance
+- [Web client](web-client.md) — playing in the browser: the app, the generic UI, the kit, custom UIs and their template
 
-**Componentes**
-- [Arquitectura](arquitectura.md) — monorepo, contrato de motor, pila tecnológica, calidad, seguridad
-- [Studio (editor visual)](studio-editor-visual.md) — diseñar con diagrama y texto a la vez, inspector, simulador y herramientas (F5)
-- [Hub ("GitHub para juegos")](hub.md)
-- [Teoría de juegos](teoria-de-juegos.md)
-- [Heurísticas, bots, arena e IA](heuristicas-e-ia.md)
-- [Catálogo de juegos](catalogo-de-juegos.md)
+**Components**
+- [Architecture](architecture.md) — monorepo, engine contract, technology stack, quality, security
+- [Studio (visual editor)](studio.md) — design with diagram and text at once, inspector, simulator and tools (F5)
+- [Hub ("GitHub for games")](hub.md)
+- [Game theory](game-theory.md)
+- [Heuristics, bots, arena and AI](heuristics-and-ai.md)
+- [Game catalog](game-catalog.md)
 
-**Planificación y referencia**
+**Planning and reference**
 - [Roadmap 0 → 100 %](roadmap.md)
-- [Registro de decisiones (ADR)](decisiones.md)
-- [Preguntas abiertas](preguntas-abiertas.md)
-- [Glosario](glosario.md)
+- [Decision record (ADR)](decisions.md)
+- [Open questions](open-questions.md)
+- [Glossary](glossary.md)
 
-## Cómo se mantiene esta wiki
+## How this wiki is maintained
 
-- Cada sesión de trabajo añade una entrada en `log.md` y actualiza el **Estado del proyecto**.
-- Los checkboxes del [roadmap](roadmap.md) son la fuente del % de progreso.
-- Toda decisión de arquitectura se registra en [decisiones](decisiones.md).
-- Cuando una pregunta abierta se responde, se mueve a "Respondidas" con fecha.
-- Las páginas de diseño llevan su estado en la cabecera (borrador → estable → implementado).
+- Every work session adds an entry to `log.md` and updates the **Project status**.
+- The [roadmap](roadmap.md) checkboxes are the source of the progress percentage.
+- Every architecture decision is recorded in [decisions](decisions.md).
+- When an open question is answered, it moves to "Answered" with its date.
+- Design pages carry their status in the header (draft → stable → implemented).
+- The documentation is written in English; games may ship a Spanish translation of their texts
+  (titles, descriptions, UI labels) as optional data.
