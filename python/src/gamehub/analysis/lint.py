@@ -395,6 +395,20 @@ def _hidden(visibility: Any) -> bool:
     return visibility not in (None, "all", {"when": ["item_face_up"]})
 
 
+def _owner_sees(visibility: Any) -> bool:
+    """¿Ve el dueño de cada parte su parte? `@visible(owner)` o un predicado que lo incluye como
+    alternativa: `@visible(viewer == owner or …)`."""
+    if visibility == "owner":
+        return True
+    if not isinstance(visibility, dict):
+        return False
+    owner_eq = (["eq", ["viewer"], ["owner"]], ["eq", ["owner"], ["viewer"]])
+    when = visibility.get("when")
+    if when in owner_eq:
+        return True
+    return isinstance(when, list) and when[:1] == ["or"] and any(x in owner_eq for x in when[1:])
+
+
 class _Leaks:
     """Datos ocultos: variables con visibilidad distinta de `all` y argumentos de acción
     ocultos. Una lectura no cuenta como oculta si es el tamaño de algo de tamaño visible, o (al
@@ -454,7 +468,7 @@ class _Leaks:
                 base = e[1]
                 if isinstance(base, list) and base[0] == "var":
                     var = self.vars.get(base[1], {})
-                    if var.get("visibility") == "owner":
+                    if _owner_sees(var.get("visibility")):
                         return set()
             case "len" | "size" if self.size_public(e[1], hidden_args):
                 inner = e[1][1] if e[1][0] == "items" else e[1]

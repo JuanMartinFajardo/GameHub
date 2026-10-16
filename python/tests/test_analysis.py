@@ -153,6 +153,22 @@ def test_information_leaks() -> None:
     ]
 
 
+def test_an_owner_predicate_lets_the_actor_see_its_part() -> None:
+    """`@visible(viewer == owner or …)` (la mano del declarante del Skat en un Ouvert) también
+    deja que el actor decida con su parte, como `@visible(owner)`."""
+    state = """open: Bool = false
+    @visible(viewer == owner or open)
+    hand: per_player Int = 0"""
+    flow = """    decision A {
+      actor: 0
+      action own() requires hand[actor] >= 0
+      action peek() requires hand[1] > 0
+      -> End
+    }"""
+    source = game(flow, state)
+    assert warnings(source) == [("W405", line(source, "peek"))]
+
+
 def test_revealing_to_everyone_is_not_a_leak() -> None:
     state = "@visible(none)\n    secret: Int = 0\n    shown: Int = 0"
     revealed = """    decision A {

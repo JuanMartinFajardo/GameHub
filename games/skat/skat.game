@@ -1,0 +1,674 @@
+// SPDX-License-Identifier: CC-BY-4.0
+// Skat con las reglas de la Skatordnung internacional (ISkO): subasta, skat, juegos de palo,
+// Grand y Null, Hand, Schneider, Schwarz y Ouvert.
+
+import std.cards.{Card, Rank, Suit, skat32}
+import std.tricktaking.{can_play, trick_key, trick_winner}
+
+/// El tipo de juego: de palo (con un palo de triunfo), Grand (solo las sotas son triunfo) o Null
+/// (el declarante no puede ganar ninguna baza).
+enum Contract { Color, Grand, Null }
+
+/// Lo que anuncia quien juega a la mano (sin mirar el skat): nada, Schneider, Schwarz u Ouvert
+/// (con las cartas boca arriba). Cada uno incluye a los anteriores.
+enum Level { Plain, Schneider, Schwarz, Ouvert }
+
+/// Las cuatro sotas, de la más alta a la más baja: tréboles, picas, corazones y diamantes.
+fn jacks() -> List<Card> =
+  [Card { suit: s, rank: Rank.Jack } for s in [Suit.Clubs, Suit.Spades, Suit.Hearts, Suit.Diamonds]]
+
+/// Valor base de un juego de palo: diamantes 9, corazones 10, picas 11 y tréboles 12.
+fn suit_base(s: Suit) -> Int = match s {
+  Suit.Diamonds => 9
+  Suit.Hearts => 10
+  Suit.Spades => 11
+  Suit.Clubs => 12
+}
+
+/// Lo que vale cada sota frente a las demás (diamantes 0 … tréboles 3).
+fn jack_rank(s: Suit) -> Int = match s {
+  Suit.Diamonds => 0
+  Suit.Hearts => 1
+  Suit.Spades => 2
+  Suit.Clubs => 3
+}
+
+/// Fuerza de una carta que no es sota en un juego de palo o Grand: 7, 8, 9, dama, rey, 10, as.
+fn suit_power(r: Rank) -> Int = first(
+  [
+    i
+    for i in 0..6
+    if [Rank.Seven, Rank.Eight, Rank.Nine, Rank.Queen, Rank.King, Rank.Ten, Rank.Ace][i] == r
+  ]
+)
+
+/// Puntos de una carta: as 11, diez 10, rey 4, dama 3 y sota 2 (en total, 120).
+fn card_points(c: Card) -> Int = match c.rank {
+  Rank.Ace => 11
+  Rank.Ten => 10
+  Rank.King => 4
+  Rank.Queen => 3
+  Rank.Jack => 2
+  _ => 0
+}
+
+/// Valor de un juego Null: 23, 35 a la mano, 46 ouvert y 59 ouvert a la mano.
+fn null_value_of(open: Bool, in_hand: Bool) -> Int =
+  (59 if in_hand else 46) if open else (35 if in_hand else 23)
+
+/// Los valores que se pueden decir en la subasta: todos los valores posibles de un juego.
+fn bid_values() -> List<Int> = sort_by(
+  v in distinct(
+    [b * m for b in [9, 10, 11, 12] for m in 2..18] + [24 * m for m in 2..11] + [23, 35, 46, 59]
+  ) :
+  v
+)
+
+/// Se juega a una serie de manos con tres jugadores (o cuatro: entonces quien reparte descansa).
+/// Tras repartir diez cartas a cada uno y dos al skat, se subasta: el segundo jugador dice
+/// valores al primero, que los acepta o pasa, y después el tercero al que queda. Quien gana la
+/// subasta es el declarante: coge el skat y descarta dos cartas, o juega a la mano, y anuncia el
+/// juego. En un juego de palo o Grand gana con 61 de los 120 puntos; en Null, si no gana ninguna
+/// baza. El valor del juego es su base por el multiplicador (matadores, juego, Hand, Schneider,
+/// Schwarz, anuncios y Ouvert); si no llega a lo subastado, el juego se pierde. Ganar suma el
+/// valor y perder resta el doble.
+game Skat {
+  meta {
+    title: { es: "Skat", en: "Skat" }
+    version: "1.0.0"
+    description: {
+      es: "El juego de cartas alemán: subasta, triunfos y puntos, con las reglas internacionales (ISkO).",
+      en: "The German card game: bidding, trumps and points, under the International Skat Order (ISkO)."
+    }
+    authors: ["GameHub"]
+    license: "CC-BY-4.0"
+    tags: ["cards", "trick-taking", "bidding", "imperfect-information"]
+  }
+  players 3..4
+
+  params {
+    /// Manos que se juegan (0 = una por jugador: cada uno reparte una vez)
+    deals: Int = 0
+    /// Puntuación de torneo (Seeger-Fabian): 50 más por juego ganado y 50 menos por juego perdido,
+    /// y entonces 40 para cada rival (30 con cuatro jugadores)
+    tournament: Bool = false
+    assert deals >= 0, "deals no puede ser negativo"
+  }
+
+  state {
+    @visible(none) @size_visible(all)
+    deck: Zone<Card> = skat32()
+    /// Las cartas de cada jugador; las del declarante, a la vista en un juego Ouvert
+    @visible(viewer == owner or
+      open_hand and not is_none(declarer) and owner == unwrap(declarer)) @size_visible(all)
+    hand: per_player Bag<Card>
+    /// El skat: lo ve el declarante después de cogerlo (y descartar), y todos al final
+    @visible(picked and not is_none(declarer) and viewer == unwrap(declarer)) @size_visible(all)
+    skat: Zone<Card>
+    deal_no: Int = 1
+    dealer: Seat = 0
+    // Subasta
+    bid: Int = 0
+    stage: Int = 1
+    speaker: Seat = 0
+    listener: Seat = 0
+    declarer: Seat? = none
+    // El juego anunciado
+    contract: Contract = Contract.Color
+    trump: Suit = Suit.Clubs
+    hand_game: Bool = false
+    picked: Bool = false
+    level: Level = Level.Plain
+    open_hand: Bool = false
+    /// Los matadores del declarante: no se ven hasta el final de la mano (se revelan al contar)
+    @visible(none)
+    matadors: Int = 0
+    // Las bazas
+    trick: Zone<Card>
+    trick_by: List<Seat>
+    turn: Seat = 0
+    declarer_points: Int = 0
+    declarer_tricks: Int = 0
+    defender_tricks: Int = 0
+    @visible(none) @size_visible(all)
+    discard: Zone<Card>
+    // Resultados
+    score: per_player Int = 0
+    /// Lo que ganó o perdió el último declarante (0 si nadie jugó)
+    last_result: Int = 0
+  }
+
+  fn total_deals() -> Int = deals if deals > 0 else num_players
+
+  /// El jugador que ocupa el puesto `i` en la mano: 0 = el primero (a la izquierda de quien
+  /// reparte), 1 = el segundo, 2 = el tercero. Con cuatro, quien reparte descansa.
+  fn position(i: Int) -> Seat = (dealer + 1 + i) % num_players
+  fn role(s: Seat) -> Int = (s - dealer - 1 + 2 * num_players) % num_players
+  fn next_active(s: Seat) -> Seat = position((role(s) + 1) % 3)
+
+  fn the_declarer() -> Seat = unwrap(declarer)
+
+  // --- Las cartas en la baza ---------------------------------------------------------------------
+
+  /// El palo efectivo: en un juego de palo o Grand, las sotas son triunfo (4) y en un juego de
+  /// palo también las cartas del palo de triunfo.
+  fn effective_suit(c: Card) -> Int = case {
+    contract == Contract.Null => ord(c.suit)
+    c.rank == Rank.Jack => 4
+    contract == Contract.Color and c.suit == trump => 4
+    else => ord(c.suit)
+  }
+
+  fn power(c: Card) -> Int = case {
+    contract == Contract.Null => ord(c.rank)
+    c.rank == Rank.Jack => 10 + jack_rank(c.suit)
+    else => suit_power(c.rank)
+  }
+
+  fn led() -> Int = -1 if size(trick) == 0 else effective_suit(items(trick)[0])
+  fn trump_id() -> Int = -1 if contract == Contract.Null else 4
+
+  fn trick_taker() -> Seat =
+    trick_by[trick_winner(
+      [trick_key(effective_suit(c), power(c), led(), trump_id()) for c in items(trick)]
+    )]
+
+  // --- El valor del juego --------------------------------------------------------------------------
+
+  /// Los triunfos de un juego de palo o Grand, del más alto al más bajo.
+  fn trump_order() -> List<Card> =
+    jacks() +
+      (
+        [] if contract == Contract.Grand else [
+          Card { suit: trump, rank: r }
+          for r in [Rank.Ace, Rank.Ten, Rank.King, Rank.Queen, Rank.Nine, Rank.Eight, Rank.Seven]
+        ]
+      )
+
+  /// Matadores: cuántos triunfos seguidos desde la sota de tréboles tiene el declarante entre su
+  /// mano y el skat («con») o le faltan («sin»).
+  fn count_matadors() -> Int {
+    let mine = items(hand[the_declarer()]) + items(skat)
+    let has = [c in mine for c in trump_order()]
+    first([i for i in 1..<len(has) if has[i] != has[0]] + [len(has)])
+  }
+
+  fn base() -> Int = 24 if contract == Contract.Grand else suit_base(trump)
+  fn schneider_announced() -> Bool = level != Level.Plain
+  fn schwarz_announced() -> Bool = level == Level.Schwarz or level == Level.Ouvert
+  fn schneider() -> Bool = declarer_points >= 90 or declarer_points <= 30
+  fn schwarz() -> Bool = defender_tricks == 0 or declarer_tricks == 0
+
+  fn multiplier() -> Int =
+    matadors + 1 + (1 if hand_game else 0) + (1 if schneider() else 0) +
+      (1 if schneider_announced() else 0) + (1 if schwarz() else 0) +
+      (1 if schwarz_announced() else 0) + (1 if level == Level.Ouvert else 0)
+
+  /// El valor del juego tal como se jugó (sin mirar la subasta).
+  fn game_value() -> Int =
+    null_value_of(open_hand, hand_game) if contract == Contract.Null else base() * multiplier()
+
+  /// ¿Cumplió el declarante su juego? (sin mirar la subasta)
+  fn made() -> Bool =
+    declarer_tricks == 0 if contract == Contract.Null else declarer_points >= 61 and
+      (not schneider_announced() or declarer_points >= 90) and
+      (not schwarz_announced() or defender_tricks == 0)
+
+  fn overbid() -> Bool = game_value() < bid
+
+  /// Si se pasó en la subasta, el juego vale el menor múltiplo de su base que llega a lo subastado.
+  fn final_value() -> Int =
+    (base() * ((bid + base() - 1) div base())) if overbid() else game_value()
+
+  fn won() -> Bool = made() and not overbid()
+
+  /// Lo que suma (o resta) el declarante.
+  fn result() -> Int = final_value() if won() else -2 * final_value()
+
+  flow {
+    start -> Round
+
+    /// Una mano: reparto, subasta, skat, anuncio y diez bazas.
+    phase Round {
+      start -> Shuffle
+
+      chance Shuffle {
+        move all from discard to deck
+        move all from skat to deck
+        for s in seats {
+          move all from hand[s] to deck
+        }
+        shuffle deck
+        for k in 1..10 {
+          for i in 0..2 {
+            move top 1 from deck to hand[position(i)]
+          }
+        }
+        move top 2 from deck to skat
+        bid = 0
+        stage = 1
+        speaker = position(1)
+        listener = position(0)
+        declarer = none
+        contract = Contract.Color
+        trump = Suit.Clubs
+        hand_game = false
+        picked = false
+        level = Level.Plain
+        open_hand = false
+        matadors = 0
+        declarer_points = 0
+        declarer_tricks = 0
+        defender_tricks = 0
+        -> Speak
+      }
+
+      /// Subasta: quien habla dice un valor más alto o pasa. Primero habla el segundo jugador al
+      /// primero; después, el tercero al que queda.
+      decision Speak {
+        actor: speaker
+        action say(v in bid_values()) requires v > bid {
+          bid = v
+          -> Listen
+        }
+        action pass() {
+          -> Speak when stage == 1 {
+            stage = 2
+            speaker = position(2)
+          }
+          -> Declare when bid > 0 { declarer = listener }
+          -> Opening
+        }
+      }
+
+      /// Quien escucha acepta el valor («sí») o pasa.
+      decision Listen {
+        actor: listener
+        action hold() {
+          -> Speak
+        }
+        action pass() {
+          -> Speak when stage == 1 {
+            stage = 2
+            listener = speaker
+            speaker = position(2)
+          }
+          -> Declare { declarer = speaker }
+        }
+      }
+
+      /// Nadie ha dicho nada: el primer jugador puede jugar por 18 o pasar (y la mano no se
+      /// juega).
+      decision Opening {
+        actor: position(0)
+        action open() {
+          bid = 18
+          declarer = actor
+          -> Declare
+        }
+        action pass() {
+          -> exit { last_result = 0 }
+        }
+      }
+
+      /// El declarante coge el skat o juega a la mano.
+      decision Declare {
+        actor: the_declarer()
+        action pick_up() {
+          move all from skat to hand[actor]
+          picked = true
+          -> Discard
+        }
+        action play_hand() {
+          hand_game = true
+          -> Announce
+        }
+      }
+
+      /// Tras coger el skat, se descartan dos cartas (sus puntos cuentan para el declarante).
+      decision Discard {
+        actor: the_declarer()
+        action discard(cards in subsets(items(hand[actor]), 2, 2)) {
+          move cards from hand[actor] to skat
+        }
+        -> Announce
+      }
+
+      /// El declarante anuncia el juego. Schneider, Schwarz y Ouvert solo a la mano; un Null no
+      /// puede valer menos que lo subastado.
+      decision Announce {
+        actor: the_declarer()
+        action color(s: Suit, l: Level) requires l == Level.Plain or hand_game {
+          contract = Contract.Color
+          trump = s
+          level = l
+        }
+        action grand(l: Level) requires l == Level.Plain or hand_game {
+          contract = Contract.Grand
+          level = l
+        }
+        action null(open: Bool) requires null_value_of(open, hand_game) >= bid {
+          contract = Contract.Null
+          level = Level.Ouvert if open else Level.Plain
+        }
+        -> Play {
+          open_hand = level == Level.Ouvert
+          matadors = 0 if contract == Contract.Null else count_matadors()
+          turn = position(0)
+        }
+      }
+
+      decision Play {
+        actor: turn
+        action play(c in items(hand[actor])) requires
+            can_play([effective_suit(h) for h in items(hand[actor])], effective_suit(c), led()) {
+          move c from hand[actor] to trick at bottom
+          trick_by += [actor]
+        }
+        -> Trick when size(trick) == 3
+        -> Play { turn = next_active(turn) }
+      }
+
+      /// Quien gana la baza se la lleva y sale en la siguiente. En un Null, la mano acaba en
+      /// cuanto el declarante gana una baza.
+      auto Trick {
+        let w = trick_taker()
+        if w == the_declarer() {
+          declarer_points += sum(c in items(trick) : card_points(c))
+          declarer_tricks += 1
+        } else {
+          defender_tricks += 1
+        }
+        move all from trick to discard
+        trick_by = []
+        turn = w
+        -> Settle when contract == Contract.Null and declarer_tricks > 0
+        -> Settle when size(hand[turn]) == 0
+        -> Play
+      }
+
+      /// Los puntos del skat son del declarante; se apunta el resultado.
+      auto Settle {
+        reveal items(skat) to all as { es: "Skat", en: "Skat" }
+        reveal matadors to all as { es: "Matadores", en: "Matadors" }
+        declarer_points += sum(c in items(skat) : card_points(c))
+        last_result = result()
+        score[the_declarer()] += result()
+        if tournament {
+          if won() {
+            score[the_declarer()] += 50
+          } else {
+            score[the_declarer()] -= 50
+            for s in seats {
+              if s != the_declarer() {
+                score[s] += 40 if num_players == 3 else 30
+              }
+            }
+          }
+        }
+        -> exit
+      }
+
+      -> End when deal_no == total_deals()
+      -> Round {
+        deal_no += 1
+        dealer = next(dealer)
+      }
+    }
+
+    terminal End { payoff: [score[s] for s in seats] }
+  }
+
+  ui {
+    deck: hidden
+    hand: hand, label({ es: "Mano", en: "Hand" })
+    skat: pile, label({ es: "Skat", en: "Skat" })
+    deal_no: counter, place(top), label({ es: "Mano n.º", en: "Deal" })
+    dealer: seat, label({ es: "Reparte", en: "Dealer" })
+    bid: counter, place(top), label({ es: "Subasta", en: "Bid" })
+    stage: hidden
+    speaker: hidden
+    listener: hidden
+    declarer: seat, label({ es: "Declarante", en: "Declarer" })
+    contract: place(top), label({ es: "Juego", en: "Game" })
+    trump: place(top), label({ es: "Triunfo", en: "Trump" })
+    hand_game: label({ es: "A la mano", en: "Hand game" })
+    picked: hidden
+    level: label({ es: "Anuncio", en: "Announcement" })
+    open_hand: hidden
+    matadors: counter, label({ es: "Matadores", en: "Matadors" })
+    trick: row, label({ es: "Baza", en: "Trick" })
+    trick_by: hidden
+    turn: hidden
+    declarer_points: counter, label({ es: "Puntos del declarante", en: "Declarer's points" })
+    declarer_tricks: counter, label({ es: "Bazas del declarante", en: "Declarer's tricks" })
+    defender_tricks: counter, label({ es: "Bazas de los rivales", en: "Defenders' tricks" })
+    discard: hidden
+    score: counter, place(seats), label({ es: "Puntos", en: "Score" })
+    last_result: counter, label({ es: "Último juego", en: "Last game" })
+    Card: card(rank: rank, suit: suit)
+    Contract: labels(
+      Color: { es: "Palo", en: "Suit" },
+      Grand: { es: "Grand", en: "Grand" },
+      Null: { es: "Null", en: "Null" }
+    )
+    Level: labels(
+      Plain: { es: "Sin anuncio", en: "Plain" },
+      Schneider: { es: "Schneider", en: "Schneider" },
+      Schwarz: { es: "Schwarz", en: "Schwarz" },
+      Ouvert: { es: "Ouvert", en: "Ouvert" }
+    )
+    action say: label({ es: "Decir", en: "Bid" })
+    action say.v: label({ es: "Valor", en: "Value" })
+    action hold: label({ es: "Sí", en: "Yes" })
+    action pass: label({ es: "Paso", en: "Pass" })
+    action open: label({ es: "Jugar por 18", en: "Play for 18" })
+    action pick_up: label({ es: "Coger el skat", en: "Pick up the skat" })
+    action play_hand: label({ es: "Jugar a la mano", en: "Play hand" })
+    action discard: label({ es: "Descartar", en: "Discard" })
+    action discard.cards: pick(hand), label({ es: "Dos cartas", en: "Two cards" })
+    action color: label({ es: "Juego de palo", en: "Suit game" })
+    action color.s: label({ es: "Triunfo", en: "Trump" })
+    action color.l: label({ es: "Anuncio", en: "Announcement" })
+    action grand: label({ es: "Grand", en: "Grand" })
+    action grand.l: label({ es: "Anuncio", en: "Announcement" })
+    action null: label({ es: "Null", en: "Null" })
+    action null.open: label({ es: "Ouvert", en: "Ouvert" })
+    action play: label({ es: "Jugar", en: "Play" })
+    action play.c: pick(hand), label({ es: "Carta", en: "Card" })
+    node Shuffle: label({ es: "Reparto", en: "Deal" })
+    node Speak: label({ es: "Subasta", en: "Bidding" })
+    node Listen: label({ es: "Subasta: ¿sí?", en: "Bidding: yes?" })
+    node Opening: label({ es: "¿Alguien juega?", en: "Anyone playing?" })
+    node Declare: label({ es: "El skat", en: "The skat" })
+    node Discard: label({ es: "Descarte", en: "Discard" })
+    node Announce: label({ es: "Anuncio del juego", en: "Game announcement" })
+    node Play: label({ es: "Bazas", en: "Tricks" })
+    node Trick: label({ es: "Fin de la baza", en: "Trick won" })
+    node Settle: label({ es: "Cuenta", en: "Settlement" })
+    node End: label({ es: "Final", en: "End" })
+    deals: label({ es: "Manos", en: "Deals" })
+    tournament: label(
+      { es: "Puntuación de torneo (Seeger-Fabian)", en: "Tournament scoring (Seeger-Fabian)" }
+    )
+  }
+
+  // --- El valor del juego: los ejemplos de la ISkO -----------------------------------------------
+
+  test "corazones con 2: juego 3, 3 × 10 = 30" {
+    set declarer = 0
+    set contract = Color
+    set trump = Hearts
+    set matadors = 2
+    set declarer_points = 75
+    set declarer_tricks = 6
+    set defender_tricks = 4
+    set bid = 30
+    expect multiplier() == 3 and game_value() == 30 and won() and result() == 30
+  }
+
+  test "picas sin 1, juego 2, Schneider 3: 33" {
+    set declarer = 0
+    set contract = Color
+    set trump = Spades
+    set matadors = 1
+    set declarer_points = 95
+    set declarer_tricks = 8
+    set defender_tricks = 2
+    set bid = 18
+    expect game_value() == 33 and result() == 33
+  }
+
+  test "Grand a la mano con 4, Schneider anunciado y hecho: 4 + 1 + 1 + 1 + 1 = 8, 192" {
+    set declarer = 0
+    set contract = Grand
+    set hand_game = true
+    set level = Schneider
+    set matadors = 4
+    set declarer_points = 100
+    set declarer_tricks = 9
+    set defender_tricks = 1
+    set bid = 18
+    expect multiplier() == 8 and game_value() == 192 and won()
+  }
+
+  test "Grand Ouvert con 1: 1 + 1 + Hand + 2 de Schneider + 2 de Schwarz + Ouvert = 8, 192" {
+    set declarer = 0
+    set contract = Grand
+    set hand_game = true
+    set level = Ouvert
+    set matadors = 1
+    set declarer_points = 120
+    set declarer_tricks = 10
+    set defender_tricks = 0
+    set bid = 18
+    expect multiplier() == 8 and game_value() == 192 and won()
+  }
+
+  test "los juegos Null valen 23, 35, 46 y 59" {
+    expect null_value_of(false, false) == 23 and null_value_of(false, true) == 35
+    expect null_value_of(true, false) == 46 and null_value_of(true, true) == 59
+  }
+
+  test "perder con Schneider en contra: tréboles con 1, juego 2, Schneider 3; pierde el doble" {
+    set declarer = 0
+    set contract = Color
+    set trump = Clubs
+    set matadors = 1
+    set declarer_points = 28
+    set declarer_tricks = 2
+    set defender_tricks = 8
+    set bid = 24
+    expect multiplier() == 3 and not won() and result() == -72
+  }
+
+  test "pasarse en la subasta: diamantes con 1 vale 18; subastado 36, se pierde 2 × 36" {
+    set declarer = 0
+    set contract = Color
+    set trump = Diamonds
+    set matadors = 1
+    set declarer_points = 80
+    set declarer_tricks = 7
+    set defender_tricks = 3
+    set bid = 36
+    expect made() and overbid() and final_value() == 36 and result() == -72
+  }
+
+  test "60 puntos no bastan" {
+    set declarer = 0
+    set contract = Color
+    set trump = Hearts
+    set matadors = 1
+    set declarer_points = 60
+    set declarer_tricks = 5
+    set defender_tricks = 5
+    set bid = 18
+    expect not made() and result() == -40
+  }
+
+  // --- Subasta y juego ---------------------------------------------------------------------------
+
+  test "la subasta: habla el segundo al primero y después el tercero al que queda" {
+    seed 2
+    expect speaker == 2 and listener == 1
+    play 2: say(18), 1: hold(), 2: say(20), 1: pass()
+    expect stage == 2 and speaker == 0 and listener == 2 and bid == 20
+    play 0: say(22), 2: hold(), 0: pass()
+    expect at(Declare) and declarer == 2 and bid == 22
+  }
+
+  test "si nadie dice nada, el primero puede jugar por 18" {
+    seed 2
+    play 2: pass(), 0: pass()
+    expect at(Opening)
+    play 1: open()
+    expect declarer == 1 and bid == 18 and at(Declare)
+  }
+
+  test "si pasan todos, la mano no se juega" {
+    params { deals: 2 }
+    seed 2
+    play 2: pass(), 0: pass(), 1: pass()
+    expect deal_no == 2 and dealer == 1 and all(s in seats : score[s] == 0)
+  }
+
+  test "coger el skat y descartar dos cartas" {
+    seed 2
+    play 2: say(18), 1: pass(), 0: pass()
+    play 2: pick_up()
+    expect size(hand[2]) == 12 and size(skat) == 0
+    expect legal discard([items(hand[2])[0], items(hand[2])[1]])
+  }
+
+  test "un Null no puede valer menos que lo subastado" {
+    seed 2
+    play 2: say(36), 1: pass(), 0: pass(), 2: play_hand()
+    expect illegal null(false)
+    expect legal null(true)
+    expect legal color(Hearts, Schwarz)
+  }
+
+  test "sin Hand no se anuncia Schneider" {
+    seed 2
+    play 2: say(18), 1: pass(), 0: pass(), 2: pick_up()
+    play 2: discard([items(hand[2])[0], items(hand[2])[1]])
+    expect illegal grand(Schneider)
+    expect legal grand(Plain)
+  }
+
+  test "las sotas son triunfo y hay que asistir con ellas" {
+    seed 2
+    play 2: say(18), 1: pass(), 0: pass(), 2: play_hand(), 2: color(Hearts, Plain)
+    set hand[1] = [Card { suit: Clubs, rank: Jack }, Card { suit: Spades, rank: Seven }]
+    set hand[2] = [Card { suit: Hearts, rank: Seven }, Card { suit: Spades, rank: Ace }]
+    set hand[0] = [Card { suit: Diamonds, rank: Jack }, Card { suit: Clubs, rank: Ace }]
+    play 1: play(Card { suit: Clubs, rank: Jack })
+    expect illegal play(Card { suit: Spades, rank: Ace })
+    play 2: play(Card { suit: Hearts, rank: Seven })
+    expect illegal play(Card { suit: Clubs, rank: Ace })
+    play 0: play(Card { suit: Diamonds, rank: Jack })
+    expect defender_tricks == 1 and turn == 1
+  }
+
+  test "en un Null, la mano acaba en cuanto el declarante gana una baza" {
+    params { deals: 1 }
+    seed 2
+    play 2: say(18), 1: pass(), 0: pass(), 2: play_hand(), 2: null(false)
+    set hand[1] = [Card { suit: Clubs, rank: Seven }, Card { suit: Spades, rank: Seven }]
+    set hand[2] = [Card { suit: Clubs, rank: Ace }, Card { suit: Spades, rank: Ace }]
+    set hand[0] = [Card { suit: Clubs, rank: Eight }, Card { suit: Hearts, rank: Ace }]
+    play 1: play(Card { suit: Clubs, rank: Seven }), 2: play(Card { suit: Clubs, rank: Ace })
+    play 0: play(Card { suit: Clubs, rank: Eight })
+    expect at(End) and score[2] == -70
+  }
+
+  /// Las 32 cartas están siempre en algún sitio.
+  invariant size(deck) + size(skat) + size(trick) + size(discard) +
+    sum(s in seats : size(hand[s])) ==
+    32
+
+  invariant declarer_points >= 0 and
+    declarer_points <= 120 and
+    declarer_tricks + defender_tricks <= 10 and
+    len(trick_by) == size(trick)
+}
