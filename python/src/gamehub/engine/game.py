@@ -4,6 +4,7 @@ público `Game`, punto de entrada para crear partidas."""
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -122,7 +123,9 @@ class GameDef:
     """La IR compilada: tipos, variables, funciones y nodos listos para ejecutar. Con
     `natives=False`, las funciones nativas usan siempre su implementación de referencia."""
 
-    def __init__(self, ir: dict[str, Any], *, natives: bool = True) -> None:
+    def __init__(
+        self, ir: dict[str, Any], *, natives: bool = True, codegen: bool | None = None
+    ) -> None:
         self.ir = ir
         self.rules_hash = rules_hash(ir)
         self.min_players = ir["players"]["min"]
@@ -134,6 +137,15 @@ class GameDef:
         memo_kinds = _memo_kinds(ir.get("functions", []))
         #: Resultados de las funciones "static": valen para todas las partidas.
         self.static_memo: dict[Any, Any] = {}
+        #: Cómo llama el código generado a cada función de la IR (con su memo).
+        self.callers: dict[str, Callable[..., Any]] = {}
+        from gamehub.engine import codegen as gen
+
+        use_codegen = gen.enabled() if codegen is None else codegen
+        self.codegen = (
+            gen.Codegen(self.types, self.var_index, self.callers) if use_codegen else None
+        )
+        self.exprs.codegen = self.codegen
         self.functions = {
             f["name"]: self._function(f, memo_kinds[f["name"]], natives)
             for f in ir.get("functions", [])
@@ -167,24 +179,34 @@ class GameDef:
         self._compile_nodes(flow["nodes"], ())
 
     def _function(self, f: dict[str, Any], memo: str | None, natives: bool) -> FunctionDef:
+        from gamehub.engine import codegen as gen
+        from gamehub.engine.expr import STATIC_MEMO_LIMIT
+
+        name = f["name"]
         params = tuple(p[0] for p in f["params"])
-        reference = self.exprs.compile(f["body"])
+        impl = None
+        if self.codegen is not None:
+            with contextlib.suppress(gen.Unsupported):
+                impl = self.codegen.function(list(params), f["body"])
+        if impl is None:
+            impl = _positional(self.exprs.closure(f["body"]), params)
+        reference = _with_env(impl, params)
         native_id = f.get("native")
-        body = reference
+        fast = impl
         if native_id is not None and natives:
             from gamehub.engine import natives as plugins
 
-            impl = plugins.resolve(
+            plugin = plugins.resolve(
                 native_id,
                 [self.types.parse(t) for _, t in f["params"]],
                 self.types.parse(f["returns"]),
                 self.types,
             )
-            if impl is not None:
-                body = _native_body(impl, params, reference)
-        return FunctionDef(
-            f["name"], params, body, memo=memo, native=native_id, reference=reference
-        )
+            if plugin is not None:
+                fast = _native(plugin, impl)
+        self.callers[name] = gen.caller(name, fast, memo, self.static_memo, STATIC_MEMO_LIMIT)
+        body = reference if fast is impl else _with_env(fast, params)
+        return FunctionDef(name, params, body, memo=memo, native=native_id, reference=reference)
 
     # --- nodos ----------------------------------------------------------------------------------
 
@@ -348,13 +370,15 @@ class Game:
     """Un juego cargado desde su IR. Crea partidas con `new_state`. Con `natives=False`, sin
     plugins nativos (solo las implementaciones de referencia)."""
 
-    def __init__(self, ir: dict[str, Any], *, natives: bool = True) -> None:
+    def __init__(
+        self, ir: dict[str, Any], *, natives: bool = True, codegen: bool | None = None
+    ) -> None:
         problems = check(ir)
         if problems:
             listing = "\n  ".join(str(p) for p in problems[:20])
             raise RuleError(f"la IR no es válida:\n  {listing}")
         self.ir = ir
-        self.defn = GameDef(ir, natives=natives)
+        self.defn = GameDef(ir, natives=natives, codegen=codegen)
 
     @property
     def id(self) -> str:
@@ -409,18 +433,34 @@ def _text(value: Any) -> str | None:
     return value.get("es") or next(iter(value.values()), None)
 
 
-def _native_body(
-    impl: Callable[..., Any], params: tuple[str, ...], reference: Compiled
-) -> Compiled:
+def _positional(body: Compiled, params: tuple[str, ...]) -> Callable[..., Any]:
+    """Un cuerpo compilado a cierres como función `(ctx, *args)`."""
+
+    def call(ctx: Ctx, *args: Any) -> Any:
+        return body(Env(ctx, args=dict(zip(params, args, strict=True))))
+
+    return call
+
+
+def _with_env(impl: Callable[..., Any], params: tuple[str, ...]) -> Compiled:
+    """Una función `(ctx, *args)` con el contrato de los cierres: los argumentos en el entorno."""
+
     def body(env: Env) -> Any:
         args = env.args
-        try:
-            return impl(*(args[p] for p in params))
-        except OverflowError:
-            # Un número que no cabe en una palabra de 32 bits: lo calcula la referencia.
-            return reference(env)
+        return impl(env.ctx, *(args[p] for p in params))
 
     return body
+
+
+def _native(plugin: Callable[..., Any], reference: Callable[..., Any]) -> Callable[..., Any]:
+    def call(ctx: Ctx, *args: Any) -> Any:
+        try:
+            return plugin(*args)
+        except OverflowError:
+            # Un número que no cabe en una palabra de 32 bits: lo calcula la referencia.
+            return reference(ctx, *args)
+
+    return call
 
 
 #: Operadores que hacen que una expresión dependa de algo más que el estado, las opciones y sus

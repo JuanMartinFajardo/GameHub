@@ -43,9 +43,9 @@ def num(x: Any, op: str) -> Any:
 
 
 def boolean(x: Any, op: str) -> bool:
-    if not isinstance(x, bool):
-        raise RuleError(f"'{op}' espera un booleano, recibe {x!r}")
-    return x
+    if x is True or x is False:
+        return x
+    raise RuleError(f"'{op}' espera un booleano, recibe {x!r}")
 
 
 def seat(x: Any, n: int, op: str) -> int:
@@ -145,11 +145,26 @@ def _expect(cond: bool, message: str) -> None:
 
 
 class ExprCompiler:
+    """Compila expresiones de la IR. Con `codegen` (ver `gamehub.engine.codegen`), cada
+    expresión se escribe como código de Python; si no se puede, o sin él, se compila a cierres."""
+
     def __init__(self, types: TypeTable, var_index: dict[str, int] | None = None) -> None:
         self.types = types
         self.var_index = var_index or {}
+        self.codegen: Any = None
 
     def compile(self, e: Any) -> Compiled:
+        if self.codegen is not None:
+            from gamehub.engine.codegen import Unsupported
+
+            try:
+                return self.codegen.expression(e)
+            except Unsupported:
+                pass
+        return self.closure(e)
+
+    def closure(self, e: Any) -> Compiled:
+        """La expresión compilada a cierres (la implementación de referencia)."""
         op, args = e[0], e[1:]
         builder = OPERATORS.get(op)
         if builder is None:
@@ -163,6 +178,17 @@ class ExprCompiler:
 Builder = Callable[[ExprCompiler, list[Any]], Compiled]
 OPERATORS: dict[str, Builder] = {}
 
+# Las funciones de cada operador, para el generador de código (`gamehub.engine.codegen`), que
+# las llama directamente en vez de componer cierres: así los dos dan exactamente lo mismo.
+#: Operadores puros: nombre → función de los valores de sus argumentos.
+PURE: dict[str, Callable[..., Any]] = {}
+#: Como los puros, con el número de asientos como primer argumento.
+SEATED: dict[str, Callable[..., Any]] = {}
+#: Con atajo para dos enteros: nombre → (atajo, caso general).
+FAST: dict[str, tuple[Callable[[int, int], Any], Callable[..., Any]]] = {}
+#: Comprensiones: nombre → reducción(nombre, elementos, cuerpo).
+REDUCERS: dict[str, Callable[[str, Sequence[Any], Callable[[Any], Any]], Any]] = {}
+
 
 def op(*names: str) -> Callable[[Builder], Builder]:
     def register(fn: Builder) -> Builder:
@@ -175,6 +201,7 @@ def op(*names: str) -> Callable[[Builder], Builder]:
 
 def pure(name: str, fn: Callable[..., Any]) -> None:
     """Registra un operador cuyos argumentos son todos expresiones y que solo depende de ellos."""
+    PURE[name] = fn
 
     def build(c: ExprCompiler, args: list[Any]) -> Compiled:
         compiled = c.many(args)
@@ -191,6 +218,7 @@ def pure(name: str, fn: Callable[..., Any]) -> None:
 
 def seated(name: str, fn: Callable[..., Any]) -> None:
     """Como `pure`, pero la función recibe además el nº de asientos."""
+    SEATED[name] = fn
 
     def build(c: ExprCompiler, args: list[Any]) -> Compiled:
         compiled = c.many(args)
@@ -203,6 +231,7 @@ def fast_int(name: str, fast: Callable[[int, int], Any], slow: Callable[..., Any
     """Como `pure`, con un atajo cuando hay dos argumentos y los dos son enteros (no booleanos):
     es el caso de casi toda la aritmética de casillas y contadores. `slow` da el resultado (y
     los errores) en los demás casos."""
+    FAST[name] = (fast, slow)
 
     def build(c: ExprCompiler, args: list[Any]) -> Compiled:
         compiled = c.many(args)
@@ -539,6 +568,8 @@ def _field(c: ExprCompiler, args: list[Any]) -> Compiled:
 
 
 def comprehension(name: str, reduce: Callable[[str, Sequence[Any], Callable[[Any], Any]], Any]):
+    REDUCERS[name] = reduce
+
     def build(c: ExprCompiler, args: list[Any]) -> Compiled:
         binder, coll_e, body_e = args
         coll, body = c.compile(coll_e), c.compile(body_e)

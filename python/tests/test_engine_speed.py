@@ -14,6 +14,7 @@ from gamehub.analysis.perft import divide, perft, perft_parallel
 from gamehub.engine import Game, RuleError, load_game
 from gamehub.engine.game import _memo_kinds
 from gamehub.engine.match import fuzz, fuzz_parallel
+from gamehub.engine.values import TypeTable
 from gamehub.ir.spec import examples_dir
 from gamehub.lang.compiler import compile_source
 from gamehub.lang.source import Source
@@ -132,3 +133,49 @@ def test_parallel_fuzz_gives_the_same_report() -> None:
         one.total_steps,
     )
     assert many.payoff_sums == one.payoff_sums and many.errors == one.errors == []
+
+
+# --- Código generado -----------------------------------------------------------------------------
+
+GAMES = sorted(p for p in (ROOT / "games").glob("*/*.game") if p.parent.name != "tests")
+
+
+def test_codegen_covers_every_operator() -> None:
+    from gamehub.engine import codegen
+    from gamehub.engine.expr import FAST, OPERATORS, PURE, REDUCERS, SEATED
+
+    unit = codegen._Unit(codegen.Codegen(TypeTable([]), {}, {}), mode="env")
+    special = {name[3:] for name in dir(unit) if name.startswith("op_")}
+    covered = special | set(PURE) | set(SEATED) | set(FAST) | set(REDUCERS)
+    assert set(OPERATORS) <= covered
+
+
+@pytest.mark.parametrize("path", GAMES, ids=lambda p: p.parent.name)
+def test_generated_code_plays_exactly_like_the_closures(path: Path) -> None:
+    """Las mismas partidas al azar con el código generado y con los cierres: la misma huella en
+    cada paso (y las mismas jugadas legales)."""
+    from gamehub.engine.match import RandomAgent, play_match
+    from gamehub.lang.compiler import compile_file
+
+    ir = compile_file(path).game().ir
+    fast, slow = Game(ir, codegen=True), Game(ir, codegen=False)
+    games = 1 if path.parent.name in ("chess", "solitaire", "mentiroso") else 3
+    for seed in range(games):
+        traces: list[list[tuple[str, int]]] = []
+        for game_ in (fast, slow):
+            trace: list[tuple[str, int]] = []
+            n = game_.players[0]
+            play_match(
+                game_,
+                [RandomAgent(seed, s) for s in range(n)],
+                seed=seed,
+                max_steps=300,
+                on_step=lambda st, t=trace: t.append(
+                    (
+                        st.digest(),
+                        len(st.legal_actions(st.active_seats[0])) if st.active_seats else 0,
+                    )
+                ),
+            )
+            traces.append(trace)
+        assert traces[0] == traces[1]

@@ -47,6 +47,14 @@ class EnumValue:
 class StructValue:
     type: str
     fields: tuple[tuple[str, Any], ...]
+    #: El hash, calculado una vez (los structs, como las cartas, son claves frecuentes del memo).
+    _hash: int = field(init=False, repr=False, compare=False, default=0)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_hash", hash((self.type, self.fields)))
+
+    def __hash__(self) -> int:
+        return self._hash
 
     def get(self, name: str) -> Any:
         for key, value in self.fields:

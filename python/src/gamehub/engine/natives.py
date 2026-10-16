@@ -26,6 +26,7 @@ plugins escritos en Python dentro de un programa de confianza).
 
 from __future__ import annotations
 
+import atexit
 import os
 import struct
 import threading
@@ -169,6 +170,11 @@ class WasmModule:
 @cache
 def _load(path: Path) -> WasmModule:
     return WasmModule(path)
+
+
+# Los módulos se liberan antes de que Python desmonte wasmtime al salir (si no, sus destructores
+# fallan y ensucian la salida).
+atexit.register(_load.cache_clear)
 
 
 class WasmFunction:
