@@ -1,0 +1,132 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Wizard (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.wizard {
+  --wizard-felt: #233a6e;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+
+.wizard-status {
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-weight: 700;
+}
+
+.wizard-status--mine {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.wizard-round {
+  margin: 0;
+  color: var(--gh-text-muted);
+}
+
+.wizard-table {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 20px;
+  border-radius: var(--gh-radius);
+  background: radial-gradient(ellipse at center, #2f4f8f 0%, var(--wizard-felt) 75%);
+  color: #fff;
+  box-shadow: var(--gh-shadow);
+}
+
+.wizard-table h3 {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.wizard-trump {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.wizard-trick__cards {
+  display: flex;
+  gap: 8px;
+  min-height: 110px;
+}
+
+.wizard-play {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 0;
+}
+
+.wizard-play figcaption {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.wizard-players {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-player {
+  display: grid;
+  gap: 2px;
+  min-width: 120px;
+  padding: 8px 12px;
+  border-radius: var(--gh-radius-sm);
+  border: 2px solid transparent;
+  background: var(--gh-surface);
+  font-size: 0.9rem;
+}
+
+.wizard-player--active {
+  border-color: var(--gh-accent);
+}
+
+.wizard-player--me {
+  background: var(--gh-accent-soft);
+}
+
+.wizard-dealer {
+  font-size: 0.75rem;
+  color: var(--gh-text-muted);
+}
+
+.wizard-score {
+  font-weight: 700;
+}
+
+.wizard-choices {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.wizard-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.wizard-card--wizard {
+  filter: drop-shadow(0 0 4px #7e57c2);
+}
+
+.wizard-card--jester {
+  filter: drop-shadow(0 0 4px #9e9e9e);
+}

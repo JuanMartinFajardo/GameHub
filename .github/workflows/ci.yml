@@ -27,6 +27,8 @@ jobs:
         run: uv run gamehub ir schemas --check
       - name: Tipos del protocolo generados al día
         run: uv run gamehub protocol types --check
+      - name: Plugins nativos (los .wasm salen de sus .wat)
+        run: uv run gamehub natives build --check
       - name: Juegos de validación
         run: uv run gamehub ir check ../spec/ir/examples/*.ir.json
       - name: Juegos y biblioteca estándar en Nomos formateados

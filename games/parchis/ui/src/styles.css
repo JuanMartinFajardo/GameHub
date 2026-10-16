@@ -1,0 +1,149 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Parchís (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.parchis {
+  --parchis-square: #fffdf5;
+  --parchis-line: #8d6e63;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+
+.parchis-status {
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-weight: 700;
+}
+
+.parchis-status--mine {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.parchis-layout {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.parchis-board {
+  width: min(560px, calc(100vw - 32px));
+  height: auto;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
+}
+
+.parchis-bg {
+  fill: #f3e9d2;
+  stroke: var(--parchis-line);
+  stroke-width: 3;
+}
+
+.parchis-square {
+  stroke: var(--parchis-line);
+  stroke-width: 1;
+}
+
+.parchis-safe {
+  fill: none;
+  stroke: #9e9e9e;
+  stroke-width: 1.5;
+}
+
+.parchis-number {
+  font-size: 6px;
+  fill: #8d6e63;
+}
+
+.parchis-home {
+  opacity: 0.85;
+  stroke: var(--parchis-line);
+  stroke-width: 2;
+}
+
+.parchis-goal {
+  stroke: var(--parchis-line);
+  stroke-width: 1;
+}
+
+.parchis-pawn {
+  cursor: default;
+}
+
+.parchis-pawn__body {
+  stroke: #222;
+  stroke-width: 1.5;
+}
+
+.parchis-pawn__label {
+  font-size: 9px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: #111;
+  pointer-events: none;
+}
+
+.parchis-pawn--movable {
+  cursor: pointer;
+}
+
+.parchis-pawn--movable .parchis-pawn__body {
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px #000);
+}
+
+.parchis-pawn:focus-visible .parchis-pawn__body {
+  stroke: var(--gh-focus);
+  stroke-width: 4;
+}
+
+.parchis-side {
+  display: grid;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.parchis-die {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.parchis-players {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parchis-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: var(--gh-surface);
+}
+
+.parchis-player--active {
+  border-color: var(--gh-accent);
+}
+
+.parchis-chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #222;
+}
+
+.parchis-muted {
+  color: var(--gh-text-muted);
+  font-size: 0.85rem;
+}

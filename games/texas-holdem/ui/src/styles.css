@@ -1,0 +1,206 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/* Texas Hold'em (las variables --gh-… vienen de @gamehub/ui-kit). */
+
+.holdem {
+  --holdem-felt: #1b6b3a;
+  --holdem-rail: #5d3a1a;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+
+.holdem-status {
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--gh-surface-2);
+  font-weight: 700;
+}
+
+.holdem-status--mine {
+  background: var(--gh-accent-soft);
+  color: var(--gh-accent);
+}
+
+.holdem-table {
+  position: relative;
+  width: min(760px, calc(100vw - 32px));
+  aspect-ratio: 16 / 10;
+  margin: 40px 0 48px;
+  border-radius: 50% / 46%;
+  background: radial-gradient(ellipse at center, #23854a 0%, var(--holdem-felt) 70%);
+  border: 14px solid var(--holdem-rail);
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.45),
+    var(--gh-shadow-lg);
+}
+
+.holdem-center {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.holdem-board {
+  display: flex;
+  gap: 6px;
+}
+
+.holdem-slot {
+  width: var(--gh-card-width, 56px);
+  aspect-ratio: 5 / 7;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+}
+
+.holdem-pot {
+  margin: 0;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-weight: 700;
+}
+
+.holdem-seat {
+  position: absolute;
+  left: var(--holdem-x);
+  top: var(--holdem-y);
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 96px;
+}
+
+.holdem-hole {
+  display: flex;
+  gap: 2px;
+  min-height: 20px;
+}
+
+.holdem-seat--folded .holdem-hole {
+  opacity: 0.35;
+}
+
+.holdem-plate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background: var(--gh-surface);
+  box-shadow: var(--gh-shadow-sm);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.holdem-seat--active .holdem-plate {
+  border-color: var(--gh-accent);
+}
+
+.holdem-seat--me .holdem-plate {
+  background: var(--gh-accent-soft);
+}
+
+.holdem-chips {
+  font-family: var(--gh-mono);
+}
+
+.holdem-dealer {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px #999;
+}
+
+.holdem-bet {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f5c542;
+  color: #3b2b00;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.holdem-tag {
+  font-size: 0.75rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.holdem-tag--allin {
+  background: var(--gh-danger);
+}
+
+.holdem-won {
+  font-weight: 800;
+  color: #7cfc9a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.holdem-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.holdem-raise {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.holdem-raise input[type="range"] {
+  width: 180px;
+}
+
+.holdem-shortcuts {
+  display: flex;
+  gap: 4px;
+}
+
+.holdem-showdown {
+  padding: 8px 14px;
+  border-radius: var(--gh-radius-sm);
+  background: var(--gh-surface);
+  box-shadow: var(--gh-shadow-sm);
+}
+
+.holdem-showdown h3 {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: var(--gh-text-muted);
+  text-transform: uppercase;
+}
+
+.holdem-showdown ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.holdem-showdown li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

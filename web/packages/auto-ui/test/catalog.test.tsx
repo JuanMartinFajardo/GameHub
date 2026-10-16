@@ -139,6 +139,7 @@ async function playThroughUi(
 /** Los paquetes del catálogo (games/): un juego por paquete. */
 const CATALOG = [
   "battle-of-the-sexes",
+  "chess",
   "chicken",
   "connect-four",
   "dudo",
@@ -148,12 +149,25 @@ const CATALOG = [
   "matching-pennies",
   "mentiroso",
   "nim",
+  "parchis",
   "prisoners-dilemma",
   "rock-paper-scissors",
+  "skat",
+  "solitaire",
   "stag-hunt",
+  "texas-holdem",
   "tictactoe",
   "two-by-two",
+  "wizard",
 ];
+
+/** Opciones para que las partidas largas acaben antes (la regla es la misma). */
+const PARAMS: Record<string, Record<string, number>> = {
+  skat: { deals: 1 },
+  solitaire: { max_moves: 60 },
+  "texas-holdem": { hands: 3, stack: 20 },
+  wizard: { rounds: 2 },
+};
 
 let server: RunningServer;
 let games: GameInfo[] = [];
@@ -180,7 +194,12 @@ describe.skipIf(!serverAvailable)("todo el catálogo con la UI genérica", () =>
       if (!info) return;
       const ir = (await gameIr(server.url, id)) as unknown as GameIr;
       const n = info.players.min;
-      const created = await createRoom(server.url, { game: id, players: n, name: "Anfitrión" });
+      const created = await createRoom(server.url, {
+        game: id,
+        players: n,
+        name: "Anfitrión",
+        params: PARAMS[id] ?? {},
+      });
       const clients = Array.from(
         { length: n },
         (_, s) =>
@@ -217,6 +236,6 @@ describe.skipIf(!serverAvailable)("todo el catálogo con la UI genérica", () =>
         for (const c of clients) c.close();
       }
     },
-    180_000,
+    300_000,
   );
 });

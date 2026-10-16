@@ -1,5 +1,5 @@
 [game]
-name = "holdem"
+name = "texas-holdem"
 version = "1.0.0"
 license = "CC-BY-4.0"
 authors = ["GameHub"]
