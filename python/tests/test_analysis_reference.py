@@ -79,8 +79,8 @@ def test_connect_four_four_by_four_is_a_draw() -> None:
 
 
 @pytest.mark.skip(
-    reason="Conecta 4 en 7×6 (gana el primero: Allis y Allen, 1988) necesita ordenar las jugadas "
-    "con heurísticas del juego (fase 9, ADR-081): la búsqueda genérica en C++ no llega"
+    reason="Conecta 4 en 7×6 (gana el primero: Allis y Allen, 1988): ni con el orden de la "
+    "heurística Threats (F9) llega el solver de la VM genérica (ADR-089, pregunta 28)"
 )
 def test_connect_four_first_player_wins() -> None:  # pragma: no cover
     assert search.alphabeta(game("connect-four")).value == (1, -1)
