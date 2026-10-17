@@ -55,6 +55,24 @@ struct AlphaBetaResult {
 // EngineError si los pagos no suman siempre lo mismo o si se superan `max_nodes`.
 AlphaBetaResult alphabeta(const State& root, uint64_t max_nodes = 100'000'000);
 
+// --- Ganar, empatar o perder ------------------------------------------------------------------
+
+struct WdlResult {
+  int outcome = 0;           // para el asiento 0: 1 gana, 0 tablas, -1 pierde
+  uint64_t nodes = 0;
+  uint64_t table_hits = 0;
+  double seconds = 0;
+  std::vector<int> best;     // en la raíz: las jugadas que consiguen el resultado (si se piden)
+};
+
+// Resuelve un juego determinista de dos jugadores y suma cero en términos de ganar, empatar o
+// perder (el signo de la diferencia de pagos) con búsquedas de ventana nula, una tabla de
+// transposiciones de tamaño fijo (2^table_bits entradas, claves de 128 bits) y la heurística de
+// historia para ordenar las jugadas (sin conocimiento del juego). `threads` > 1: varios hilos
+// comparten la tabla (Lazy SMP); cada uno con su copia del juego.
+WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int table_bits = 24,
+                    int threads = 1, uint64_t max_nodes = UINT64_MAX, double max_seconds = 0);
+
 // --- MCTS --------------------------------------------------------------------------------------
 
 struct MctsResult {

@@ -281,6 +281,26 @@ NB_MODULE(gamehub_core, m) {
       },
       nb::arg("state"), nb::arg("iterations"), nb::arg("sampling") = "external",
       nb::arg("seed") = 0, nb::arg("epsilon") = 0.6, nb::arg("exploitability") = false);
+  m.def(
+      "solve_wdl",
+      [](const Game& g, int n, nb::object params, int table_bits, int threads, uint64_t max_nodes,
+         double max_seconds) {
+        Json p = params.is_none() ? Json::object() : from_py(params);
+        WdlResult r;
+        {
+          nb::gil_scoped_release release;
+          r = solve_wdl(g, n, p, table_bits, threads, max_nodes, max_seconds);
+        }
+        nb::dict out;
+        out["outcome"] = r.outcome;
+        out["nodes"] = r.nodes;
+        out["table_hits"] = r.table_hits;
+        out["seconds"] = r.seconds;
+        return out;
+      },
+      nb::arg("game"), nb::arg("num_players"), nb::arg("params").none() = nb::none(),
+      nb::arg("table_bits") = 24, nb::arg("threads") = 1, nb::arg("max_nodes") = UINT64_MAX,
+      nb::arg("max_seconds") = 0.0);
   m.def("state_key", [](const State& s) {
     StateKey k = state_key(s);
     return nb::make_tuple(k.a, k.b);

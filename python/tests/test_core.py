@@ -341,3 +341,13 @@ def test_mccfr_converges_on_kuhn() -> None:
     assert external["infosets"] == 12 and external["exploitability"] < 0.05
     outcome = cpp.mccfr(kuhn, 20000, sampling="outcome", seed=1, exploitability=True)
     assert outcome["exploitability"] < 0.05
+
+
+def test_win_draw_loss_solver_on_small_connect_four_boards() -> None:
+    from gamehub.analysis import cpp
+
+    c4 = nomos("connect-four")
+    assert cpp.solve_wdl(c4, params={"columns": 4, "rows": 4, "connect": 4})["outcome"] == 0
+    assert cpp.solve_wdl(c4, params={"columns": 4, "rows": 4, "connect": 3})["outcome"] == 1
+    two = cpp.solve_wdl(c4, params={"columns": 5, "rows": 4, "connect": 4}, threads=2)
+    assert two["outcome"] == 0

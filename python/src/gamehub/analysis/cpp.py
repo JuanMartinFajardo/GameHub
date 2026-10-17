@@ -25,7 +25,16 @@ from gamehub.engine.core import CoreGame, CoreState, available, core_game
 from gamehub.engine.game import Game
 from gamehub.engine.state import State
 
-__all__ = ["alphabeta", "available", "cfr", "mccfr", "mcts", "perft", "retrograde"]
+__all__ = [
+    "alphabeta",
+    "available",
+    "cfr",
+    "mccfr",
+    "mcts",
+    "perft",
+    "retrograde",
+    "solve_wdl",
+]
 
 
 def _core() -> Any:
@@ -130,6 +139,37 @@ def cfr(
     (en el orden de `build_tree`, con sus claves), su explotabilidad y la convergencia."""
     root = core_game(game).new_state(num_players, params)
     return dict(_core().cfr(root.core, iterations, plus, measure_every, max_nodes))
+
+
+def solve_wdl(
+    game: Game,
+    *,
+    num_players: int | None = None,
+    params: dict[str, Any] | None = None,
+    table_bits: int = 24,
+    threads: int = 1,
+    max_nodes: int | None = None,
+    max_seconds: float = 0.0,
+) -> dict[str, Any]:
+    """Ganar (1), empatar (0) o perder (-1) para el asiento 0, con búsquedas de ventana nula, una
+    tabla de transposiciones de 2^table_bits entradas y la heurística de historia (sin
+    conocimiento del juego); con `threads` > 1, Lazy SMP."""
+    import json
+
+    reference = initial_state(game, num_players, params)
+    require_perfect_information(reference)
+    native = _core().Game(json.dumps(game.ir, ensure_ascii=False))
+    return dict(
+        _core().solve_wdl(
+            native,
+            reference.n,
+            params or {},
+            table_bits,
+            threads,
+            max_nodes if max_nodes is not None else 2**63,
+            max_seconds,
+        )
+    )
 
 
 def mccfr(

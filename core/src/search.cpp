@@ -4,7 +4,11 @@
 #include <algorithm>
 #include <cmath>
 #include <deque>
+#include <atomic>
+#include <chrono>
 #include <memory>
+#include <mutex>
+#include <thread>
 
 #include "gamehub/errors.hpp"
 
@@ -238,6 +242,192 @@ AlphaBetaResult alphabeta(const State& root, uint64_t max_nodes) {
   r.states = search.table.size();
   r.nodes = search.nodes;
   return r;
+}
+
+// --- Ganar, empatar o perder ------------------------------------------------------------------
+
+namespace {
+
+// Una entrada de la tabla: la clave completa, el valor (para el asiento 0) y si es exacto o cota.
+struct WdlEntry {
+  uint64_t a = 0, b = 0;
+  int8_t value = 0;
+  uint8_t flag = 0;  // 0 = vacía, 1 = exacto, 2 = cota inferior, 3 = cota superior
+  int8_t move = -1;
+  uint8_t depth = 0;
+};
+
+class WdlTable {
+ public:
+  explicit WdlTable(int bits) : mask_((uint64_t(1) << bits) - 1), slots_(uint64_t(1) << bits) {}
+  bool find(const StateKey& k, WdlEntry& out) {
+    std::lock_guard<std::mutex> guard(locks_[k.a & 255]);
+    const WdlEntry& e = slots_[k.a & mask_];
+    if (e.flag == 0 || e.a != k.a || e.b != k.b) return false;
+    out = e;
+    return true;
+  }
+  void store(const StateKey& k, int8_t value, uint8_t flag, int8_t move, int depth) {
+    std::lock_guard<std::mutex> guard(locks_[k.a & 255]);
+    WdlEntry& e = slots_[k.a & mask_];
+    // Se prefiere conservar lo más cercano a la raíz (cuesta más recalcularlo).
+    if (e.flag != 0 && (e.a != k.a || e.b != k.b) && e.depth < depth) return;
+    e = WdlEntry{k.a, k.b, value, flag, move, static_cast<uint8_t>(std::min(depth, 255))};
+  }
+
+ private:
+  uint64_t mask_;
+  std::vector<WdlEntry> slots_;
+  std::mutex locks_[256];
+};
+
+class WdlSearch {
+ public:
+  WdlSearch(WdlTable& table, std::atomic<uint64_t>& nodes, std::atomic<bool>& stop,
+            uint64_t max_nodes, uint64_t seed)
+      : table_(table), nodes_(nodes), stop_(stop), max_nodes_(max_nodes), rng_(seed, 99) {}
+
+  // Valor para el asiento 0, buscando en la ventana (alpha, beta).
+  int search(const State& s, int alpha, int beta, int depth) {
+    if (s.is_terminal()) {
+      int c = s.payoffs()[0].as_rational().compare(s.payoffs()[1].as_rational());
+      return c;
+    }
+    if (stop_.load(std::memory_order_relaxed)) throw EngineError("búsqueda interrumpida");
+    if (nodes_.fetch_add(1, std::memory_order_relaxed) >= max_nodes_) {
+      stop_ = true;
+      throw EngineError("la búsqueda supera el límite de nodos");
+    }
+    if (s.status() == Status::Chance) throw EngineError("ganar/empatar/perder es para juegos sin azar");
+    StateKey key = state_key(s);
+    WdlEntry e;
+    int hint = -1;
+    if (table_.find(key, e)) {
+      ++hits;
+      hint = e.move;
+      if (e.flag == 1) return e.value;
+      if (e.flag == 2 && e.value >= beta) return e.value;
+      if (e.flag == 3 && e.value <= alpha) return e.value;
+      if (e.flag == 2) alpha = std::max(alpha, static_cast<int>(e.value));
+      if (e.flag == 3) beta = std::min(beta, static_cast<int>(e.value));
+    }
+    int seat = s.first_active();
+    std::vector<Action> actions;
+    s.for_each_legal(seat, [&](const Action& a) {
+      actions.push_back(a);
+      return true;
+    });
+    // Orden: la jugada de la tabla, después por la historia (cortes que produjo cada acción).
+    std::vector<size_t> order(actions.size());
+    std::vector<uint64_t> score(actions.size());
+    for (size_t k = 0; k < actions.size(); ++k) {
+      order[k] = k;
+      score[k] = history_[actions[k].hash() & 4095];
+    }
+    std::stable_sort(order.begin(), order.end(),
+                     [&](size_t x, size_t y) { return score[x] > score[y]; });
+    if (hint >= 0 && static_cast<size_t>(hint) < actions.size()) {
+      order.erase(std::find(order.begin(), order.end(), static_cast<size_t>(hint)));
+      order.insert(order.begin(), static_cast<size_t>(hint));
+    }
+    bool maximizing = seat == 0;
+    int a0 = alpha, b0 = beta;
+    int best = maximizing ? -2 : 2;
+    int best_move = static_cast<int>(order.front());
+    for (size_t k : order) {
+      int v = search(s.apply_action(seat, actions[k], SEARCH), alpha, beta, depth + 1);
+      if ((maximizing && v > best) || (!maximizing && v < best)) {
+        best = v;
+        best_move = static_cast<int>(k);
+      }
+      if (maximizing) {
+        alpha = std::max(alpha, v);
+      } else {
+        beta = std::min(beta, v);
+      }
+      if (alpha >= beta) {
+        history_[actions[k].hash() & 4095] += uint64_t(1) << std::min(40, 40 - std::min(depth, 40));
+        break;
+      }
+    }
+    uint8_t flag = 1;
+    if (best <= a0) {
+      flag = 3;
+    } else if (best >= b0) {
+      flag = 2;
+    }
+    table_.store(key, static_cast<int8_t>(best), flag, static_cast<int8_t>(best_move), depth);
+    return best;
+  }
+
+  uint64_t hits = 0;
+
+ private:
+  WdlTable& table_;
+  std::atomic<uint64_t>& nodes_;
+  std::atomic<bool>& stop_;
+  uint64_t max_nodes_;
+  Pcg32 rng_;
+  uint64_t history_[4096] = {};
+};
+
+}  // namespace
+
+WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int table_bits,
+                    int threads, uint64_t max_nodes, double max_seconds) {
+  auto started = std::chrono::steady_clock::now();
+  WdlTable table(table_bits);
+  std::atomic<uint64_t> nodes{0};
+  std::atomic<bool> stop{false};
+  WdlResult result;
+  // Valor con dos búsquedas de ventana nula: ¿gana el 0? y, si no, ¿pierde?
+  auto solve_one = [&](const State& root, uint64_t seed) -> std::pair<int, uint64_t> {
+    WdlSearch search(table, nodes, stop, max_nodes, seed);
+    int v = search.search(root, 0, 1, 0);
+    if (v < 1) v = search.search(root, -1, 0, 0);
+    return {v, search.hits};
+  };
+  std::vector<std::thread> helpers;
+  std::atomic<int> answer{2};
+  for (int t = 1; t < threads; ++t) {
+    helpers.emplace_back([&, t] {
+      try {
+        Game local(game.def().ir);  // cada hilo con su juego (cachés propias)
+        State root = local.new_state(num_players, params, SEARCH);
+        solve_one(root, static_cast<uint64_t>(t));
+      } catch (const EngineError&) {
+      }
+    });
+  }
+  std::thread watchdog;
+  if (max_seconds > 0) {
+    watchdog = std::thread([&] {
+      while (!stop.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        double elapsed =
+            std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+        if (elapsed > max_seconds) stop = true;
+      }
+    });
+  }
+  std::string error;
+  try {
+    State root = game.new_state(num_players, params, SEARCH);
+    auto [v, hits] = solve_one(root, 0);
+    answer = v;
+    result.table_hits = hits;
+  } catch (const EngineError& e) {
+    error = e.what();
+  }
+  stop = true;
+  for (auto& h : helpers) h.join();
+  if (watchdog.joinable()) watchdog.join();
+  if (!error.empty()) throw EngineError(error);
+  result.outcome = answer.load();
+  result.nodes = nodes.load();
+  result.seconds =
+      std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
+  return result;
 }
 
 // --- MCTS --------------------------------------------------------------------------------------
