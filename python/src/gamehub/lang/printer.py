@@ -346,6 +346,9 @@ class Printer:
 
     def i_StateVar(self, item: ast.StateVar) -> Doc:
         annotations = self.annotations(item.visibility, item.size_visibility)
+        if item.range is not None:
+            ranged = concat("@range(", self.expr(item.range), ")")
+            annotations = ranged if annotations is NIL else concat(annotations, " ", ranged)
         decl = concat(item.name, ": ", self.type(item.type))
         if item.init is not None:
             decl = self.rhs(concat(decl, " ="), item.init)

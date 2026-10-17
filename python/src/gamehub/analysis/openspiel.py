@@ -156,13 +156,37 @@ def to_openspiel(
     num_players: int | None = None,
     params: dict[str, Any] | None = None,
     max_nodes: int = MAX_NODES,
+    numbering: str = "ir",
+    engine: str = "auto",
 ) -> Any:
-    """El juego envuelto como `pyspiel.Game` (y registrado con su `short_name`)."""
+    """El juego envuelto como `pyspiel.Game` (y registrado con su `short_name`).
+
+    Con `numbering="ir"` (por defecto) los números de acción salen de la IR sin explorar el juego
+    (`gamehub.analysis.action_space`, ADR-079) y vale para cualquier juego del catálogo; con
+    `"explore"`, se numeran explorando el grafo o el árbol (solo juegos pequeños, ADR-072).
+    `engine`: "cpp" (el núcleo C++), "python" o "auto" (C++ si está instalado)."""
+    if numbering == "ir":
+        from gamehub.analysis.openspiel_ir import to_openspiel_ir
+
+        return to_openspiel_ir(game, num_players=num_players, params=params, engine=engine)
+    if numbering != "explore":
+        raise ValueError(f"numeración desconocida: {numbering}")
+    return _to_openspiel_explored(game, num_players=num_players, params=params, max_nodes=max_nodes)
+
+
+def _to_openspiel_explored(
+    game: Game | State,
+    *,
+    num_players: int | None = None,
+    params: dict[str, Any] | None = None,
+    max_nodes: int = MAX_NODES,
+) -> Any:
+    """La versión que numera las acciones explorando el juego (ADR-072)."""
     import numpy as np
     import pyspiel
 
     root = initial_state(game, num_players, params)
-    name = _short_name(root, params)
+    name = _short_name(root, params) + "_x"
     if name in _REGISTERED:
         return _REGISTERED[name]()
     spec = _explore(root, max_nodes)

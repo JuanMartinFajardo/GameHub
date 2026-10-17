@@ -187,6 +187,8 @@ class _Checker:
         self.type_ref(var["type"], f"{path}/type")
         per_player = isinstance(var["type"], list) and var["type"][0] == "per_player"
         self.expr(var["init"], _Ctx(f"{path}/init", owned=per_player, reads_state=False))
+        for k, bound in enumerate(var.get("range", [])):
+            self.expr(bound, _Ctx(f"{path}/range/{k}", reads_state=False))
         for key in ("visibility", "size_visibility"):
             if key not in var:
                 continue

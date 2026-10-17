@@ -26,7 +26,7 @@ Value Value::alloc_array(Tag tag, uint32_t n, bool with_faces) {
   obj->a = 0;
   obj->b = 0;
   obj->hash = 0;
-  obj->pad_ = 0;
+  obj->hash2 = 0;
   Value* items = obj->items();
   for (uint32_t k = 0; k < n; ++k) new (items + k) Value();
   if (with_faces) std::memset(obj->faces(), 0, n);
@@ -61,6 +61,7 @@ ArrayObj* Value::unique_arr() {
   c->a = obj->a;
   c->b = obj->b;
   c->hash = obj->hash;
+  c->hash2 = obj->hash2;
   const Value* src = obj->items();
   Value* dst = c->items();
   for (uint32_t k = 0; k < obj->n; ++k) dst[k] = src[k];
@@ -467,6 +468,7 @@ uint64_t hash_value(const Value& v) {
 
 void set_item(ArrayObj* obj, size_t k, Value value) {
   Value& slot = obj->items()[k];
+  obj->hash2 = 0;
   // Un hash en caché de 1 puede venir de `nonzero(0)`: no se actualiza, se recalculará.
   if (obj->hash > 1) {
     obj->hash ^= positional_hash(k, hash_value(slot)) ^ positional_hash(k, hash_value(value));
@@ -474,6 +476,71 @@ void set_item(ArrayObj* obj, size_t k, Value value) {
     obj->hash = 0;
   }
   slot = std::move(value);
+}
+
+// --- Segundo hash ------------------------------------------------------------------------------
+
+namespace {
+
+inline uint64_t mix64b(uint64_t z) {
+  // El finalizador de MurmurHash3 (constantes distintas de splitmix64).
+  z ^= z >> 33;
+  z *= 0xff51afd7ed558ccdULL;
+  z ^= z >> 33;
+  z *= 0xc4ceb9fe1a85ec53ULL;
+  z ^= z >> 33;
+  return z;
+}
+
+inline uint64_t positional2(size_t index, uint64_t h) {
+  return mix64b(h + 0x2545f4914f6cdd1dULL * (index + 7));
+}
+
+uint64_t compute_hash2(Tag tag, const ArrayObj* obj) {
+  uint64_t h = mix64b(0x68617368322dULL ^ (uint64_t(static_cast<uint8_t>(tag)) << 56) ^
+                      (uint64_t(obj->a) << 32) ^ (uint64_t(obj->b) << 16) ^ obj->n);
+  if (tag == Tag::Tuple) h = mix64b(0x7475706c652dULL ^ obj->n);  // igual que una casilla
+  const Value* items = obj->items();
+  for (uint32_t k = 0; k < obj->n; ++k) {
+    uint64_t e = hash_value2(items[k]);
+    if (tag == Tag::Zone && obj->faces()[k]) e ^= 0x632d6661636521ULL;
+    h ^= positional2(k, e);
+  }
+  return h == 0 ? 1 : h;
+}
+
+}  // namespace
+
+uint64_t hash_value2(const Value& v) {
+  switch (v.tag) {
+    case Tag::None:
+      return 0x4e6f6e6532ULL;
+    case Tag::Bool:
+    case Tag::Int:
+      return mix64b(static_cast<uint64_t>(v.i) ^ 0x696e7432ULL);
+    case Tag::Enum:
+      return mix64b((uint64_t(v.x) << 44) ^ static_cast<uint64_t>(v.i) ^ 0x656e756d32ULL);
+    case Tag::Cell: {
+      uint64_t h = mix64b(0x7475706c652dULL ^ 2);
+      h ^= positional2(0, mix64b(static_cast<uint64_t>(v.cell_row()) ^ 0x696e7432ULL));
+      h ^= positional2(1, mix64b(static_cast<uint64_t>(v.cell_col()) ^ 0x696e7432ULL));
+      return h == 0 ? 1 : h;
+    }
+    case Tag::Rat: {
+      const Rational& r = static_cast<RatObj*>(v.p)->r;
+      return mix64b(mix64b(static_cast<uint64_t>(r.num)) + static_cast<uint64_t>(r.den));
+    }
+    case Tag::Text: {
+      uint64_t h = 0x84222325cbf29ce4ULL;
+      for (char c : v.as_text()) h = (h ^ static_cast<uint8_t>(c)) * 0x100000001b3ULL;
+      return mix64b(h);
+    }
+    default: {
+      ArrayObj* obj = v.arr();
+      if (obj->hash2 == 0) obj->hash2 = compute_hash2(v.tag, obj);
+      return obj->hash2;
+    }
+  }
 }
 
 size_t utf8_length(std::string_view s) {

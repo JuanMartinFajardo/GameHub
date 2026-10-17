@@ -18,6 +18,9 @@ from gamehub.lang.diagnostics import Diagnostics
 from gamehub.lang.lexer import Comment, Token, tokenize
 from gamehub.lang.source import Source, Span
 
+#: Una anotación (`@nombre(argumento)`) con su posición.
+Annotation = tuple[str, ast.Text | ast.Visibility | ast.Expr, Span]
+
 NODE_KINDS = ("decision", "simultaneous", "window", "chance", "auto", "phase", "terminal")
 COMPARISONS = ("==", "!=", "<", "<=", ">", ">=", "in")
 STATEMENT_KEYWORDS = (
@@ -322,22 +325,24 @@ class Parser:
                 self.diagnostics.error("E111", f"anotación no permitida aquí: @{name}", span)
         return doc
 
-    def annotations(self) -> list[tuple[str, ast.Text | ast.Visibility, Span]]:
-        result: list[tuple[str, ast.Text | ast.Visibility, Span]] = []
+    def annotations(self) -> list[Annotation]:
+        result: list[Annotation] = []
         while self.at("annotation"):
             tok = self.advance()
             name = tok.value
             self.expect("(", "'(' tras la anotación")
-            arg: ast.Text | ast.Visibility
+            arg: ast.Text | ast.Visibility | ast.Expr
             if name in ("doc", "native"):
                 arg = self.text()
             elif name in ("visible", "size_visible"):
                 arg = self.visibility()
+            elif name == "range":
+                arg = self.expr()
             else:
                 raise self.fail(
                     f"anotación desconocida: @{name}",
                     tok.span,
-                    help="se admiten @visible, @size_visible, @doc y @native",
+                    help="se admiten @visible, @size_visible, @range, @doc y @native",
                 )
             self.expect(")", "')'")
             result.append((name, arg, tok.span.to(self.prev_span())))
@@ -783,6 +788,12 @@ class Parser:
                     node.visibility = arg
                 elif name == "size_visible" and isinstance(arg, ast.Visibility):
                     node.size_visibility = arg
+                elif name == "range" and isinstance(arg, ast.RangeExpr):
+                    node.range = arg
+                elif name == "range":
+                    self.diagnostics.error(
+                        "E111", "@range espera un rango: @range(mínimo..máximo)", span
+                    )
                 else:
                     self.diagnostics.error("E111", f"anotación no permitida aquí: @{name}", span)
             name_tok = self.ident("el nombre de una variable de estado")
@@ -940,9 +951,7 @@ class Parser:
         self.apply_doc(item, annotations)
         return self.finish(item, start)
 
-    def apply_doc(
-        self, item: ast.Item, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]
-    ) -> None:
+    def apply_doc(self, item: ast.Item, annotations: list[Annotation]) -> None:
         for name, arg, span in annotations:
             if name == "doc" and isinstance(arg, ast.Text):
                 item.doc = arg
@@ -994,9 +1003,7 @@ class Parser:
             "transición ('-> Nodo')"
         )
 
-    def action_decl(
-        self, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]
-    ) -> ast.ActionDecl:
+    def action_decl(self, annotations: list[Annotation]) -> ast.ActionDecl:
         self.expect("action")
         name = self.ident("el nombre de la acción")
         node = ast.ActionDecl(name=name.text, name_spans=[name.span])
@@ -1109,7 +1116,7 @@ class Parser:
         node.doc = doc or node.doc
         return self.finish(node, start)
 
-    def stmt_body(self, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]) -> ast.Stmt:
+    def stmt_body(self, annotations: list[Annotation]) -> ast.Stmt:
         kind = self.peek().kind
         match kind:
             case "let":
@@ -1201,9 +1208,7 @@ class Parser:
         op = self.advance().kind
         return ast.Assign(target, op, self.value())
 
-    def emit_stmt(
-        self, annotations: list[tuple[str, ast.Text | ast.Visibility, Span]]
-    ) -> ast.EmitStmt:
+    def emit_stmt(self, annotations: list[Annotation]) -> ast.EmitStmt:
         self.expect("emit")
         name = self.ident("el nombre del evento")
         fields, _ = self.field_list()

@@ -69,7 +69,57 @@ bool Policy::allows(Ctx& ctx, Frame& frame) const {
 
 // --- Escritura y coerción ----------------------------------------------------------------------
 
+namespace {
+
+void check_leaves(const Ctx& ctx, const VarDef& var, const Value& v, const Type& t,
+                  const Rational& lo, const Rational& hi) {
+  switch (t.kind) {
+    case Type::Kind::Int:
+    case Type::Kind::Seat:
+    case Type::Kind::Real: {
+      Rational x = v.as_rational();
+      if (x.compare(lo) < 0 || x.compare(hi) > 0) {
+        rule_error(var.name + ": " + x.str() + " fuera de su rango " + lo.str() + ".." + hi.str());
+      }
+      return;
+    }
+    case Type::Kind::PerPlayer:
+    case Type::Kind::List:
+      for (size_t k = 0; k < v.tuple_size(); ++k) {
+        check_leaves(ctx, var, v.tuple_at(k), t.inner(), lo, hi);
+      }
+      return;
+    case Type::Kind::Set:
+    case Type::Kind::Grid:
+      for (uint32_t k = 0; k < v.arr()->n; ++k) {
+        check_leaves(ctx, var, v.arr()->items()[k], t.inner(), lo, hi);
+      }
+      return;
+    case Type::Kind::Option:
+      if (!v.is_none()) check_leaves(ctx, var, v, t.inner(), lo, hi);
+      return;
+    default:
+      return;
+  }
+}
+
+}  // namespace
+
+void check_range(Ctx& ctx, uint32_t index, const Value& value) {
+  const VarDef& var = ctx.game->vars[index];
+  if (!var.range_lo.defined) return;
+  // Los límites solo dependen de los parámetros: se evalúan sin estado.
+  ValueVec empty;
+  Ctx bounds = ctx;
+  bounds.store = &empty;
+  bounds.memo = nullptr;
+  Rational lo = expect_num(eval_expr(var.range_lo, bounds), "range", ctx).as_rational();
+  Rational hi = expect_num(eval_expr(var.range_hi, bounds), "range", ctx).as_rational();
+  check_leaves(ctx, var, value, *var.type, lo, hi);
+}
+
 void write_var(Ctx& ctx, uint32_t var, Value value) {
+  if (ctx.game->vars[var].range_lo.defined) check_range(ctx, var, value);
   (*ctx.store)[var] = std::move(value);
   if (ctx.memo != nullptr) ctx.memo->clear();
 }
@@ -218,6 +268,7 @@ void update(const Ctx& ctx, Value& slot, const LValue& lv, const ValueVec& keys,
 void update_child(const Ctx& ctx, ArrayObj* obj, size_t pos, const LValue& lv,
                   const ValueVec& keys, size_t i, Value&& value) {
   Value& child = obj->items()[pos];
+  obj->hash2 = 0;
   if (obj->hash > 1) {
     uint64_t old = hash_value(child);
     update(ctx, child, lv, keys, i, std::move(value));
@@ -279,7 +330,15 @@ Value LValue::get_with(Ctx& ctx, const ValueVec& ks) const {
 Value LValue::get(Ctx& ctx, Frame& frame) const { return get_with(ctx, keys(ctx, frame)); }
 
 void LValue::set_with(Ctx& ctx, const ValueVec& ks, Value value) const {
-  update(ctx, (*ctx.store)[var], *this, ks, 0, std::move(value));
+  if (ctx.game->vars[var].range_lo.defined) {
+    // Como en Python: se comprueba el valor nuevo de toda la variable antes de escribirlo.
+    Value copy = (*ctx.store)[var];
+    update(ctx, copy, *this, ks, 0, std::move(value));
+    check_range(ctx, var, copy);
+    (*ctx.store)[var] = std::move(copy);
+  } else {
+    update(ctx, (*ctx.store)[var], *this, ks, 0, std::move(value));
+  }
   if (ctx.memo != nullptr) ctx.memo->clear();
 }
 

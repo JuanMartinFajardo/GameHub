@@ -9,9 +9,12 @@
 #include <nanobind/stl/tuple.h>
 #include <nanobind/stl/vector.h>
 
+#include "gamehub/action_space.hpp"
+#include "gamehub/cfr.hpp"
 #include "gamehub/errors.hpp"
 #include "gamehub/hashing.hpp"
 #include "gamehub/playout.hpp"
+#include "gamehub/search.hpp"
 #include "gamehub/sha256.hpp"
 #include "gamehub/state.hpp"
 
@@ -121,6 +124,8 @@ ApplyOptions options(bool validate, bool events, bool history) {
 
 NB_MODULE(gamehub_core, m) {
   m.doc() = "GameHub: el núcleo C++ (VM de la GameIR y algoritmos).";
+  // Los juegos envueltos para OpenSpiel quedan registrados hasta el final del proceso.
+  nb::set_leak_warnings(false);
   nb::register_exception_translator(translate);
   m.attr("PUBLIC") = PUBLIC;
 
@@ -141,6 +146,129 @@ NB_MODULE(gamehub_core, m) {
       .def_prop_ro("is_pass", &Action::is_pass)
       .def("__eq__", [](const Action& a, const Action& b) { return a == b; })
       .def("__hash__", [](const Action& a) { return static_cast<int64_t>(a.hash() >> 1); });
+
+  // --- Algoritmos ---
+  m.def(
+      "perft",
+      [](const State& s, int depth, std::vector<std::string> skip) {
+        nb::gil_scoped_release release;
+        return perft(s, depth, skip);
+      },
+      nb::arg("state"), nb::arg("depth"), nb::arg("skip") = std::vector<std::string>{});
+  m.def(
+      "perft_divide",
+      [](const State& s, int depth, std::vector<std::string> skip) {
+        std::vector<std::pair<Action, uint64_t>> out;
+        {
+          nb::gil_scoped_release release;
+          out = perft_divide(s, depth, skip);
+        }
+        nb::list result;
+        for (auto& [a, n] : out) result.append(nb::make_tuple(a, n));
+        return result;
+      },
+      nb::arg("state"), nb::arg("depth"), nb::arg("skip") = std::vector<std::string>{});
+  m.def(
+      "alphabeta",
+      [](const State& s, uint64_t max_nodes) {
+        AlphaBetaResult r;
+        {
+          nb::gil_scoped_release release;
+          r = alphabeta(s, max_nodes);
+        }
+        nb::dict out;
+        out["value"] = rational_py(r.value);
+        out["total"] = rational_py(r.total);
+        out["best"] = r.best;
+        out["pv"] = r.pv;
+        out["states"] = r.states;
+        out["nodes"] = r.nodes;
+        return out;
+      },
+      nb::arg("state"), nb::arg("max_nodes") = 100'000'000);
+  m.def(
+      "mcts",
+      [](const State& s, uint64_t simulations, double c, uint64_t seed, int max_rollout) {
+        MctsResult r;
+        {
+          nb::gil_scoped_release release;
+          r = mcts(s, simulations, c, seed, max_rollout);
+        }
+        nb::dict out;
+        out["actions"] = r.actions;
+        out["visits"] = r.visits;
+        out["values"] = r.values;
+        out["best"] = r.best;
+        out["simulations"] = r.simulations;
+        return out;
+      },
+      nb::arg("state"), nb::arg("simulations"), nb::arg("c") = 1.4, nb::arg("seed") = 0,
+      nb::arg("max_rollout") = 10'000);
+  m.def(
+      "retrograde",
+      [](const State& s, uint64_t max_positions) {
+        RetroResult r;
+        {
+          nb::gil_scoped_release release;
+          r = retrograde(s, max_positions);
+        }
+        nb::dict out;
+        out["outcome"] = r.outcome;
+        out["positions"] = r.positions;
+        out["wins"] = r.wins;
+        out["draws"] = r.draws;
+        out["losses"] = r.losses;
+        out["depth"] = r.depth;
+        return out;
+      },
+      nb::arg("state"), nb::arg("max_positions") = 50'000'000);
+  m.def(
+      "cfr",
+      [](const State& s, int iterations, bool plus, int measure_every, size_t max_nodes) {
+        GameTreeEF tree;
+        PolicyEF policy;
+        std::vector<std::pair<int, double>> convergence;
+        double expl;
+        {
+          nb::gil_scoped_release release;
+          tree = build_tree(s, max_nodes);
+          CfrSolver solver(tree, plus);
+          solver.run(iterations, measure_every);
+          policy = solver.average();
+          convergence = solver.convergence();
+          expl = exploitability(tree, policy);
+        }
+        nb::list infosets;
+        for (const auto& info : tree.infosets) {
+          infosets.append(nb::make_tuple(info.player, info.key, info.actions));
+        }
+        nb::dict out;
+        out["infosets"] = infosets;
+        out["policy"] = policy;
+        out["convergence"] = convergence;
+        out["nodes"] = tree.nodes.size();
+        out["exploitability"] = expl;
+        return out;
+      },
+      nb::arg("state"), nb::arg("iterations"), nb::arg("plus") = true,
+      nb::arg("measure_every") = 0, nb::arg("max_nodes") = 10'000'000);
+  m.def("state_key", [](const State& s) {
+    StateKey k = state_key(s);
+    return nb::make_tuple(k.a, k.b);
+  });
+
+  nb::class_<ActionSpace>(m, "ActionSpace")
+      .def("__init__",
+           [](ActionSpace* self, const Game& g, nb::handle spec) {
+             new (self) ActionSpace(g.def_ptr(), from_py(spec));
+           })
+      .def_prop_ro("size", &ActionSpace::size)
+      .def("legal_ids", &ActionSpace::legal_ids)
+      .def("encode", [](const ActionSpace& sp, const State& s,
+                        const Action& a) { return sp.encode(s.node(), a); })
+      .def("decode", [](const ActionSpace& sp, const State& s, int64_t id) {
+        return sp.decode(s.node(), id);
+      });
 
   nb::class_<Game>(m, "Game")
       .def("__init__",
@@ -276,6 +404,17 @@ NB_MODULE(gamehub_core, m) {
       .def("snapshot_text", &State::snapshot_text)
       .def("digest", &State::digest)
       .def("information_state", &State::information_state)
+      .def("observation_digest", &State::observation_digest)
+      .def("view_text", [](const State& s, int seat) { return s.view(seat).dump(); })
+      .def("snapshot_hash", [](const State& s) { return s.hash(); })
+      .def("next_draw",
+           [](const State& s, nb::handle prefix) -> nb::object {
+             auto next = s.next_draw(outcome_from(prefix));
+             if (!next) return nb::none();
+             nb::list probs;
+             for (const auto& p : next->second) probs.append(rational_py(p));
+             return nb::make_tuple(next->first, probs);
+           })
       .def("hash", [](const State& s) { return s.hash(); })
       .def("ranking", &State::ranking)
       .def(

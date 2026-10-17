@@ -907,6 +907,10 @@ GameDef::GameDef(const Json& ir_doc) : ir(ir_doc), static_memo(std::make_unique<
     vd.init = c.expr_site(v["init"]);
     vd.policy = c.policy(opt(v, "visibility"), Policy::Kind::All);
     vd.size_policy = c.policy(opt(v, "size_visibility"), Policy::Kind::All);
+    if (const Json* r = opt(v, "range")) {
+      vd.range_lo = c.expr_site(r->at(0));
+      vd.range_hi = c.expr_site(r->at(1));
+    }
     vars.push_back(std::move(vd));
   }
   {

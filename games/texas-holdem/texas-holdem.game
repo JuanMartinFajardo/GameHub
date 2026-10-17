@@ -45,9 +45,13 @@ game TexasHoldem {
     @visible(viewer == owner or shown and not folded[owner]) @size_visible(all)
     hole: per_player Bag<Card>
     board: Zone<Card>
+    /// Nadie puede tener, apostar ni poner más fichas que las que hay en la mesa
+    @range(0..stack * num_players)
     chips: per_player Int = stack
     /// Lo apostado en la ronda en curso y en toda la mano
+    @range(0..stack * num_players)
     bet: per_player Int = 0
+    @range(0..stack * num_players)
     put: per_player Int = 0
     folded: per_player Bool = false
     /// Si ya habló en esta ronda y si aún puede subir (una subida «all-in» que no llega al mínimo
@@ -55,6 +59,7 @@ game TexasHoldem {
     acted: per_player Bool = false
     can_raise: per_player Bool = true
     /// Cuánto hay que subir como mínimo (lo que subió el último)
+    @range(0..stack * num_players)
     min_raise: Int = big_blind
     button: Seat = 0
     /// Quién puso la ciega grande en esta mano

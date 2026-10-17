@@ -50,6 +50,7 @@ struct VarDef {
   TypeRef type;
   Expr init;
   Policy policy, size_policy;
+  Expr range_lo, range_hi;  // `@range` (defined = false si no tiene)
 };
 
 struct ParamDef {

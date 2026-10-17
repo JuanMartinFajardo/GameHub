@@ -750,6 +750,7 @@ ValueVec initial_store(const GameDef& g, const Match& match) {
     } else {
       store.push_back(initial_value(g, ctx, eval_expr(var.init, ctx), *var.type));
     }
+    if (var.range_lo.defined) check_range(ctx, var.index, store.back());
   }
   return store;
 }
@@ -1103,6 +1104,20 @@ State State::sample_and_apply(Pcg32& rng, const ApplyOptions& opt) const {
   return State(tx.commit(s_, std::move(step), opt.history));
 }
 
+std::optional<std::pair<int64_t, std::vector<Rational>>> State::next_draw(
+    const Outcome& prefix) const {
+  require_chance(*this);
+  ScriptedDraws draws(prefix);
+  try {
+    Tx tx(s_->game, s_->match, s_->store, s_->node, s_->pending, &draws, false);
+    tx.run_chance();
+  } catch (NeedDraw& need) {
+    return std::make_pair(need.n, need.probs);
+  }
+  if (!draws.finished()) throw IllegalAction("resultado de azar con sorteos de más");
+  return std::nullopt;
+}
+
 Rational State::outcome_probability(const Outcome& outcome) const {
   require_chance(*this);
   ScriptedDraws draws(outcome);
@@ -1266,6 +1281,11 @@ std::vector<State> State::path() const {
   for (auto s = s_; s; s = s->parent) states.push_back(State(s));
   std::reverse(states.begin(), states.end());
   return states;
+}
+
+std::string State::observation_digest(int seat) const {
+  Json observation(JsonObject{{"view", view(seat)}, {"events", events(seat)}});
+  return Sha256::hex(observation.dump());
 }
 
 std::string State::information_state(int seat) const {

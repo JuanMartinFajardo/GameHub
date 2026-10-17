@@ -595,6 +595,8 @@ class StateVar(Item):
     init: Expr | None = None
     visibility: Visibility | None = None
     size_visibility: Visibility | None = None
+    #: `@range(lo..hi)`: el rango de sus números (se comprueba en cada escritura).
+    range: Expr | None = None
 
 
 @dataclass(kw_only=True)

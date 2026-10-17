@@ -200,6 +200,13 @@
         "init": { "$ref": "#/$defs/expr" },
         "visibility": { "$ref": "#/$defs/visibility" },
         "size_visibility": { "$ref": "#/$defs/visibility" },
+        "range": {
+          "description": "Rango declarado [mínimo, máximo] (inclusivo) de los enteros de la variable (sus hojas Int en per_player, listas, rejillas y opcionales): expresiones de parámetros y constantes. Escribir un valor fuera es un error de reglas; los análisis lo usan como cota (números de acción, tensores).",
+          "type": "array",
+          "prefixItems": [{ "$ref": "#/$defs/expr" }, { "$ref": "#/$defs/expr" }],
+          "minItems": 2,
+          "maxItems": 2
+        },
         "doc": { "$ref": "#/$defs/text" }
       }
     },

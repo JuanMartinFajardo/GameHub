@@ -705,10 +705,33 @@ class Checker:
                 out["size_visibility"] = self.visibility(
                     var.size_visibility, per_player, f"{var.name}"
                 )
+            if var.range is not None:
+                out["range"] = self.var_range(var, target)
             if var.doc is not None:
                 out["doc"] = var.doc.to_ir()
             state_ir.append(out)
         return state_ir
+
+    def var_range(self, var: ast.StateVar, target: Ty) -> list[Any]:
+        """`@range(lo..hi)`: los límites (de parámetros y constantes) de los números de la
+        variable, inclusivos."""
+        assert isinstance(var.range, ast.RangeExpr)
+        leaf = target
+        while leaf.kind in ("list", "set", "grid", "option"):
+            leaf = leaf.inner
+        if leaf.kind not in ("Int", "Seat", "Real"):
+            self.error(
+                "E301",
+                f"@range solo se aplica a números, y `{var.name}` guarda `{leaf}`",
+                var.range.span,
+            )
+        want = T.REAL if leaf.kind == "Real" else T.INT
+        ctx = Ctx(f"el rango de {var.name}", reads_state=False)
+        lo = self.expect(self.expr(var.range.lo, Scope(), ctx, want), want, var.range.lo.span)
+        hi = self.expect(self.expr(var.range.hi, Scope(), ctx, want), want, var.range.hi.span)
+        if not var.range.inclusive:
+            hi = ["sub", hi, ["const", 1]]
+        return [lo, hi]
 
     def grid_init(self, e: ast.Expr, t: Ty, ctx: Ctx) -> Any:
         """Una rejilla se inicializa con un valor (todas las casillas) o con una lista de filas."""

@@ -144,6 +144,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     perft.add_argument("--divide", action="store_true", help="el recuento por primera jugada")
     perft.add_argument(
+        "--engine", choices=("python", "cpp"), default="python", help="motor (cpp = el núcleo C++)"
+    )
+    perft.add_argument(
         "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
     )
     _match_options(perft)
@@ -160,6 +163,7 @@ def _parser() -> argparse.ArgumentParser:
         ("feasibility", "clasificación, tamaño (Knuth) y métodos recomendados"),
         ("count", "posiciones y partidas distintas (grafo de estados)"),
         ("solve", "solución exacta con información perfecta (alfa-beta / inducción hacia atrás)"),
+        ("retrograde", "análisis retrógrado en C++ (deterministas de dos jugadores, con ciclos)"),
         ("tree", "forma extensiva: nodos y conjuntos de información"),
         ("normal-form", "forma normal con estrategias puras reducidas"),
         ("nash", "equilibrios de Nash (puros; mixtos y suma cero con dos jugadores)"),
@@ -186,6 +190,12 @@ def _parser() -> argparse.ArgumentParser:
         "--lp", choices=["auto", "exact", "highs"], default="auto", help="programación lineal"
     )
     analyze.add_argument("--max-nodes", type=int, default=1_000_000)
+    analyze.add_argument(
+        "--engine",
+        choices=("auto", "cpp", "python"),
+        default="auto",
+        help="motor de la búsqueda exacta (auto = el núcleo C++ si está instalado)",
+    )
     analyze.add_argument("--json", action="store_true", help="el informe en JSON")
     _match_options(analyze)
     analyze.set_defaults(handler=_analyze)
@@ -992,6 +1002,13 @@ def _perft(args: argparse.Namespace) -> int:
     game = _load_game(args.game, args.name)
     params = _params(args.param)
     started = time.perf_counter()
+    if args.engine == "cpp":
+        from gamehub.analysis import cpp
+
+        total = cpp.perft(game, args.depth, args.skip, num_players=args.players, params=params)
+        seconds = time.perf_counter() - started
+        print(f"perft({args.depth}) = {total}  ({seconds:.1f} s, núcleo C++)")
+        return 0
     if args.divide:
         state = game.new_state(args.players, params)
         total = 0
@@ -1031,6 +1048,7 @@ def _analyze(args: argparse.Namespace) -> int:
         max_nodes=args.max_nodes,
         lp=args.lp,
         seed=args.seed,
+        engine=args.engine,
     )
     report = analyze(
         game,

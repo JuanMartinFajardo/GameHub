@@ -45,6 +45,7 @@ game Wizard {
     /// La carta vuelta que marca el triunfo
     trump_card: Zone<WizardCard>
     trump: Suit? = none
+    @range(1..max(rounds, 60 div num_players))
     round: Int = 1
     dealer: Seat = 0
     bid: per_player Int? = none

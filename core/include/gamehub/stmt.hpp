@@ -42,6 +42,8 @@ struct LValue {
 
 // Escribe una variable de estado (invalida el memo "state").
 void write_var(Ctx& ctx, uint32_t var, Value value);
+// Comprueba el rango declarado (`@range`) de los números de una variable.
+void check_range(Ctx& ctx, uint32_t var, const Value& value);
 // Adapta un valor al tipo declarado (listas → zonas, bolsas o conjuntos…), como `coerce`.
 Value coerce(Value v, const Type& t, const Ctx& ctx);
 // Una rejilla a partir de la lista de sus filas.

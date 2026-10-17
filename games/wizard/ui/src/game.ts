@@ -7,7 +7,7 @@ import type { View } from "@gamehub/protocol";
 /** Wizard */
 export const GAME_ID = "wizard";
 export const GAME_VERSION = "1.0.0";
-export const RULES_HASH = "sha256:da33063f1c3a040540b7ea6af12db84af91090e2546579a59f635a2661ab4bc4";
+export const RULES_HASH = "sha256:01ca464cb4e2ed84219b46b6e0862972323008c78abe2d583ef3d914fa08a6d4";
 
 /** Un valor que quien mira no puede ver. */
 export interface Hidden {

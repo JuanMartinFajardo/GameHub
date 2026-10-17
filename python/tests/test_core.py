@@ -266,3 +266,68 @@ def test_errors_and_invalid_input_match() -> None:
         state.apply_action(1, reference.legal_actions(0)[0])
     assert state.options(0) == reference.options(0)
     assert state.options(0, "drop") == reference.options(0, "drop")
+
+
+# --- Algoritmos en C++ -------------------------------------------------------------------------
+
+
+def test_perft_matches_python_and_chess_reference_values() -> None:
+    from gamehub.analysis import cpp
+    from gamehub.analysis.perft import perft as py_perft
+
+    for name, depth in (("tictactoe", 4), ("connect-four", 4), ("nim", 3), ("kuhn-poker", 3)):
+        g = nomos(name)
+        assert cpp.perft(g, depth) == py_perft(g.new_state(g.players[0]), depth)
+    chess = nomos("chess")
+    assert cpp.perft(chess, 3, ["claim_draw"]) == 8_902
+    assert cpp.perft(chess, 4, ["claim_draw"]) == 197_281
+
+
+@pytest.mark.slow
+def test_chess_perft_5() -> None:
+    from gamehub.analysis import cpp
+
+    assert cpp.perft(nomos("chess"), 5, ["claim_draw"]) == 4_865_609
+
+
+def test_alphabeta_and_retrograde() -> None:
+    from gamehub.analysis import cpp
+    from gamehub.analysis.search import alphabeta as py_alphabeta
+
+    ttt = nomos("tictactoe")
+    solution = cpp.alphabeta(ttt)
+    assert solution.value == (0, 0)
+    assert solution.best == py_alphabeta(ttt).best
+    assert len(solution.pv) == 9
+    retro = cpp.retrograde(ttt)
+    assert retro["outcome"] == 0 and retro["positions"] == 5_478
+    nim = cpp.retrograde(nomos("nim"))
+    assert nim["outcome"] == 1 and nim["positions"] == 376
+    small = {"columns": 4, "rows": 4, "connect": 3}
+    c4 = nomos("connect-four")
+    assert cpp.alphabeta(c4, params=small).value == (1, -1)
+    assert cpp.retrograde(c4, params=small)["outcome"] == 1
+
+
+def test_cfr_reproduces_the_python_tree_and_policy() -> None:
+    from gamehub.analysis import cpp
+    from gamehub.analysis.cfr import solve_cfr
+    from gamehub.analysis.tree import build_tree
+
+    kuhn = nomos("kuhn-poker")
+    native = cpp.cfr(kuhn, 300)
+    tree = build_tree(kuhn)
+    policy, _ = solve_cfr(tree, 300)
+    assert [key for _, key, _ in native["infosets"]] == [s.key for s in tree.infosets]
+    for i in range(len(tree.infosets)):
+        assert native["policy"][i] == pytest.approx(policy[i], abs=1e-12)
+    assert native["exploitability"] < 1e-3
+
+
+def test_mcts_prefers_the_center_in_connect_four() -> None:
+    from gamehub.analysis import cpp
+
+    g = nomos("connect-four")
+    result = cpp.mcts(core_game(g).new_state(2), 3000, seed=1)
+    assert result["actions"][result["best"]].args == (("c", 3),)
+    assert sum(result["visits"]) == 3000

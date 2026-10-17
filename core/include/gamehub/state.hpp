@@ -152,6 +152,9 @@ class State {
   // apply_chance(sample_chance(rng)) en una sola ejecución del punto de azar.
   State sample_and_apply(Pcg32& rng, const ApplyOptions& opt = {}) const;
   Rational outcome_probability(const Outcome& outcome) const;
+  // El siguiente sorteo de un punto de azar tras `prefix`: (n, probabilidades; vacío = uniforme),
+  // o nullopt si `prefix` ya es un resultado completo. Para presentar el azar sorteo a sorteo.
+  std::optional<std::pair<int64_t, std::vector<Rational>>> next_draw(const Outcome& prefix) const;
   // Una copia tras ejecutar sentencias de la IR fuera del flujo (los `set` de los tests).
   State edited(const Json& stmts) const;
   // El valor de una expresión de la IR con vista omnisciente.
@@ -163,6 +166,8 @@ class State {
   std::string snapshot_text() const;  // JSON canónico de la instantánea
   std::string digest() const;
   std::string information_state(int seat) const;  // SHA-256 con recuerdo perfecto
+  // SHA-256 de lo que observa el asiento en este estado: {"view": …, "events": …} canónico.
+  std::string observation_digest(int seat) const;
   // Hash estructural del estado (Zobrist automático): nodo, envíos, pagos y almacén.
   uint64_t hash() const;
   const Step& step() const { return s_->step; }

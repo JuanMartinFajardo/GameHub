@@ -89,8 +89,8 @@ struct alignas(16) ArrayObj : Obj {
   uint32_t n;   // número de valores en `items`
   uint32_t a;   // struct: id del tipo; zona: 1 = ordenada; rejilla: ancho
   uint32_t b;   // rejilla: alto
-  uint64_t hash;  // caché del hash estructural (0 = sin calcular)
-  uint64_t pad_;
+  uint64_t hash;   // caché del hash estructural (0 = sin calcular)
+  uint64_t hash2;  // caché del segundo hash (independiente; 0 = sin calcular)
 
   Value* items() { return reinterpret_cast<Value*>(this + 1); }
   const Value* items() const { return reinterpret_cast<const Value*>(this + 1); }
@@ -227,6 +227,8 @@ inline bool canonical_less(const Value& a, const Value& b) {
 }
 // Hash estructural (coherente con `equals`).
 uint64_t hash_value(const Value& v);
+// Un segundo hash estructural, independiente del primero (con los dos, claves de 128 bits).
+uint64_t hash_value2(const Value& v);
 // Mezcla de 64 bits (splitmix64).
 inline uint64_t mix64(uint64_t z) {
   z += 0x9e3779b97f4a7c15ULL;
