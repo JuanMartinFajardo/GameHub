@@ -10,6 +10,8 @@
 #include <nanobind/stl/vector.h>
 
 #include "gamehub/action_space.hpp"
+#include "gamehub/bots.hpp"
+#include "gamehub/heuristic.hpp"
 #include "gamehub/cfr.hpp"
 #include "gamehub/errors.hpp"
 #include "gamehub/hashing.hpp"
@@ -110,6 +112,48 @@ void translate(const std::exception_ptr& p, void*) {
   } catch (const EngineError& e) {
     raise("EngineError", e.what());
   }
+}
+
+const HeuristicDef& heuristic_of(const State& s, const std::string& name) {
+  const HeuristicDef* h = s.game().heuristic(name);
+  if (h == nullptr) throw EngineError("el juego no tiene la heurística " + name);
+  return *h;
+}
+
+BotSpec bot_spec(nb::handle h) {
+  BotSpec spec;
+  if (nb::isinstance<nb::str>(h)) {
+    spec.kind = nb::cast<std::string>(h);
+    return spec;
+  }
+  nb::dict d = nb::borrow<nb::dict>(h);
+  for (auto [k, v] : d) {
+    std::string key = nb::cast<std::string>(k);
+    if (key == "kind") spec.kind = nb::cast<std::string>(v);
+    else if (key == "heuristic") {
+      if (v.is_none()) spec.use_heuristic = false;
+      else spec.heuristic = nb::cast<std::string>(v);
+    } else if (key == "depth") spec.depth = nb::cast<int>(v);
+    else if (key == "iterations") spec.iterations = nb::cast<uint64_t>(v);
+    else if (key == "seconds") spec.seconds = nb::cast<double>(v);
+    else if (key == "c") spec.c = nb::cast<double>(v);
+    else if (key == "samples") spec.samples = nb::cast<int>(v);
+    else if (key == "greedy") spec.greedy = nb::cast<double>(v);
+    else if (key == "max_rollout") spec.max_rollout = nb::cast<int>(v);
+    else if (key == "chance_samples") spec.chance_samples = nb::cast<int>(v);
+    else if (key == "seed") spec.seed = nb::cast<uint64_t>(v);
+    else throw nb::value_error(("opción de bot desconocida: " + key).c_str());
+  }
+  return spec;
+}
+
+nb::dict stats_py(const BotStats& st) {
+  nb::dict out;
+  out["nodes"] = st.nodes;
+  out["depth"] = st.depth;
+  out["value"] = st.value;
+  out["seconds"] = st.seconds;
+  return out;
 }
 
 ApplyOptions options(bool validate, bool events, bool history) {
@@ -285,12 +329,14 @@ NB_MODULE(gamehub_core, m) {
   m.def(
       "solve_wdl",
       [](const Game& g, int n, nb::object params, int table_bits, int threads, uint64_t max_nodes,
-         double max_seconds) {
+         double max_seconds, const std::string& heuristic, nb::list moves) {
         Json p = params.is_none() ? Json::object() : from_py(params);
+        std::vector<Json> prefix;
+        for (auto m : moves) prefix.push_back(from_py(m));
         WdlResult r;
         {
           nb::gil_scoped_release release;
-          r = solve_wdl(g, n, p, table_bits, threads, max_nodes, max_seconds);
+          r = solve_wdl(g, n, p, table_bits, threads, max_nodes, max_seconds, heuristic, prefix);
         }
         nb::dict out;
         out["outcome"] = r.outcome;
@@ -301,7 +347,85 @@ NB_MODULE(gamehub_core, m) {
       },
       nb::arg("game"), nb::arg("num_players"), nb::arg("params").none() = nb::none(),
       nb::arg("table_bits") = 24, nb::arg("threads") = 1, nb::arg("max_nodes") = UINT64_MAX,
-      nb::arg("max_seconds") = 0.0);
+      nb::arg("max_seconds") = 0.0, nb::arg("heuristic") = "", nb::arg("moves") = nb::list());
+  // --- Heurísticas y bots (F9) ---
+  m.def("has_hidden", &has_hidden);
+  m.def("determinize", [](const State& s, int seat, uint64_t seed) {
+    Pcg32 rng(seed, 7);
+    return determinize(s, seat, rng);
+  });
+  nb::class_<Bot>(m, "Bot")
+      .def("__init__",
+           [](Bot* self, const Game& g, nb::handle spec, int seat) {
+             new (self) Bot(g.def_ptr(), bot_spec(spec), seat);
+           })
+      .def("act",
+           [](Bot& b, const State& s) {
+             nb::gil_scoped_release release;
+             return b.act(s);
+           })
+      .def_prop_ro("stats", [](const Bot& b) { return stats_py(b.stats()); })
+      .def_prop_ro("heuristic", [](const Bot& b) -> nb::object {
+        if (b.heuristic() == nullptr) return nb::none();
+        return nb::str(b.heuristic()->name.c_str());
+      });
+  m.def(
+      "play_bots",
+      [](const Game& g, int n, nb::object params, nb::list specs, uint64_t seed, int max_steps,
+         bool trace, const std::string& eval, bool features) {
+        Json p = params.is_none() ? Json::object() : from_py(params);
+        std::vector<BotSpec> seats;
+        for (auto h : specs) seats.push_back(bot_spec(h));
+        BotMatch r;
+        {
+          nb::gil_scoped_release release;
+          r = play_bots(g, n, p, seats, seed, max_steps, trace, eval, features);
+        }
+        nb::dict out;
+        out["steps"] = r.steps;
+        out["truncated"] = r.truncated;
+        out["seconds"] = r.seconds;
+        out["error"] = r.error.empty() ? nb::object(nb::none()) : nb::object(nb::str(r.error.c_str()));
+        if (!r.payoffs.empty()) {
+          out["payoffs"] = to_py(payoffs_json(g.def(), r.payoffs));
+          out["ranking"] = r.ranking;
+        }
+        if (trace) {
+          nb::list steps;
+          for (const auto& st : r.trace) {
+            steps.append(nb::make_tuple(st.seat, st.legal, nb::str(st.action.c_str()), st.eval));
+          }
+          out["trace"] = steps;
+          out["transitions"] = r.transitions;
+        }
+        return out;
+      },
+      nb::arg("game"), nb::arg("num_players"), nb::arg("params").none(), nb::arg("specs"),
+      nb::arg("seed") = 0, nb::arg("max_steps") = 100'000, nb::arg("trace") = false,
+      nb::arg("eval") = "", nb::arg("features") = false);
+
+  m.def(
+      "kingmaking",
+      [](const Game& g, int n, nb::object params, nb::list specs, uint64_t seed, int rollouts,
+         double late) {
+        Json p = params.is_none() ? Json::object() : from_py(params);
+        std::vector<BotSpec> seats;
+        for (auto h : specs) seats.push_back(bot_spec(h));
+        KingmakingReport r;
+        {
+          nb::gil_scoped_release release;
+          r = kingmaking(g, n, p, seats, seed, rollouts, late);
+        }
+        nb::dict out;
+        out["probes"] = r.probes;
+        out["events"] = r.events;
+        out["steps"] = r.steps;
+        out["error"] = r.error.empty() ? nb::object(nb::none()) : nb::object(nb::str(r.error.c_str()));
+        return out;
+      },
+      nb::arg("game"), nb::arg("num_players"), nb::arg("params").none(), nb::arg("specs"),
+      nb::arg("seed") = 0, nb::arg("rollouts") = 24, nb::arg("late") = 0.66);
+
   m.def("state_key", [](const State& s) {
     StateKey k = state_key(s);
     return nb::make_tuple(k.a, k.b);
@@ -486,6 +610,32 @@ NB_MODULE(gamehub_core, m) {
              return to_py(s.game().types.to_json(s.evaluate(from_py(expr))));
            })
       .def("decode_action", [](const State& s, nb::handle data) { return s.decode_action(from_py(data)); })
+      .def("heuristic_names",
+           [](const State& s) {
+             nb::list out;
+             for (const auto& h : s.game().heuristics) out.append(nb::str(h.name.c_str()));
+             return out;
+           })
+      .def("heuristic_features",
+           [](const State& s, const std::string& name, int seat) {
+             const HeuristicDef& h = heuristic_of(s, name);
+             nb::dict out;
+             auto values = feature_values(s, h, seat);
+             for (size_t k = 0; k < values.size(); ++k) {
+               out[h.features[k].name.c_str()] = to_py(s.game().types.to_json(values[k]));
+             }
+             return out;
+           })
+      .def("heuristic_value",
+           [](const State& s, const std::string& name, int seat) {
+             return rational_py(evaluate_exact(s, heuristic_of(s, name), seat));
+           })
+      .def("heuristic_key",
+           [](const State& s, const std::string& name, int seat, const Action& a) {
+             const HeuristicDef& h = heuristic_of(s, name);
+             return nb::make_tuple(action_priority(s, h, seat, a),
+                                   rational_py(action_score_exact(s, h, seat, a)));
+           })
       .def("step",
            [](const State& s) {
              const Step& st = s.step();

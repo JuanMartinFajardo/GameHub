@@ -81,7 +81,7 @@ it with the same token: the Python SDK uses a random prefix per client (`3f9a1c2
 | `ping` | `{t?}` | → `pong {t?, server_time}` |
 | `resync` | `{}` | Ask for the room and the state again |
 | `configure` | `{players?, params?, settings?}` | Host, in the lobby |
-| `set_seat` | `{seat, kind: open\|reserved\|bot, name?, bot?: random\|first}` | Host; during a match only `bot` (it replaces whoever held the seat) |
+| `set_seat` | `{seat, kind: open\|reserved\|bot, name?, bot?: random\|first\|greedy\|alphabeta\|mcts\|ismcts\|pimc}` | Host; during a match only `bot` (it replaces whoever held the seat). The search bots (F9) need the C++ core on the server (random otherwise), think 0.2 s per move and only use what their seat sees |
 | `kick` | `{participant}` | Host |
 
 **Server → client**
@@ -240,7 +240,7 @@ of legal actions per turn, is the expensive case (a match of 3 bots over the net
 | **Local / hot-seat** | `gamehub play` (terminal) or, in the web app, "On this device": a room on the server that serves the app, with one connection per seat in the same tab, covering the screen between turns when there is hidden information ([ADR-049](decisions.md)). Since F8 it runs in the browser with the core in WebAssembly, without a room (ADR-082); `gamehub web export` publishes the app and the games as a static site (`"offline": true` in `api/v1/info`). |
 | **LAN** | `gamehub host game.game` opens a server (port 7420) with a room, shows the code, the link (`http://192.168.1.20:7420/r/K7FQ2P`) and its **QR code**, announces it over **mDNS** (`_gamehub._tcp`) and lets you play from the same terminal. On another computer: `gamehub join K7F-Q2P` (it looks for it on this computer and on the LAN) or `gamehub join <link>`. `gamehub rooms` lists the rooms on the LAN. |
 | **Online** | `gamehub serve games/` on a reachable machine (the room is created with `POST /api/v1/rooms`); a *relay* for NAT later on. |
-| **Bots** | `gamehub bot run agent.py --room K7FQ2P`, or a server bot in a seat (`/bot N` in the terminal, `set_seat` in the protocol). |
+| **Bots** | `gamehub bot run agent.py --room K7FQ2P` (or a bot package with `bot.toml`), or a server bot in a seat (`/bot N` in the terminal, `set_seat` in the protocol; also the F9 kinds such as `ismcts`). |
 
 The terminal client stores the token of each room in `~/.local/share/gamehub/sessions.json`: if
 the terminal is closed in the middle of a match, `gamehub join` with the same code goes back to

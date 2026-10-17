@@ -41,7 +41,7 @@ Json strip(const Json& node) {
 Json strip_cosmetic(const Json& doc) {
   JsonObject out;
   for (const auto& [k, v] : doc.as_object()) {
-    if (k == "meta" || k == "ui" || k == "doc" || is_default(k, v)) continue;
+    if (k == "meta" || k == "ui" || k == "heuristics" || k == "doc" || is_default(k, v)) continue;
     if (k == "constraints") {
       JsonArray cs;
       Json stripped = strip(v);  // (una temporal en el for se destruiría antes del cuerpo)

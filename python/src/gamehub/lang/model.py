@@ -37,6 +37,7 @@ class GameModel:
     invariants: list[ast.InvariantDecl] = field(default_factory=list)
     externals: list[External] = field(default_factory=list)
     ui: list[ast.UiEntry] = field(default_factory=list)
+    heuristics: list[ast.HeuristicDecl] = field(default_factory=list)
     flow_span: Span = NO_SPAN
 
 

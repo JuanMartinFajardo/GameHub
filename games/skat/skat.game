@@ -496,6 +496,53 @@ game Skat {
 
   // --- El valor del juego: los ejemplos de la ISkO -----------------------------------------------
 
+  /// Subastar según sotas, ases y el palo más largo; coger el skat, descartar puntos fuera del
+  /// palo largo, anunciar el palo más largo (o un Grand con tres sotas) y, en las bazas, ganar
+  /// con la carta más barata que gane o, si la baza es del compañero, cargarla de puntos.
+  heuristic Tricks {
+    fn jacks_of(s: Seat) -> Int = count(c in items(hand[s]) : c.rank == Rank.Jack)
+    /// Cartas de palo `t` que no son sotas
+    fn suit_count(s: Seat, t: Suit) -> Int =
+      count(c in items(hand[s]) : c.suit == t and c.rank != Rank.Jack)
+    fn longest(s: Seat) -> Int = max(t in Suit.values : suit_count(s, t))
+    /// Hasta dónde subasta `s`: nada, un juego corriente o uno bueno
+    fn limit(s: Seat) -> Int {
+      let points = 2 * jacks_of(s) + count(c in items(hand[s]) : c.rank == Rank.Ace) + longest(s)
+      case {
+        points >= 10 => 36
+        points >= 8 => 24
+        else => 0
+      }
+    }
+    /// La clave de `c` en la baza en curso (si sale, con su propio palo)
+    fn key_of(c: Card) -> Int = trick_key(
+      effective_suit(c),
+      power(c),
+      led() if size(trick) > 0 else effective_suit(c),
+      trump_id()
+    )
+    fn best_key() -> Int = max([key_of(c) for c in items(trick)] + [-1])
+    fn same_team(a: Seat, b: Seat) -> Bool = (a == the_declarer()) == (b == the_declarer())
+    /// ¿Va ganando la baza alguien del equipo de `s` (y no `s`)?
+    fn partner_wins(s: Seat) -> Bool =
+      size(trick) > 0 and same_team(trick_taker(), s) and contract != Contract.Null
+    /// Lo que lleva sumado `s` frente a la media (estima el pago)
+    feature standing = score[me] - sum(t in seats : score[t]) / num_players
+    prefer say(v) when v <= limit(me)
+    prefer hold() when bid <= limit(me)
+    prefer open() when limit(me) >= 18
+    prefer pick_up() when true
+    prefer grand(l) when l == Level.Plain and jacks_of(me) >= 3
+    prefer color(t, l) when l == Level.Plain and suit_count(me, t) == longest(me)
+    prefer play(c) when size(trick) > 0 and not partner_wins(me) and key_of(c) > best_key()
+    order say(v) by -v - 1000
+    order discard(cards) by
+      sum(c in cards : card_points(c) - 4 * suit_count(me, c.suit)) -
+        30 * count(c in cards : c.rank == Rank.Jack)
+    order null(open) by -1000
+    order play(c) by card_points(c) if partner_wins(me) else -key_of(c) - 20 * card_points(c)
+  }
+
   test "corazones con 2: juego 3, 3 × 10 = 30" {
     set declarer = 0
     set contract = Color

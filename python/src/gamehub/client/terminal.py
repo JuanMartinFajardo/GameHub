@@ -68,8 +68,8 @@ HELP = """Comandos (o escribe texto para el chat):
   /estado · /sala             ver el estado de la partida o la sala
   /rendirse                   abandonar la partida (un bot juega por ti y quedas el último)
   /salir                      salir de la sala
-Anfitrión: /bot N [random|first] · /abrir N · /reservar N NOMBRE · /echar NOMBRE ·
-  /jugadores N · /opcion NOMBRE=VALOR"""
+Anfitrión: /bot N [random|first|greedy|alphabeta|mcts|ismcts|pimc] · /abrir N ·
+  /reservar N NOMBRE · /echar NOMBRE · /jugadores N · /opcion NOMBRE=VALOR"""
 
 
 class Sessions:

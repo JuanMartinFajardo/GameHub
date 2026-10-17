@@ -82,7 +82,8 @@ Connect Four, Nim, the 2×2 family (with `extends`), the iterated prisoner's dil
   state struct terminal test true when window`.
 - **Contextual words** (keywords only where they apply, so they are valid names): `from to each
   as of top bottom at all face_up face_down face play expect legal illegal set seed where node
-  per_player`, the keys of a node's members and of `meta`, and `Grid`.
+  per_player`, the keys of a node's members and of `meta`, `Grid`, and `heuristic`, `feature`,
+  `weights`, `prefer`, `order`, `by` and `me` (heuristics, §12b).
 - **Numbers**: integers (`42`, `1_000`) and exact decimals (`0.5`, which is the rational 1/2;
   payoffs and `Real`s are exact rationals). `div` is integer division and `%` the modulo; `//`
   starts a comment.
@@ -193,6 +194,7 @@ game that compiles and passes its tests, from a template (`--template`: `vacio` 
 | `test` | `test "name" { steps }` | See §10. They are not part of the IR. |
 | `invariant` | `[/// label] invariant cond` | See §10. |
 | `ui` | `ui { target: hint, … }` | Presentation hints for interfaces (§12). They are not rules. |
+| `heuristic` | `heuristic Name { fn … feature … weights { … } prefer … order … }` | Knowledge for bots (§12b). Not rules: outside the rules hash. |
 
 Local names (function and action parameters, `let`, comprehension variables) cannot shadow a
 global name of the game (E204): state, options, functions, types, enum values, or `seats`,
@@ -429,6 +431,48 @@ something that is not `per_player`, `column(x)` for a parameter that is not an `
 hints for the same slot (two drawing forms, two `label`s…) (E704). In a variant (`extends`), each
 hint replaces the one in the same slot of the base.
 
+## 12b. Heuristics: `heuristic Name { … }`
+
+Knowledge about the game that is **not** a rule (Phase 9, [ADR-083](decisions.md)): bots use it
+to evaluate positions and to order and choose actions. It reaches the IR under `heuristics`,
+outside the **rules hash**, so it can be improved without changing replays or ratings.
+
+```game
+/// Bouton: leave a zero nim-sum.
+heuristic NimSum {
+  fn bit(x: Int, b: Int) -> Int = x div [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024][b] % 2
+  fn balanced(hs: List<Int>) -> Bool = all(b in 0..10 : sum(h in hs : bit(h, b)) % 2 == 0)
+  fn after(i: Int, k: Int) -> List<Int> = [heaps[j] - k if j == i else heaps[j] for j in 0..<len(heaps)]
+  /// 1 if the position is a win for `me`, -1 if it is a loss
+  feature winning = 1 if balanced(heaps) == (turn != me) else -1
+  weights { winning: 1 }
+  prefer take(i, k) when balanced(after(i, k))
+  order take(i, k) by -k
+}
+```
+
+| Member | Meaning |
+|---|---|
+| `fn` | Functions of the heuristic: they see the state like the game's, but the rules cannot call them and they do not reach the rules |
+| `feature name = expr` | A number (`Int` or `Real`) measured for the seat `me` |
+| `weights { name: number, … }` | Literal weights of the evaluation Σ weight · feature (1 when missing) |
+| `prefer action(p, …) when cond` | Priority rules, in order (the first rule an action meets) |
+| `order action(p, …) by key` | The action's score: higher first (0 without a rule) |
+
+- `me` (a `Seat`) exists only inside heuristics; the pattern `action(p, …)` names the action's
+  parameters by position (so `drop(c)` and `drop(column)` are the same rule).
+- A heuristic may use the game's state, options, functions and types and the imported module
+  functions (those only a heuristic uses travel with it, not with the rules), but not a type that
+  only it uses (E205).
+- Variants (`extends`) inherit the heuristics; `heuristic` adds one, `override heuristic X { … }`
+  replaces it and `remove heuristic X` removes it. Combinators keep the base's.
+- Errors: unknown feature in `weights` or action in a rule (E201), a repeated feature, weight or
+  parameter (E202), a non-literal weight or a feature that is not a number (E301), a pattern with
+  the wrong number of parameters (E207), `actor`, `viewer`… in a heuristic (E205).
+
+The evaluation, the bots that use it, the arena and the tuning of the weights are described in
+[heuristics and AI](heuristics-and-ai.md).
+
 ## 13. Tools
 
 | Command | What it does |
@@ -441,6 +485,7 @@ hint replaces the one in the same slot of the base.
 | `gamehub rules GAME` | Rulebook in Markdown (`--lang en`) |
 | `gamehub diff A B` · `gamehub diff REV1..REV2 file` | Semantic diff (text or JSON) |
 | `gamehub new` · `fetch` · `clone` · `fork` | Packages (`new --template vacio\|carrera\|tablero\|cartas\|dados\|matriz`) |
+| `gamehub heuristics` · `arena` · `sprt` · `balance` · `tune` · `solve` | Heuristics and bots ([heuristics and AI](heuristics-and-ai.md)) |
 | `gamehub play` · `fuzz` · `replay` | Play in the terminal, random matches (`fuzz --jobs N` across several processes), replays (they accept `.game`) |
 | `gamehub perft GAME --depth N` | Counts the sequences of legal moves (`--divide`, `--skip`, `--jobs`, `--param`); chance points add up all their outcomes |
 | `gamehub natives list\|check\|build` | Native plugins: which ones exist, whether they match the reference (`--trials`), compile WAT to WASM (`--check`, `--write`) |
@@ -477,6 +522,7 @@ translated 1:1.
 | variables without an initial value | the type's zero |
 | unused module declarations | do not reach the IR |
 | `test`, `invariant`, comments | do not reach the IR (`///` ones do, as `doc`) |
+| `heuristic H { … }` | an entry of `heuristics` (outside the rules hash); `me` and the pattern's names as `["arg", …]`; weights as `["const", n]` / `["rat", n, d]`, omitted when 1 |
 
 ## 15. Diagnostics
 
@@ -493,6 +539,7 @@ a file are reported (the parser recovers at the level of the block it is in).
 | E502–E507 | modules, mods and packages: `override` without `extends`, module not found, circular import, mods (E505), combinators (E506), dependencies (E507) |
 | E601–E602 | tests: misplaced configuration, number of players |
 | E701–E704 | presentation (`ui`): unknown target, hint not valid there, invalid arguments, repeated hint |
+| (heuristics) | the general codes: E201 (unknown feature or action), E202, E205 (a type only a heuristic uses, context values), E207 (pattern arity), E301 (weights, features) |
 | E610–E614 | failures when running tests (`gamehub test`): an expectation does not hold, impossible move, chance, invariant, rule error |
 | E900 | internal error: the generated IR is not valid (a GameHub bug) |
 | W101 | `@size_visible` on something that is neither a zone nor a bag |

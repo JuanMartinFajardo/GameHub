@@ -726,16 +726,18 @@ class Compiler {
 // --- Clasificación de las funciones para el memo (como `_memo_kinds`) -------------------------
 
 const std::set<std::string> CONTEXTUAL = {"at", "actor", "viewer", "owner", "item_face_up"};
-const std::set<std::string> STATEFUL = {"var",        "param",     "seats", "next_seat",
-                                        "prev_seat",  "other_seat", "seats_from", "win_loss",
-                                        "fill"};
+// Lo que depende del estado (memo "state") y lo que solo depende de la partida: sus opciones y
+// el número de jugadores (memo "match", una caché por partida).
+const std::set<std::string> STATEFUL = {"var"};
+const std::set<std::string> MATCHFUL = {"param",      "seats",      "next_seat", "prev_seat",
+                                        "other_seat", "seats_from", "win_loss",  "fill"};
 const std::set<std::string> LOOPS = {"all",    "any",    "count",   "sum",    "map",
                                      "flat_map", "filter", "argmax", "argmin", "max_of",
                                      "min_of", "sort_by", "subsets", "cells", "lines"};
 
 std::unordered_map<std::string, MemoKind> memo_kinds(const Json& functions) {
   std::unordered_map<std::string, std::set<std::string>> calls;
-  std::set<std::string> contextual, stateful, heavy;
+  std::set<std::string> contextual, stateful, matchful, heavy;
   std::function<void(const Json&, const std::string&)> walk = [&](const Json& node,
                                                                   const std::string& name) {
     if (node.is_array() && node.size() > 0) {
@@ -745,6 +747,7 @@ std::unordered_map<std::string, MemoKind> memo_kinds(const Json& functions) {
       if (headed && head == "const") return;
       if (CONTEXTUAL.count(head)) contextual.insert(name);
       if (STATEFUL.count(head)) stateful.insert(name);
+      if (MATCHFUL.count(head)) matchful.insert(name);
       if (LOOPS.count(head)) heavy.insert(name);
       if (head == "call" && a.size() > 1 && a[1].is_string()) {
         calls[name].insert(a[1].as_string());
@@ -764,7 +767,7 @@ std::unordered_map<std::string, MemoKind> memo_kinds(const Json& functions) {
   while (changed) {
     changed = false;
     for (auto& [name, callees] : calls) {
-      for (auto* marks : {&contextual, &stateful}) {
+      for (auto* marks : {&contextual, &stateful, &matchful}) {
         if (marks->count(name)) continue;
         for (const auto& c : callees) {
           if (marks->count(c)) {
@@ -781,7 +784,9 @@ std::unordered_map<std::string, MemoKind> memo_kinds(const Json& functions) {
     if (contextual.count(name) || !heavy.count(name)) {
       kinds[name] = MemoKind::None;
     } else {
-      kinds[name] = stateful.count(name) ? MemoKind::State : MemoKind::Static;
+      kinds[name] = stateful.count(name)   ? MemoKind::State
+                    : matchful.count(name) ? MemoKind::Match
+                                           : MemoKind::Static;
     }
   }
   return kinds;
@@ -830,6 +835,13 @@ Expr GameDef::compile_expression(const Json& e) const {
   // Solo puede añadir nombres de campo (mutables): no cambia nada de lo ya compilado.
   Compiler c(const_cast<GameDef&>(*this));
   return c.expr_site(e);
+}
+
+const HeuristicDef* GameDef::heuristic(const std::string& name) const {
+  for (const auto& h : heuristics) {
+    if (name.empty() || h.name == name) return &h;
+  }
+  return nullptr;
 }
 
 uint32_t GameDef::action_name_id(const std::string& name) const {
@@ -1065,6 +1077,61 @@ GameDef::GameDef(const Json& ir_doc) : ir(ir_doc), static_memo(std::make_unique<
     std::vector<int> path = node.ancestors;
     path.push_back(node.index);
     paths.push_back(std::move(path));
+  }
+
+  // Heurísticas: sus funciones propias se añaden al final de `functions` y solo se ven (por
+  // nombre) mientras se compilan sus expresiones.
+  for (const auto& rh : list_or_empty(ir, "heuristics").as_array()) {
+    HeuristicDef hd;
+    hd.name = rh["name"].as_string();
+    const Json& helpers = list_or_empty(rh, "functions");
+    std::vector<std::string> added;
+    for (const auto& f : helpers.as_array()) {
+      function_index[f["name"].as_string()] = static_cast<uint32_t>(functions.size() + added.size());
+      added.push_back(f["name"].as_string());
+    }
+    // Se clasifican junto a las de las reglas: pueden llamarlas.
+    JsonArray all_fns = fns.as_array();
+    for (const auto& f : helpers.as_array()) all_fns.push_back(f);
+    auto helper_kinds = memo_kinds(Json(std::move(all_fns)));
+    for (const auto& f : helpers.as_array()) {
+      FunctionDef fd;
+      fd.name = f["name"].as_string();
+      std::vector<std::string> args;
+      for (const auto& p : f["params"].as_array()) args.push_back(p.at(0).as_string());
+      fd.arity = static_cast<uint32_t>(args.size());
+      fd.body = c.expr_site(f["body"], args);
+      fd.memo = helper_kinds[fd.name];
+      functions.push_back(std::move(fd));
+    }
+    for (const auto& f : list_or_empty(rh, "features").as_array()) {
+      FeatureDef fd;
+      fd.name = f["name"].as_string();
+      fd.weight = Rational::integer(1);
+      if (const Json* w = opt(f, "weight")) {
+        const std::string& head = w->at(0).as_string();
+        fd.weight = head == "const" ? Rational::integer(w->at(1).as_int())
+                                    : Rational::of(w->at(1).as_int(), w->at(2).as_int());
+      }
+      fd.body = c.expr_site(f["body"], {"me"});
+      hd.features.push_back(std::move(fd));
+    }
+    auto rules = [&](const char* key, const char* member, std::vector<HeuristicRule>& out) {
+      for (const auto& r : list_or_empty(rh, key).as_array()) {
+        HeuristicRule rule;
+        rule.action = action_name_id(r["action"].as_string());
+        if (rule.action == UINT32_MAX) throw IrError("acción desconocida: " + r["action"].as_string());
+        std::vector<std::string> args{"me"};
+        for (const auto& p : r["params"].as_array()) args.push_back(p.as_string());
+        rule.arity = static_cast<uint32_t>(args.size() - 1);
+        rule.expr = c.expr_site(r[member], args);
+        out.push_back(std::move(rule));
+      }
+    };
+    rules("prefer", "when", hd.prefer);
+    rules("order", "key", hd.order);
+    for (const auto& name : added) function_index.erase(name);
+    heuristics.push_back(std::move(hd));
   }
 }
 

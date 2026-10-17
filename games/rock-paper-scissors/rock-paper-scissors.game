@@ -54,6 +54,11 @@ game RockPaperScissors {
     node End: label({ es: "Final", en: "End" })
   }
 
+  /// Todas las manos valen lo mismo: el bot elige al azar, que es el equilibrio.
+  heuristic Uniform {
+    order show(h) by 0
+  }
+
   test "el papel envuelve a la piedra" {
     play 0: show(Paper), 1: show(Rock)
     expect payoff == [1, -1]

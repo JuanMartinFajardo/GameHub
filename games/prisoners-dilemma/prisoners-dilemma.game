@@ -66,6 +66,11 @@ game PrisonersDilemma {
     S: label({ es: "Pago del primo (S)", en: "Sucker's payoff (S)" })
   }
 
+  /// Traicionar: es estrictamente dominante (T > R y P > S).
+  heuristic Dominant {
+    prefer choose(c) when c == Defect
+  }
+
   test "ambos cooperan" {
     play 0: choose(Cooperate), 1: choose(Cooperate)
     expect payoff == [3, 3]

@@ -294,7 +294,7 @@ def test_dudo_flow_edits_in_the_diagram_keep_the_comments(
     doc = Document(s, path)
     assert doc.analysis["compiled"], doc.errors()
     original = comments(doc.text)
-    assert sum(original.values()) == 20
+    assert sum(original.values()) == 25
 
     # Una flecha que se arrastra a otro nodo cambia una sola línea del texto.
     before = doc.text

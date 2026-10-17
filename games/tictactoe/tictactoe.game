@@ -52,6 +52,25 @@ game TicTacToe {
     )
   }
 
+  /// Ganar si se puede, si no tapar, y el centro y las esquinas antes que los lados.
+  heuristic Lines {
+    /// ¿Completa `c` una línea de `m`?
+    fn completes(c: Cell, m: Mark) -> Bool =
+      any(line in lines(board, 3) : c in line and all(x in line : x == c or board[x] == m))
+    /// Líneas que `m` aún puede completar, con cuántas marcas suyas tienen
+    fn open_lines(m: Mark) -> Int = sum(
+      line in lines(board, 3) :
+      count(x in line : board[x] == m) if all(x in line : board[x] == m or is_none(board[x])) else 0
+    )
+    feature mine = open_lines(mark(me))
+    feature theirs = open_lines(mark(other(me)))
+    weights { theirs: -1 }
+    prefer place(c) when completes(c, mark(me))
+    prefer place(c) when completes(c, mark(other(me)))
+    /// Centro 2, esquinas 1, lados 0
+    order place(c) by 2 if c == (1, 1) else 1 if c[0] != 1 and c[1] != 1 else 0
+  }
+
   test "X gana en diagonal" {
     play place((0, 0)), place((0, 1)), place((1, 1)), place((0, 2)), place((2, 2))
     expect at(Win)

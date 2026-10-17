@@ -85,8 +85,8 @@ def test_definition_references_highlights() -> None:
     decl = text.index("fn mark") + 3
     assert loc.range.start == a.positions.position(decl)
     refs = F.references(a, text.index("mark(turn)") + 1, include_declaration=False)
-    assert len(refs) == 2
-    assert len(F.references(a, decl, include_declaration=True)) == 3
+    assert len(refs) == 6  # 2 en las reglas y 4 en la heurística
+    assert len(F.references(a, decl, include_declaration=True)) == 7
     marks = F.highlights(a, decl)
     assert [h.kind for h in marks].count(types.DocumentHighlightKind.Write) == 1
 

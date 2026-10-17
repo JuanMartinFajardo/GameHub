@@ -673,6 +673,62 @@ class InvariantDecl(Item):
     expr: Expr
 
 
+# --- Heurísticas --------------------------------------------------------------------------------
+
+
+@dataclass(kw_only=True)
+class FeatureDecl(Item):
+    """`feature nombre = expresión`: un número que mide el estado desde el asiento `me`."""
+
+    name: str
+    body: Expr
+
+
+@dataclass(kw_only=True)
+class WeightEntry(Item):
+    """`nombre: número` dentro de `weights { … }`."""
+
+    name: str
+    value: Expr
+
+
+@dataclass(kw_only=True)
+class WeightsBlock(Item):
+    """`weights { rasgo: peso, … }`: los pesos ajustables de la evaluación (1 si falta)."""
+
+    entries: list[WeightEntry]
+    end_comments: list[Comment] = field(default_factory=list, compare=False, repr=False)
+
+
+@dataclass(kw_only=True)
+class PreferDecl(Item):
+    """`prefer accion(p, …) when condición`: una regla de prioridad (la primera que se cumple
+    gana)."""
+
+    action: str
+    params: list[str]
+    when: Expr
+
+
+@dataclass(kw_only=True)
+class OrderDecl(Item):
+    """`order accion(p, …) by clave`: la puntuación de una acción (mayor = antes)."""
+
+    action: str
+    params: list[str]
+    key: Expr
+
+
+@dataclass(kw_only=True)
+class HeuristicDecl(Item):
+    """`heuristic Nombre { feature … weights … prefer … order … }`: conocimiento del juego que
+    no es una regla (no cuenta para el hash de reglas)."""
+
+    name: str
+    items: list[Item] = field(default_factory=list)
+    end_comments: list[Comment] = field(default_factory=list, compare=False, repr=False)
+
+
 # --- Mods ---------------------------------------------------------------------------------------
 
 

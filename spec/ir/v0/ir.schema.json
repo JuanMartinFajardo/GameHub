@@ -17,7 +17,8 @@
     "state": { "type": "array", "items": { "$ref": "#/$defs/stateVar" } },
     "functions": { "type": "array", "items": { "$ref": "#/$defs/function" } },
     "flow": { "$ref": "#/$defs/flow" },
-    "ui": { "$ref": "#/$defs/ui" }
+    "ui": { "$ref": "#/$defs/ui" },
+    "heuristics": { "type": "array", "items": { "$ref": "#/$defs/heuristic" } }
   },
   "$defs": {
     "ident": { "$ref": "common.schema.json#/$defs/ident" },
@@ -27,6 +28,50 @@
     "block": { "$ref": "common.schema.json#/$defs/block" },
     "visibility": { "$ref": "common.schema.json#/$defs/visibility" },
 
+    "heuristic": {
+      "description": "Conocimiento del juego que no es una regla (sección heuristic de Nomos, ADR-083): rasgos numéricos evaluados desde el asiento `me` (el argumento me), con su peso (1 si falta), reglas de prioridad y el orden de las acciones. No cuentan para el hash de reglas.",
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/ident" },
+        "doc": { "$ref": "#/$defs/text" },
+        "functions": {
+          "description": "Funciones de módulo que solo usa la heurística (no forman parte de las reglas).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/function" }
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "body"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "$ref": "#/$defs/ident" },
+              "doc": { "$ref": "#/$defs/text" },
+              "weight": { "$ref": "#/$defs/expr" },
+              "body": { "$ref": "#/$defs/expr" }
+            }
+          }
+        },
+        "prefer": { "type": "array", "items": { "$ref": "#/$defs/heuristicRule" } },
+        "order": { "type": "array", "items": { "$ref": "#/$defs/heuristicRule" } }
+      }
+    },
+    "heuristicRule": {
+      "description": "prefer: la acción `action` con argumentos (por posición) `params` cuando `when`; order: su clave `key` (mayor = antes). Las expresiones ven `me` y los parámetros como argumentos.",
+      "type": "object",
+      "required": ["action", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "action": { "$ref": "#/$defs/ident" },
+        "params": { "type": "array", "items": { "$ref": "#/$defs/ident" } },
+        "doc": { "$ref": "#/$defs/text" },
+        "when": { "$ref": "#/$defs/expr" },
+        "key": { "$ref": "#/$defs/expr" }
+      }
+    },
     "ui": {
       "description": "Pistas de presentación para las interfaces (sección ui { … } de Nomos). No son reglas: no cuentan para el hash.",
       "type": "object",

@@ -484,6 +484,35 @@ game Chess {
 
   // Casillas: (fila, columna), con la fila 0 en la octava y la columna 0 en la «a»: e2 = (6, 4).
 
+  /// Material y centro; en la búsqueda, primero las capturas de la pieza más valiosa con la
+  /// menos valiosa (MVV-LVA) y las promociones a dama.
+  heuristic Material {
+    fn value(k: Kind) -> Int = match k {
+      Kind.Pawn => 1
+      Kind.Knight => 3
+      Kind.Bishop => 3
+      Kind.Rook => 5
+      Kind.Queen => 9
+      Kind.King => 0
+    }
+    fn material(col: Color) -> Int =
+      sum(c in cells(board) : value(kind_of(unwrap(board[c]))) if own(c, col) else 0)
+    /// Cercanía al centro de una casilla (de 0 a 6)
+    fn central(c: Cell) -> Int = 6 - abs(2 * c[0] - 7) div 2 - abs(2 * c[1] - 7) div 2
+    fn presence(col: Color) -> Int = sum(
+      c in cells(board) :
+      central(c) if own(c, col) and kind_of(unwrap(board[c])) != Kind.King else 0
+    )
+    /// Ventaja de material en fracciones de una dama y media (estima el pago)
+    feature material = (material(Color.values[me]) - material(Color.values[1 - me])) / 13
+    feature center = (presence(Color.values[me]) - presence(Color.values[1 - me])) / 400
+    order play(f, t) by
+      (10 * value(kind_of(unwrap(board[t]))) if not is_none(board[t]) else 0) -
+        value(kind_of(unwrap(board[f]))) + central(t) / 10
+    order promote(f, t, k) by 100 + value(k)
+    order claim_draw() by -50
+  }
+
   test "el mate del loco, el más rápido" {
     play play((6, 5), (5, 5)), play((1, 4), (3, 4)), play((6, 6), (4, 6)), play((0, 3), (4, 7))
     expect at(Checkmate) and payoff == [-1, 1]

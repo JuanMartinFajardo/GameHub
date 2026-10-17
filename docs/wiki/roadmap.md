@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 75 % (F0 to F8 in `main`; F8's
-> optional code generation left).**
+> % is computed with the weight of each phase. **Current progress: ≈ 81 % (F0 to F9 in `main`,
+> without the Connect Four 7×6 proof; F8's optional code generation left).**
 
 ## Summary
 
@@ -17,7 +17,7 @@
 | F6 | Catalog wave 2 + mature stdlib | 8 | 59 | The 7 requested games |
 | F7 | Game theory v1 | 7 | 66 | Nash, tree, matrix, CGT |
 | F8 | C++ core + bindings + WASM | 9 | 75 | ×50 speed |
-| F9 | Heuristics, bots, arena, balance analytics | 7 | 82 | |
+| F9 | Heuristics, bots, arena, balance analytics | 7 | 82 | Bots that play every game |
 | F10 | Web hub (GitHub for games) | 9 | 91 | Public platform |
 | F11 | AI: RL, Deep RL, LLM | 7 | 98 | |
 | F12 | Hardening and version 1.0 | 2 | 100 | **1.0** |
@@ -288,7 +288,8 @@ See [the C++ core](core.md).
       persistent states that share structure (ADR-076)
 - [x] Algorithms in C++: alpha-beta, MCTS, CFR/MCCFR, retrograde analysis, perft and a
       win/draw/loss solver (ADR-080)
-- [ ] IR → C++ code generation for "hot" games (optional)
+- [ ] IR → C++ code generation for "hot" games (optional); with sound pruning, the way to the
+      Connect Four 7×6 proof (ADR-089)
 - [x] WASM build (Emscripten) used by `play` and the Studio without a server; the same native
       plugins as in Python: `@gamehub/engine` (`gamehub wasm`), local matches that speak the room
       protocol, the Studio's playouts in the browser and `gamehub web export` (ADR-082)
@@ -306,18 +307,28 @@ reach it (5×5 already needs more than 4·10⁷ nodes).
 
 See [heuristics and AI](heuristics-and-ai.md).
 
-- [ ] `heuristic` blocks (features + combination + move ordering) evaluated in C++
-- [ ] Connect Four 7×6 solved (the first player wins) with heuristic move ordering (ADR-081)
-- [ ] Bots: priority rules, minimax + heuristic, MCTS, ISMCTS, PIMC; a heuristic bot for each
-      catalog game
-- [ ] Weight tuning (CMA-ES, SPSA, Texel)
-- [ ] Bot packaging and sandboxing; remote bots over the protocol
-- [ ] Arena: tournaments, mirror matches, Elo/Glicko-2/TrueSkill per rules hash, SPRT
-- [ ] Balance analytics (advantage per seat, skill vs. luck, *skill chain*, coverage…)
-- [ ] A "Balance CI" report comparing two versions of a game
+- [x] `heuristic` blocks (features + combination + move ordering) evaluated in C++: `feature`,
+      `weights`, `prefer`, `order` and their own `fn`, outside the rules hash, the same values in
+      both engines (ADR-083)
+- [ ] Connect Four 7×6 solved (the first player wins) with heuristic move ordering (ADR-081): the
+      ordering cuts the nodes 5–6× (`gamehub solve --heuristic`), not enough for the empty board
+      with the generic VM; retried with F8's optional code generation (ADR-089)
+- [x] Bots: priority rules, minimax + heuristic, MCTS, ISMCTS, PIMC; a heuristic bot for each
+      catalog game (the core's bots with determinization, in the terminal, the server's rooms and
+      the browser; ADR-084)
+- [x] Weight tuning (CMA-ES, SPSA, Texel): `gamehub tune … --write` (ADR-088)
+- [x] Bot packaging and sandboxing; remote bots over the protocol: `bot.toml`, Python bots in a
+      limited child process, `gamehub bot run PACKAGE` (ADR-086)
+- [x] Arena: tournaments, mirror matches, Elo/Glicko-2/TrueSkill per rules hash, SPRT
+      (`gamehub arena`, `gamehub sprt`; ADR-085)
+- [x] Balance analytics (advantage per seat, skill vs. luck, *skill chain*, coverage…):
+      `gamehub balance`, also tension, dominant actions and kingmaking (ADR-087)
+- [x] A "Balance CI" report comparing two versions of a game (`gamehub balance --against`)
 
-**Acceptance:** an automatic round-robin tournament in 5 games; a balance report for Parchís and
-Wizard.
+**Acceptance:** an automatic round-robin tournament in 5 games ✅ (tic-tac-toe, Connect Four, Kuhn,
+Dudo and Parchís, [`docs/reports/f9-tournaments.md`](../reports/f9-tournaments.md)); a balance
+report for Parchís and Wizard ✅ ([Parchís](../reports/f9-balance-parchis.md),
+[Wizard](../reports/f9-balance-wizard.md)). Connect Four 7×6 is not met (ADR-089).
 
 ## F10 — Web hub (82 → 91 %) · XL
 
@@ -363,6 +374,7 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F9: heuristic bots for the second-wave games and custom UIs for Skat and Solitaire; Connect
-   Four 7×6 with heuristic move ordering (ADR-081).
-2. Optional: the IR → C++ code generation for "hot" games (F8).
+1. F10, the web hub (branch `f10/hub`).
+2. Custom UIs for Skat and Solitaire (left from the F9 plan; not part of its checklist).
+3. Optional: the IR → C++ code generation for "hot" games (F8) and with it Connect Four 7×6
+   (ADR-089).

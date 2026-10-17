@@ -46,6 +46,7 @@ def derive(
     m.start = base.start
     m.nodes = list(base.nodes)
     m.ui = list(base.ui)
+    m.heuristics = list(base.heuristics)
     m.flow_span = base.flow_span
     seen = {id(x.decl) for x in base.externals}
     m.externals = [*base.externals, *(x for x in externals if id(x.decl) not in seen)]
@@ -94,6 +95,9 @@ class _Mod:
                     self.m.invariants.append(item)
                 case ast.UiBlock(entries=entries):
                     self.m.ui = ui.merge(self.m.ui, entries)
+                case ast.HeuristicDecl():
+                    if self.new(item.name, self.m.heuristics, "la heurística", item.span):
+                        self.m.heuristics.append(item)
                 case ast.OverrideDecl(item=inner):
                     self.override(inner, item.span)
                 case ast.RemoveDecl():
@@ -152,6 +156,8 @@ class _Mod:
             case ast.StateBlock(vars=variables):
                 for v in variables:
                     self.replace(self.m.state, v, "variable")
+            case ast.HeuristicDecl():
+                self.replace(self.m.heuristics, inner, "heurística")
             case _:
                 self.error("no se puede usar override con esto", span)
 
@@ -201,6 +207,7 @@ class _Mod:
             "param": (self.m.params, "el parámetro"),
             "enum": (self.m.types, "el tipo"),
             "struct": (self.m.types, "el tipo"),
+            "heuristic": (self.m.heuristics, "la heurística"),
         }
         table, what = tables[kind]
         kept = [x for x in table if x.name != name]
@@ -299,4 +306,4 @@ def _find(nodes: list[ast.NodeDecl], name: str) -> ast.NodeDecl | None:
 
 
 def _article(what: str) -> str:
-    return "la" if what in ("función", "variable") else "el"
+    return "la" if what in ("función", "variable", "heurística") else "el"

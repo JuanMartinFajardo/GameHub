@@ -88,7 +88,9 @@ def choose(legal: Sequence[Action], io: ConsoleIO) -> Action:
             return chosen
 
 
-def make_agents(seats: Sequence[str], seed: int) -> dict[int, Agent]:
+def make_agents(seats: Sequence[str], seed: int, game: Game | None = None) -> dict[int, Agent]:
+    """Los agentes de los asientos que no son humanos: `random`, `first` o un bot del núcleo con
+    sus opciones (`alphabeta:seconds=1`, F9)."""
     agents: dict[int, Agent] = {}
     for seat, kind in enumerate(seats):
         if kind == "random":
@@ -96,7 +98,14 @@ def make_agents(seats: Sequence[str], seed: int) -> dict[int, Agent]:
         elif kind == "first":
             agents[seat] = FirstAgent()
         elif kind != "human":
-            raise ValueError(f"tipo de asiento desconocido: {kind} (usa {', '.join(SEAT_KINDS)})")
+            from gamehub.bots.agents import BotSpecError, make_bot
+
+            if game is None:
+                raise ValueError(f"tipo de asiento desconocido: {kind}")
+            try:
+                agents[seat] = make_bot(game, kind, seat, seed)
+            except BotSpecError as exc:
+                raise ValueError(f"{exc} (usa {', '.join(SEAT_KINDS)} o un bot)") from None
     return agents
 
 
@@ -111,7 +120,7 @@ def play_terminal(
 ) -> State:
     io = io or ConsoleIO()
     n = len(seats)
-    agents = make_agents(seats, seed)
+    agents = make_agents(seats, seed, game)
     humans = [s for s, kind in enumerate(seats) if kind == "human"]
     state = game.new_state(n, params)
     chance = Pcg32(seed, STREAM_CHANCE)

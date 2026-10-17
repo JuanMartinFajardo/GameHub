@@ -47,3 +47,5 @@
 | 2026-10-17 | — | Install the Emscripten SDK for the WASM build? | Yes (`~/emsdk`). |
 | 2026-10-17 | 27 | Do you approve ADR-075 to 080 and 082 of Phase 8 and merge the `f8/nucleo-cpp` branch? | Yes ("do it"): ADR-075 to 080 and 082 accepted and F8 merged into `main`. The optional IR → C++ code generation stays unticked. Next: F9. |
 | 2026-10-17 | 13 | Exact numeric payoffs (rationals) or floating point? | Rationals in the IR and in the reference engine; **exact 64-bit integers and rationals** in the C++ core (a result that does not fit is a rule error), accepted with ADR-076. → [ADR-076](decisions.md) |
+| 2026-10-18 | 29 | Do you approve ADR-083 to 088 of Phase 9 and merge the `f9/heuristicas-bots` branch? | Yes ("I approve what you say, merge"): ADR-083 to 088 accepted and F9 merged into `main`. Next: F10. |
+| 2026-10-18 | 28 | Connect Four 7×6: how do we close it? | The recommendation: (d) documented now and (a) later, with F8's optional IR → C++ code generation plus sound pruning. → [ADR-089](decisions.md) |

@@ -132,6 +132,7 @@ struct Ctx {
   Draws* draws = nullptr;                  // solo en los puntos de azar
   std::vector<Event>* events = nullptr;    // nullptr = no se registran
   MemoTable* memo = nullptr;               // memo "state" (nullptr = desactivado)
+  MemoTable* match_memo = nullptr;         // memo "match": la partida (nullptr = desactivado)
   Value seats;                             // tuple(range(n)), calculada una vez
 
   bool recording() const { return events != nullptr; }

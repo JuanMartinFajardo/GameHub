@@ -131,8 +131,9 @@ type OnTimeout = Literal["random", "pass", "bot", "forfeit"]
 type SpectatorView = Literal["public", "omniscient"]
 
 
-# Bots que ejecuta el propio servidor.
-type BotKind = Literal["random", "first"]
+# Bots que ejecuta el propio servidor (los de búsqueda necesitan el núcleo C++; sin él juegan al
+# azar).
+type BotKind = Literal["random", "first", "greedy", "alphabeta", "mcts", "ismcts", "pimc"]
 
 
 class RoomSettings(TypedDict):

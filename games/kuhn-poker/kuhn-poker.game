@@ -91,6 +91,18 @@ game KuhnPoker {
     node Showdown: label({ es: "Se enseñan las cartas", en: "Showdown" })
   }
 
+  /// Apostar e igualar con el rey, igualar con la reina, retirarse con la jota.
+  heuristic Card {
+    /// La carta de `s`, de 0 (J) a 2 (K)
+    fn rank_of(s: Seat) -> Int = ord(only(hand[s]))
+    /// La fuerza de la carta propia, de -1 a 1 (estima el pago)
+    feature strength = rank_of(me) - 1
+    prefer bet() when rank_of(me) == 2
+    prefer call() when rank_of(me) >= 1
+    prefer fold() when rank_of(me) == 0
+    prefer check() when true
+  }
+
   test "la carta alta gana el enfrentamiento" {
     chance where only(hand[0]) == K and only(hand[1]) == J
     play check(), bet(), call()

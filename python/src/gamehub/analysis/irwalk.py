@@ -130,6 +130,20 @@ def node_exprs(node: dict[str, Any]) -> Iterator[Any]:
             yield from walk(t["when"])
 
 
+def heuristic_exprs(ir: dict[str, Any]) -> Iterator[Any]:
+    """Las expresiones de las heurísticas (no son reglas): sus funciones, rasgos, pesos y
+    reglas de prioridad y de orden."""
+    for h in ir.get("heuristics", []):
+        for f in h.get("functions", []):
+            yield from walk(f["body"])
+        for f in h.get("features", []):
+            yield from walk(f["body"])
+        for rule in h.get("prefer", []):
+            yield from walk(rule["when"])
+        for rule in h.get("order", []):
+            yield from walk(rule["key"])
+
+
 def game_exprs(ir: dict[str, Any]) -> Iterator[Any]:
     """Todas las expresiones de la IR: parámetros, estado, funciones y flow."""
     for p in ir.get("params", []):

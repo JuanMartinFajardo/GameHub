@@ -401,6 +401,34 @@ class Printer:
     def i_InvariantDecl(self, item: ast.InvariantDecl) -> Doc:
         return group("invariant ", self.expr(item.expr))
 
+    # --- heurísticas ----------------------------------------------------------------------------
+
+    def i_HeuristicDecl(self, item: ast.HeuristicDecl) -> Doc:
+        return self.block(f"heuristic {item.name}", item.items, item.end_comments)
+
+    def i_FeatureDecl(self, item: ast.FeatureDecl) -> Doc:
+        return self.rhs(f"feature {item.name} =", item.body)
+
+    def i_WeightsBlock(self, item: ast.WeightsBlock) -> Doc:
+        if all(plain(e) for e in item.entries) and not item.end_comments:
+            entries = [self.i_WeightEntry(e) for e in item.entries]
+            return group(
+                "weights {",
+                nest(INDENT, LINE, join(concat(",", LINE), entries)),
+                LINE,
+                "}",
+            )
+        return self.block("weights", list(item.entries), item.end_comments)
+
+    def i_WeightEntry(self, item: ast.WeightEntry) -> Doc:
+        return concat(item.name, ": ", self.expr(item.value))
+
+    def i_PreferDecl(self, item: ast.PreferDecl) -> Doc:
+        return self.rhs(f"prefer {item.action}({', '.join(item.params)}) when", item.when)
+
+    def i_OrderDecl(self, item: ast.OrderDecl) -> Doc:
+        return self.rhs(f"order {item.action}({', '.join(item.params)}) by", item.key)
+
     def i_OverrideDecl(self, item: ast.OverrideDecl) -> Doc:
         return concat("override ", self.item_body(item.item))
 

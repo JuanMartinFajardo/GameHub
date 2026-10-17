@@ -14,6 +14,8 @@ Suponen un documento que ya pasa el esquema. Comprueban:
 - nodos simultáneos sin transiciones por acción; `pass` reservado en ventanas
 - pistas de presentación (`ui`): que nombren variables, opciones, tipos, valores, campos,
   acciones, parámetros y nodos que existen
+- heurísticas: nombres únicos, expresiones que solo ven `me` (y los parámetros de su patrón),
+  acciones que existen con ese número de parámetros, pesos constantes
 """
 
 from __future__ import annotations
@@ -111,7 +113,47 @@ class _Checker:
         self.check_recursion()
         if "ui" in doc:
             self.ui(doc["ui"])
+        heuristics = doc.get("heuristics", [])
+        self._names(heuristics, "heuristics")
+        for i, h in enumerate(heuristics):
+            self.heuristic(h, f"heuristics/{i}")
         return sorted(set(self.problems))
+
+    def heuristic(self, h: dict[str, Any], path: str) -> None:
+        saved = dict(self.arity)
+        helpers = h.get("functions", [])
+        for f in helpers:
+            if f["name"] in self.arity:
+                self.error(f"{path}/functions", f"la función {f['name']} ya está en las reglas")
+            self.arity[f["name"]] = len(f["params"])
+            self.calls.setdefault(f["name"], set())
+        for k, f in enumerate(helpers):
+            self.function(f, f"{path}/functions/{k}")
+        self._names(h.get("features", []), f"{path}/features")
+        for k, f in enumerate(h.get("features", [])):
+            self.expr(f["body"], _Ctx(f"{path}/features/{k}/body", args=frozenset({"me"})))
+            if "weight" in f and f["weight"][0] not in ("const", "rat"):
+                self.error(f"{path}/features/{k}/weight", "un peso es un número constante")
+        params: dict[str, int] = {}
+        for node in _walk_nodes(self.doc["flow"]["nodes"]):
+            for action in node.get("actions", []):
+                params.setdefault(action["name"], len(action.get("params", [])))
+        for key, member in (("prefer", "when"), ("order", "key")):
+            for k, rule in enumerate(h.get(key, [])):
+                where = f"{path}/{key}/{k}"
+                names = rule["params"]
+                if rule["action"] not in params:
+                    self.error(where, f"acción desconocida: {rule['action']}")
+                elif params[rule["action"]] != len(names):
+                    self.error(where, f"{rule['action']} tiene {params[rule['action']]} parámetros")
+                if "me" in names or len(set(names)) != len(names):
+                    self.error(f"{where}/params", "parámetros repetidos (o llamados me)")
+                if member not in rule:
+                    self.error(where, f"falta {member}")
+                    continue
+                args = frozenset({"me", *names})
+                self.expr(rule[member], _Ctx(f"{where}/{member}", args=args))
+        self.arity = saved
 
     def ui(self, ui: dict[str, Any]) -> None:
         actions: dict[str, set[str]] = {}

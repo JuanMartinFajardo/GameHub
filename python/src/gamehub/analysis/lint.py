@@ -676,6 +676,8 @@ def _unused(ir: dict[str, Any], uses: Iterable[Any]) -> list[Finding]:
         expr(e)
     for e in uses:
         expr(e)
+    for e in irwalk.heuristic_exprs(ir):  # lo que solo usa una heurística también se usa
+        expr(e)
     for p in ir.get("params", []):
         type_spec(p["type"])
     for v in ir.get("state", []):

@@ -212,6 +212,23 @@ game Solitaire {
     max_moves: label({ es: "Jugadas como mucho", en: "Move limit" })
   }
 
+  /// Subir cartas a los montones, destapar cartas boca abajo y bajar del descarte antes que
+  /// robar; no mover por mover (dar vueltas sin destapar nada).
+  heuristic Progress {
+    /// ¿Destapa algo mover las `n` cartas de arriba de la columna `f`?
+    fn uncovers(f: Int, n: Int) -> Bool = n == face_up_count(f) and hidden[f] > 0
+    /// Cartas en los montones (el pago) y una fracción por cada carta ya destapada
+    feature progress = foundation_cards() + (21 - sum(h in hidden : h)) / 10
+    prefer waste_up() when true
+    prefer pile_up(f) when true
+    prefer shift(f, n, t) when uncovers(f, n)
+    prefer waste_down(t) when true
+    order draw_cards() by -1
+    order recycle() by -2
+    order shift(f, n, t) by -20 if n == face_up_count(f) and size(tableau[t]) == 0 else -5
+    order pile_down(s, t) by -10
+  }
+
   test "el reparto: de una a siete cartas, solo la de arriba boca arriba" {
     expect all(i in 0..6 : size(tableau[i]) == i + 1 and face_up_count(i) == 1)
     expect size(stock) == 24 and size(waste) == 0

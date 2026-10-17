@@ -51,7 +51,9 @@ def _parser() -> argparse.ArgumentParser:
     play = commands.add_parser("play", help="jugar en la terminal (hot-seat y bots)")
     play.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
     play.add_argument(
-        "--seats", help="tipo de cada asiento: human, random o first (p. ej. human,random)"
+        "--seats",
+        help="tipo de cada asiento: human, random, first o un bot (greedy, alphabeta:seconds=1, "
+        "mcts, ismcts, pimc…), separados por comas (p. ej. human,alphabeta)",
     )
     play.add_argument(
         "--players", type=int, help="nº de jugadores (todos humanos si no se indica --seats)"
@@ -475,7 +477,9 @@ def _parser() -> argparse.ArgumentParser:
     bot_commands = bot.add_subparsers(dest="bot_command", required=True)
     bot_run = bot_commands.add_parser("run", help="un bot entra en una sala y juega")
     bot_run.add_argument(
-        "agent", metavar="AGENTE", help="random, first o un archivo .py con el agente"
+        "agent",
+        metavar="AGENTE",
+        help="random, first, un archivo .py con el agente o un paquete de bot (bot.toml)",
     )
     bot_run.add_argument(
         "--room", required=True, metavar="SALA", help="código de sala (K7F-Q2P) o enlace"
@@ -488,6 +492,8 @@ def _parser() -> argparse.ArgumentParser:
     )
     bot_run.add_argument("--seed", type=int, help="semilla del agente (random)")
     bot_run.set_defaults(handler=_bot_run)
+
+    _bots_commands(commands)
 
     protocol = commands.add_parser("protocol", help="protocolo de partidas (spec/protocol)")
     protocol_commands = protocol.add_subparsers(dest="protocol_command", required=True)
@@ -752,13 +758,15 @@ def _loadtest(args: argparse.Namespace) -> int:
 def _bot_run(args: argparse.Namespace) -> int:
     import asyncio
 
+    from gamehub.bots.commands import bot_package_entry
+    from gamehub.bots.package import BotPackageError
     from gamehub.client import AgentLoadError, AgentRunner, Client, ClientError, load_agent
     from gamehub.client.play import resolve
     from gamehub.engine import Game
 
     try:
-        factory = load_agent(args.agent, seed=args.seed)
-    except AgentLoadError as exc:
+        factory = load_agent(bot_package_entry(args.agent), seed=args.seed)
+    except (AgentLoadError, BotPackageError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     name = args.name or f"Bot {Path(args.agent).stem}"
@@ -843,10 +851,7 @@ def _play(args: argparse.Namespace) -> int:
     from gamehub.console.play import play_terminal
 
     game = _load_game(args.game, args.name)
-    if args.seats:
-        seats = [s.strip() for s in args.seats.split(",")]
-    else:
-        seats = ["human"] * (args.players or game.players[0])
+    seats = split_seats(args.seats) if args.seats else ["human"] * (args.players or game.players[0])
     state = play_terminal(
         game, seats, seed=args.seed, params=_params(args.param), save_replay=args.save_replay
     )
@@ -1188,6 +1193,119 @@ def _game_files(paths: list[Path]) -> list[Path]:
         else:
             files.append(path)
     return files
+
+
+def _bots_commands(commands: Any) -> None:
+    """Heurísticas, arena, SPRT, balance, ajuste de pesos y solver (F9)."""
+    from gamehub.bots import commands as bots
+
+    def game_arg(parser: argparse.ArgumentParser) -> None:
+        parser.add_argument(
+            "game", type=Path, metavar="JUEGO", help="archivo .game, .ir.json o paquete"
+        )
+        parser.add_argument(
+            "--players", type=int, help="nº de jugadores (el mínimo del juego si no)"
+        )
+        parser.add_argument(
+            "--param", action="append", default=[], metavar="NOMBRE=VALOR", help="opción del juego"
+        )
+        parser.add_argument("--seed", type=int, default=0)
+
+    h = commands.add_parser("heuristics", help="las heurísticas de un juego (rasgos, pesos, hash)")
+    game_arg(h)
+    h.add_argument("--evaluate", action="store_true", help="evalúa el estado inicial")
+    h.set_defaults(handler=bots.heuristics)
+
+    arena = commands.add_parser("arena", help="torneo entre bots con Elo, Glicko-2 y TrueSkill")
+    game_arg(arena)
+    arena.add_argument(
+        "bots",
+        nargs="+",
+        metavar="BOT",
+        help="tipo con opciones (greedy, alphabeta:seconds=0.2…), paquete con bot.toml o "
+        "archivo .py; nombre=… para ponerle nombre",
+    )
+    arena.add_argument(
+        "--tournament", choices=("round-robin", "swiss", "gauntlet"), default="round-robin"
+    )
+    arena.add_argument("--games", type=int, default=10, help="semillas por mesa (por defecto, 10)")
+    arena.add_argument("--no-mirror", action="store_true", help="sin rotar los asientos")
+    arena.add_argument("--rounds", type=int, help="rondas del suizo")
+    arena.add_argument("--jobs", type=int, help="hilos (por defecto, núcleos − 1)")
+    arena.add_argument("--max-steps", type=int, default=100_000)
+    arena.add_argument("--db", type=Path, help="JSON que acumula las partidas por hash de reglas")
+    arena.add_argument("--format", choices=("text", "json"), default="text")
+    arena.add_argument("--quiet", action="store_true")
+    arena.set_defaults(handler=bots.arena)
+
+    sprt = commands.add_parser("sprt", help="¿es A mejor que B? (prueba secuencial de Wald)")
+    game_arg(sprt)
+    sprt.add_argument("a", metavar="A")
+    sprt.add_argument("b", metavar="B")
+    sprt.add_argument("--elo0", type=float, default=0.0)
+    sprt.add_argument("--elo1", type=float, default=20.0)
+    sprt.add_argument("--alpha", type=float, default=0.05)
+    sprt.add_argument("--beta", type=float, default=0.05)
+    sprt.add_argument(
+        "--batch", type=int, default=20, help="semillas por lote (2 partidas cada una)"
+    )
+    sprt.add_argument("--max-games", type=int, default=4000)
+    sprt.add_argument("--jobs", type=int)
+    sprt.set_defaults(handler=bots.sprt)
+
+    bal = commands.add_parser("balance", help="análisis de balance; con --against, Balance CI")
+    game_arg(bal)
+    bal.add_argument("--bot", default="greedy", help="bot de referencia (autojuego)")
+    bal.add_argument("--weak", default="random", help="el bot de la suerte")
+    bal.add_argument("--games", type=int, default=200)
+    bal.add_argument("--ladder", help="cadena de habilidad, separada por comas")
+    bal.add_argument("--ladder-games", type=int, default=60)
+    bal.add_argument("--kingmaking", type=int, default=10, metavar="PARTIDAS")
+    bal.add_argument("--heuristic", help="la heurística de la evaluación (tensión)")
+    bal.add_argument("--against", type=Path, metavar="OTRA", help="otra versión del juego")
+    bal.add_argument("--fail-on-regression", action="store_true")
+    bal.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    bal.add_argument("--jobs", type=int)
+    bal.add_argument("--quiet", action="store_true")
+    bal.set_defaults(handler=bots.balance)
+
+    tune = commands.add_parser("tune", help="ajusta los pesos de una heurística")
+    game_arg(tune)
+    tune.add_argument("--heuristic", help="la heurística (la primera si no se da)")
+    tune.add_argument("--method", choices=("cmaes", "spsa", "texel"), default="cmaes")
+    tune.add_argument("--bot", default="alphabeta:depth=2,seconds=0", help="el bot que la usa")
+    tune.add_argument("--opponent", help="rival (por defecto, el mismo bot con los pesos actuales)")
+    tune.add_argument(
+        "--games", type=int, default=20, help="semillas por evaluación (o partidas de Texel)"
+    )
+    tune.add_argument("--iterations", type=int, default=10, help="generaciones o iteraciones")
+    tune.add_argument("--write", action="store_true", help="escribe los pesos en el .game")
+    tune.add_argument("--jobs", type=int)
+    tune.add_argument("--quiet", action="store_true")
+    tune.set_defaults(handler=bots.tune)
+
+    solve = commands.add_parser(
+        "solve", help="ganar/empatar/perder en C++ (deterministas de dos jugadores)"
+    )
+    game_arg(solve)
+    solve.add_argument("--heuristic", help="ordena las jugadas con esta heurística del juego")
+    solve.add_argument("--moves", help="JSON con las jugadas hasta la posición que resolver")
+    solve.add_argument("--threads", type=int, default=1)
+    solve.add_argument("--table-bits", type=int, default=24)
+    solve.add_argument("--max-seconds", type=float, default=0.0)
+    solve.set_defaults(handler=bots.solve)
+
+
+def split_seats(text: str) -> list[str]:
+    """`human,alphabeta:seconds=1,depth=3,random` → los tres asientos: una parte con `=` y sin
+    `:` es otra opción del bot anterior."""
+    seats: list[str] = []
+    for part in (p.strip() for p in text.split(",")):
+        if seats and "=" in part and ":" not in part:
+            seats[-1] += "," + part
+        else:
+            seats.append(part)
+    return seats
 
 
 def _load_game(path: Path, name: str | None) -> Any:

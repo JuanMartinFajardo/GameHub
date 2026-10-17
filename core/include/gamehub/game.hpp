@@ -11,6 +11,7 @@
 #include "gamehub/bytecode.hpp"
 #include "gamehub/json.hpp"
 #include "gamehub/natives.hpp"
+#include "gamehub/rational.hpp"
 #include "gamehub/types.hpp"
 
 namespace gh {
@@ -60,7 +61,7 @@ struct ParamDef {
   Expr default_value;
 };
 
-enum class MemoKind : uint8_t { None, Static, State };
+enum class MemoKind : uint8_t { None, Static, State, Match };
 
 struct FunctionDef {
   std::string name;
@@ -140,6 +141,28 @@ struct ConstraintDef {
   std::string message;
 };
 
+// Una regla de una heurística (ADR-083): `prefer` (expr = condición) u `order` (expr = clave).
+// Su marco: `me` en la ranura 0 y los argumentos de la acción, por posición, detrás.
+struct HeuristicRule {
+  uint32_t action = 0;  // id del nombre de la acción
+  uint32_t arity = 0;
+  Expr expr;
+};
+
+struct FeatureDef {
+  std::string name;
+  Rational weight;  // 1 si la IR no lo da
+  Expr body;        // `me` en la ranura 0
+};
+
+// Conocimiento del juego que no es una regla: rasgos ponderados, prioridades y orden.
+struct HeuristicDef {
+  std::string name;
+  std::vector<FeatureDef> features;
+  std::vector<HeuristicRule> prefer;  // en orden de prioridad
+  std::vector<HeuristicRule> order;
+};
+
 class MemoTable;
 
 class GameDef {
@@ -183,6 +206,11 @@ class GameDef {
     static const std::vector<int> none;
     return node < 0 ? &none : &paths[static_cast<size_t>(node)];
   }
+
+  // Heurísticas (`heuristics` de la IR); sus funciones propias van al final de `functions`.
+  std::vector<HeuristicDef> heuristics;
+  // La heurística con ese nombre ("" = la primera), o nullptr.
+  const HeuristicDef* heuristic(const std::string& name) const;
 
   uint32_t action_name_id(const std::string& name) const;  // UINT32_MAX si no existe
   // Una expresión de la IR fuera de las reglas (tests, invariantes, herramientas).

@@ -60,6 +60,17 @@ game TwoByTwo {
     column_payoffs: label({ es: "Pagos del jugador 2", en: "Player 2 payoffs" })
   }
 
+  /// La mejor respuesta a un rival que elige al azar (con empates, al azar: en los peniques es
+  /// el equilibrio). La heredan todas las variantes 2×2.
+  heuristic Average {
+    /// El pago medio de `s` eligiendo `c` contra las dos opciones del rival
+    fn average(s: Seat, c: Choice) -> Real = case {
+      s == 0 => (row_payoffs[2 * ord(c)] + row_payoffs[2 * ord(c) + 1]) / 2
+      else => (column_payoffs[ord(c)] + column_payoffs[2 + ord(c)]) / 2
+    }
+    order choose(c) by average(me, c)
+  }
+
   test "los pagos salen de la casilla elegida" {
     play 0: choose(B), 1: choose(A)
     expect payoff == [5, 0]

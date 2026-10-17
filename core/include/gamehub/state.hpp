@@ -96,6 +96,9 @@ struct Match {
   int n = 0;
   ValueVec params;  // `num_players` y los declarados, en orden
   Value seats;                // tuple(range(n))
+  // Funciones que solo dependen de las opciones y del número de jugadores (una caché; los
+  // estados de una partida se usan desde un solo hilo).
+  mutable MemoTable memo;
 };
 
 struct StateNode {
@@ -198,6 +201,9 @@ Action decode_action(const GameDef& g, int node, const Json& data);
 
 // Cobertura: las transiciones que se tomen en este hilo se añaden a `trace` (nullptr = ninguna).
 void set_transition_trace(std::vector<const TransitionDef*>* trace);
+
+// El contexto de una consulta sobre el estado (sin escribir en él): heurísticas, herramientas.
+Ctx state_query_ctx(const State& s);
 
 // Utilidades compartidas con los algoritmos.
 std::vector<int> competition_ranking(const ValueVec& scores);

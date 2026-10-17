@@ -6,8 +6,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
-#: Bots que ejecuta el propio servidor.
-BOT_KINDS = ("random", "first")
+#: Bots que ejecuta el propio servidor: los del motor de referencia y los del núcleo C++ (F9; sin
+#: el núcleo instalado, juegan al azar).
+BOT_KINDS = ("random", "first", "greedy", "alphabeta", "mcts", "ismcts", "pimc")
 ON_TIMEOUT = ("random", "pass", "bot", "forfeit")
 SPECTATOR_VIEWS = ("public", "omniscient")
 

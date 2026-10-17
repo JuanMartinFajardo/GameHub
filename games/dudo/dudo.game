@@ -109,6 +109,19 @@ game Dudo {
     dice: label({ es: "Dados por jugador", en: "Dice per player" })
   }
 
+  /// Probabilidades: los dados propios se ven; de cada dado ajeno se espera un tercio con la cara
+  /// pedida (la cara o un as). Se apuesta lo justo por debajo de lo esperado y se duda cuando la
+  /// apuesta lo supera de largo.
+  heuristic Odds {
+    /// Dados con la cara `f` (o ases) que espera `s`: los suyos y un tercio de los demás
+    fn expected(s: Seat, f: Int) -> Real =
+      count_with_wild(cup[s], f, 1) + (total() - dice_left[s]) / 3
+    /// Dados de ventaja sobre la media (estima el pago)
+    feature dice = (dice_left[me] - total() / alive()) / 2
+    prefer dudo() when quantity > expected(me, face) + 1
+    order bid(q, f) by -10 * max([0, q - expected(me, f)]) - q
+  }
+
   test "la apuesta tiene que subir" {
     play bid(2, 3)
     expect illegal bid(2, 3)

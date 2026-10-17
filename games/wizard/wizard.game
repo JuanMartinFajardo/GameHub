@@ -206,6 +206,41 @@ game Wizard {
     hook: label({ es: "La suma de apuestas no puede cuadrar", en: "Hook rule" })
   }
 
+  /// Apostar las bazas que prometen los magos, los ases y los triunfos altos; en el juego, ganar
+  /// bazas con la carta más baja que gane mientras falten y deshacerse de las altas cuando ya
+  /// no.
+  heuristic Tricks {
+    /// La clave de `c` en la baza si se pide el palo `l` (como en `trick_taker`)
+    fn key_of(c: WizardCard, l: Int) -> Int =
+      3000 if is_wizard(c) else (
+        0 if is_jester(c) else trick_key(ord(c.suit), ord(c.rank), l, trump_suit())
+      )
+    /// El palo que se pediría si ahora se juega `c`
+    fn led_with(c: WizardCard) -> Int =
+      led() if any(x in items(trick) : not is_jester(x)) else suit_of(c)
+    /// ¿Se llevaría `c` la baza tal como está?
+    fn beats(c: WizardCard) -> Bool =
+      key_of(c, led_with(c)) > max([key_of(x, led_with(c)) for x in items(trick)] + [-1])
+    /// Bazas que promete una mano: magos, ases y triunfos de diez para arriba
+    fn promise(s: Seat) -> Int = count(
+      c in items(hand[s]) :
+      is_wizard(c) or
+        c.rank == WizardRank.Ace or
+        not is_jester(c) and ord(c.suit) == trump_suit() and ord(c.rank) >= ord(WizardRank.Ten)
+    )
+    /// Bazas que aún le faltan a `s` para cumplir su apuesta
+    fn need(s: Seat) -> Int = unwrap(bid[s]) - won[s] if not is_none(bid[s]) else 0
+    /// Lo que se espera ganar en la ronda: cumplir vale 20 más 10 por baza; cada baza de más o de
+    /// menos resta 10 (estima el pago junto con los puntos)
+    feature standing = score[me] - sum(t in seats : score[t]) / num_players - 10 * abs(need(me))
+    order bid(n) by -abs(n - promise(me))
+    prefer play(c) when need(me) > 0 and beats(c)
+    prefer play(c) when need(me) <= 0 and not beats(c)
+    order play(c) by -key_of(c, led_with(c)) if need(me) > 0 or beats(c) else key_of(c, led_with(c))
+    order choose(t) by
+      count(c in items(hand[me]) : not is_jester(c) and not is_wizard(c) and c.suit == t)
+  }
+
   test "en la primera ronda, una carta a cada uno y otra para el triunfo" {
     players 3
     expect all(s in seats : size(hand[s]) == 1) and size(trump_card) == 1 and size(deck) == 56

@@ -127,6 +127,21 @@ game Mentiroso {
     max_play: label({ es: "Máximo de cartas por jugada", en: "Max cards per play" })
   }
 
+  /// Decir la verdad con todas las cartas del rango que toca; si no se tiene ninguna, mentir con
+  /// una sola. Acusar cuando la jugada es imposible (más de cuatro contando las propias) o cuando
+  /// con ella el otro ganaría.
+  heuristic Honest {
+    /// Cartas del rango `r` en la mano de `s`
+    fn held(s: Seat, r: Rank) -> Int = count(c in items(hand[s]) : c.rank == r)
+    /// Cartas de menos que los demás, de media (estima el pago, entre 0 y 1)
+    feature ahead =
+      (sum(t in seats : size(hand[t])) / num_players - size(hand[me])) / 52 + 1 / num_players
+    prefer play(cards) when all(c in cards : c.rank == rank)
+    prefer liar() when held(me, rank) + last_count > 4 or size(hand[last_by]) == 0
+    order play(cards) by len(cards) if all(c in cards : c.rank == rank) else -len(cards)
+    order liar() by -1
+  }
+
   test "el reparto da 18, 17 y 17 cartas con tres jugadores" {
     players 3
     seed 1

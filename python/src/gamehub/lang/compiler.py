@@ -453,6 +453,13 @@ def add_item(model: GameModel, item: ast.Item, diagnostics: Diagnostics) -> None
             model.invariants.append(item)
         case ast.UiBlock(entries=entries):
             model.ui.extend(entries)
+        case ast.HeuristicDecl():
+            if any(h.name == item.name for h in model.heuristics):
+                diagnostics.error(
+                    "E202", f"la heurística `{item.name}` ya está declarada", item.name_span()
+                )
+            else:
+                model.heuristics.append(item)
         case ast.OverrideDecl() | ast.RemoveDecl() | ast.ExtendNode():
             diagnostics.error(
                 "E502",

@@ -479,6 +479,8 @@ class Parser:
         kind = self.peek().kind
         if self.at_word("ui") and self.peek(1).kind == "{":
             return self.ui_block()
+        if self.at_word("heuristic") and self.peek(1).kind == "ident":
+            return self.heuristic_decl()
         match kind:
             case "meta":
                 return self.meta_block()
@@ -515,16 +517,18 @@ class Parser:
                     | ast.StructDecl
                     | ast.NodeDecl
                     | ast.ParamsBlock
-                    | ast.StateBlock,
+                    | ast.StateBlock
+                    | ast.HeuristicDecl,
                 ):
                     raise self.fail(
-                        "'override' se aplica a fn, enum, struct, un nodo, params o state",
+                        "'override' se aplica a fn, enum, struct, un nodo, params, state o "
+                        "heuristic",
                         self.span_from(start),
                     )
                 return ast.OverrideDecl(item=self.finish(inner, start))
             case "remove":
                 self.advance()
-                kinds = ("node", "fn", "state", "param", "enum", "struct", "action")
+                kinds = ("node", "fn", "state", "param", "enum", "struct", "action", "heuristic")
                 if self.at("fn", "state", "enum", "struct", "action"):
                     what = self.advance()  # palabras reservadas
                 else:
@@ -534,7 +538,8 @@ class Parser:
                         f"no se puede eliminar '{what.text}'",
                         what.span,
                         help="remove node X · remove fn f · remove state x · remove param p · "
-                        "remove enum E · remove struct S · remove action Nodo.accion",
+                        "remove enum E · remove struct S · remove action Nodo.accion · "
+                        "remove heuristic H",
                     )
                 toks = [self.ident()]
                 while self.eat("."):
@@ -556,7 +561,8 @@ class Parser:
             case "decision" | "simultaneous" | "window" | "chance" | "auto" | "phase" | "terminal":
                 raise self.fail("los nodos van dentro de 'flow {{ … }}', no sueltos en el juego")
         raise self.fail(
-            "se esperaba meta, players, params, enum, struct, state, fn, flow, ui, test o invariant"
+            "se esperaba meta, players, params, enum, struct, state, fn, flow, ui, heuristic, test "
+            "o invariant"
         )
 
     def meta_block(self) -> ast.MetaBlock:
@@ -595,6 +601,75 @@ class Parser:
         items, end = self.block(entry, commas=True)
         entries = [i for i in items if isinstance(i, ast.MetaEntry)]
         return ast.MetaBlock(entries=entries, end_comments=self.claim(end))
+
+    # --- heuristic ------------------------------------------------------------------------------
+
+    def heuristic_decl(self) -> ast.HeuristicDecl:
+        self.expect_word("heuristic")
+        tok = self.ident("el nombre de la heurística")
+        items, end = self.block(self.heuristic_item)
+        return ast.HeuristicDecl(
+            name=tok.text, items=items, end_comments=self.claim(end), name_spans=[tok.span]
+        )
+
+    def heuristic_item(self) -> ast.Item:
+        start = self.pos
+        doc = self.annotations_doc_only()
+        item: ast.Item
+        if self.at("fn"):
+            item = self.fn_decl()
+        elif self.at_word("feature") and self.peek(1).kind == "ident":
+            self.advance()
+            tok = self.ident("el nombre del rasgo")
+            self.expect("=", "'=' y la expresión del rasgo")
+            item = ast.FeatureDecl(name=tok.text, body=self.value(), name_spans=[tok.span])
+        elif self.at_word("weights") and self.peek(1).kind == "{":
+            self.advance()
+            entries, end = self.block(self.weight_entry, commas=True)
+            item = ast.WeightsBlock(
+                entries=[e for e in entries if isinstance(e, ast.WeightEntry)],
+                end_comments=self.claim(end),
+            )
+        elif self.at_word("prefer") and self.peek(1).kind == "ident":
+            self.advance()
+            name, params, spans = self.action_pattern()
+            self.expect("when", "'when' y la condición")
+            item = ast.PreferDecl(action=name, params=params, when=self.value(), name_spans=spans)
+        elif self.at_word("order") and self.peek(1).kind == "ident":
+            self.advance()
+            name, params, spans = self.action_pattern()
+            self.expect_word("by")
+            item = ast.OrderDecl(action=name, params=params, key=self.value(), name_spans=spans)
+        else:
+            raise self.fail(
+                "se esperaba fn, feature, weights, prefer u order",
+                help="fn f(…) -> T = … · feature x = … · weights { x: 1 } · "
+                "prefer accion(p) when … · order accion(p) by …",
+            )
+        item.doc = doc or item.doc
+        return self.finish(item, start)
+
+    def weight_entry(self) -> ast.WeightEntry:
+        start = self.pos
+        tok = self.ident("el nombre de un rasgo")
+        self.expect(":", "':' y el peso")
+        entry = ast.WeightEntry(name=tok.text, value=self.value(), name_spans=[tok.span])
+        return self.finish(entry, start)
+
+    def action_pattern(self) -> tuple[str, list[str], list[Span]]:
+        """`accion(p, q)`: el nombre de una acción y nombres para sus parámetros, en orden."""
+        tok = self.ident("el nombre de una acción")
+        self.expect("(", "'(' y los parámetros de la acción")
+        params: list[str] = []
+        spans = [tok.span]
+        while not self.eat(")"):
+            p = self.ident("el nombre de un parámetro")
+            params.append(p.text)
+            spans.append(p.span)
+            if not self.eat(","):
+                self.expect(")", "',' o ')'")
+                break
+        return tok.text, params, spans
 
     # --- ui -------------------------------------------------------------------------------------
 

@@ -31,8 +31,21 @@ interface Local {
   client: SeatClient;
 }
 
-/** Bots: al azar o MCTS (este solo con el motor en el navegador). */
-type BotChoice = "random" | "mcts";
+/**
+ * Bots: al azar o los que piensan (solo con el motor en el navegador). MCTS y alfa-beta ven el
+ * estado entero: se ofrecen en juegos sin información oculta; con ella, los que juegan sobre
+ * determinizaciones (ISMCTS, PIMC). El de reglas usa la heurística del juego en los dos casos.
+ */
+type BotChoice = "random" | "greedy" | "mcts" | "alphabeta" | "ismcts" | "pimc";
+
+const BOT_LABELS: Record<BotChoice, string> = {
+  random: "bot",
+  greedy: "reglas",
+  mcts: "MCTS",
+  alphabeta: "alfa-beta",
+  ismcts: "ISMCTS",
+  pimc: "PIMC",
+};
 
 interface SetupChoice {
   players: number;
@@ -50,7 +63,7 @@ async function startInBrowser(model: GameModel, choice: SetupChoice): Promise<Lo
   const seats = Array.from({ length: choice.players }, (_, seat) => {
     const name = choice.names[seat]?.slice(0, 32) || String(seat + 1);
     const bot = choice.bots[seat];
-    return bot ? { name: `${name} (${bot === "mcts" ? "MCTS" : "bot"})`, bot } : { name };
+    return bot ? { name: `${name} (${BOT_LABELS[bot]})`, bot } : { name };
   });
   let table: InstanceType<typeof LocalTable>;
   try {
@@ -101,7 +114,7 @@ async function startOnServer(
     locals.push({ seat: 0, name: names[0] ?? "1", client: host });
     for (let seat = 1; seat < players; seat++) {
       if (bots[seat]) {
-        host.setSeat(seat, "bot", { bot: "random" });
+        host.setSeat(seat, "bot", { bot: bots[seat] ?? "random" });
         continue;
       }
       const name = names[seat]?.slice(0, 32) || String(seat + 1);
@@ -175,8 +188,11 @@ function Setup(props: { server: string; model: GameModel; onStart: (locals: Loca
   const [params, setParams] = useState(() => defaultParams(props.model));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // MCTS juega viendo el estado entero: solo en juegos sin información oculta.
+  // MCTS y alfa-beta juegan viendo el estado entero: solo en juegos sin información oculta.
   const secret = useMemo(() => hasHiddenInformation(props.model), [props.model]);
+  const thinking: BotChoice[] = secret
+    ? ["greedy", "ismcts", "pimc"]
+    : ["greedy", "mcts", "alphabeta"];
 
   const start = async () => {
     setBusy(true);
@@ -246,7 +262,7 @@ function Setup(props: { server: string; model: GameModel; onStart: (locals: Loca
                   {t("bot")}
                 </label>
               )}
-              {seat > 0 && bots[seat] != null && !secret && (
+              {seat > 0 && bots[seat] != null && (
                 <select
                   className="gh-select gh-shell-mini"
                   aria-label={t("botKind")}
@@ -257,7 +273,21 @@ function Setup(props: { server: string; model: GameModel; onStart: (locals: Loca
                   }}
                 >
                   <option value="random">{t("botRandom")}</option>
-                  <option value="mcts">{t("botMcts")}</option>
+                  {thinking.map((kind) => (
+                    <option key={kind} value={kind}>
+                      {t(
+                        (
+                          {
+                            greedy: "botGreedy",
+                            mcts: "botMcts",
+                            alphabeta: "botAlphabeta",
+                            ismcts: "botIsmcts",
+                            pimc: "botPimc",
+                          } as const
+                        )[kind as Exclude<BotChoice, "random">],
+                      )}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>

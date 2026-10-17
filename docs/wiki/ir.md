@@ -43,7 +43,7 @@ Schema: [`ir.schema.json`](../../spec/ir/v0/ir.schema.json). Top-level keys: `ir
 `state`, `functions`, `flow` (`setup`, `start`, `nodes`) and, optionally, `ui` (presentation
 hints for interfaces: `state`, `params`, `types`, `actions`, `nodes`, `seats`; the `ui { … }`
 section of Nomos, [language](language.md) §12; added in Phase 4 without changing `ir_version`
-because it is optional and does not affect the rules).
+because it is optional and does not affect the rules) and `heuristics` (Phase 9, below).
 
 Excerpt from [`tictactoe.ir.json`](../../spec/ir/examples/tictactoe.ir.json):
 
@@ -100,6 +100,14 @@ same results, but `body` is still the reference implementation and is mandatory
 marking a function as native does not change what it computes, but it does change what an engine
 may do with it.
 
+**Heuristics** (Phase 9, [ADR-083](decisions.md)): `heuristics: [{name, doc?, functions?,
+features: [{name, weight?, body}], prefer: [{action, params, when}], order: [{action, params,
+key}]}]`. `me` (the seat evaluated) and the action's parameters (by position, with the names in
+`params`) are `["arg", …]`; `functions` holds the functions only the heuristic uses; a weight is
+`["const", n]` or `["rat", n, d]` (1 when missing). Not rules: outside the rules hash; each
+heuristic has its own `heuristic_hash` (its content plus the rules hash). Added without changing
+`ir_version`: it is optional.
+
 ## 4. Expressions and effects
 
 - **S-expression-in-JSON** encoding: `[op, arg₁, …, argₙ]`. Compact, trivial to evaluate in any
@@ -119,7 +127,8 @@ may do with it.
 
 | Hash | What it is computed over | What it is for |
 |---|---|---|
-| **Rules hash** | The resolved IR as canonical JSON (RFC 8785), without `meta`, `ui`, `doc`, constraint messages or explicit default values ([ADR-025](decisions.md)) | Identifies the rules exactly. Bots, replays, analyses and ratings reference it. Implemented: `gamehub.ir.hashing.rules_hash`. |
+| **Rules hash** | The resolved IR as canonical JSON (RFC 8785), without `meta`, `ui`, `heuristics`, `doc`, constraint messages or explicit default values ([ADR-025](decisions.md)) | Identifies the rules exactly. Bots, replays, analyses and ratings reference it. Implemented: `gamehub.ir.hashing.rules_hash`. |
+| **Heuristic hash** | One heuristic (without `doc`) plus the rules hash | Identifies a bot's knowledge in the arena. `gamehub.ir.hashing.heuristic_hash`. |
 | **Interface hash** | View schema + action schema + events | Compatibility of UIs and bots; **automatic semver**: if it changes incompatibly, the *major* version must go up. |
 
 A cosmetic change (renaming a title, moving a box in the diagram) does not change the rules hash.

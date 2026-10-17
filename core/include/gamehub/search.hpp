@@ -68,10 +68,13 @@ struct WdlResult {
 // Resuelve un juego determinista de dos jugadores y suma cero en términos de ganar, empatar o
 // perder (el signo de la diferencia de pagos) con búsquedas de ventana nula, una tabla de
 // transposiciones de tamaño fijo (2^table_bits entradas, claves de 128 bits) y la heurística de
-// historia para ordenar las jugadas (sin conocimiento del juego). `threads` > 1: varios hilos
-// comparten la tabla (Lazy SMP); cada uno con su copia del juego.
+// historia para ordenar las jugadas; con `heuristic` (el nombre de una heurística del juego, F9),
+// sus prioridades y su orden van antes que la historia. `threads` > 1: varios hilos comparten la
+// tabla (Lazy SMP); cada uno con su copia del juego. `moves`: resuelve la posición a la que se
+// llega con esas jugadas (el JSON de cada acción) en vez de la inicial.
 WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int table_bits = 24,
-                    int threads = 1, uint64_t max_nodes = UINT64_MAX, double max_seconds = 0);
+                    int threads = 1, uint64_t max_nodes = UINT64_MAX, double max_seconds = 0,
+                    const std::string& heuristic = "", const std::vector<Json>& moves = {});
 
 // --- MCTS --------------------------------------------------------------------------------------
 
