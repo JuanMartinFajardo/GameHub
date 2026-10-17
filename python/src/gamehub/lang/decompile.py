@@ -214,10 +214,20 @@ class _Decompiler:
                     init=init,
                     visibility=self.visibility(v.get("visibility")),
                     size_visibility=self.visibility(v.get("size_visibility")),
+                    range=self.var_range(v.get("range")),
                     doc=self.text(v.get("doc")),
                 )
             )
         return ast.StateBlock(vars=variables)
+
+    def var_range(self, raw: Any) -> ast.RangeExpr | None:
+        """`@range`: `lo..<hi` si el máximo es `hi - 1` (como lo escribe el compilador)."""
+        if raw is None:
+            return None
+        lo, hi = raw
+        if isinstance(hi, list) and len(hi) == 3 and hi[0] == "sub" and hi[2] == ["const", 1]:
+            return ast.RangeExpr(self.expr(lo), self.expr(hi[1]), inclusive=False)
+        return ast.RangeExpr(self.expr(lo), self.expr(hi))
 
     def zero(self, t: Any) -> Any:
         """El valor por defecto que pone el compilador si se omite la inicialización."""

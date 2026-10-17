@@ -6,9 +6,11 @@
  */
 
 import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { loadEngine } from "@gamehub/engine";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { diffModels, withGhosts } from "../src/diagram/diff";
 import { toSvg } from "../src/diagram/export";
@@ -17,7 +19,7 @@ import { autoLayout, place } from "../src/diagram/layout";
 import { mainSetup } from "../src/editor/setup";
 import type { Studio } from "../src/store";
 import { deckSource, diceSource, gridSource } from "../src/tools/components";
-import type { GameModel, TestReport } from "../src/types";
+import type { GameModel, PlayoutStats, TestReport } from "../src/types";
 import {
   analysisOf,
   connectStudio,
@@ -69,6 +71,11 @@ describe.skipIf(!serverAvailable)("con gamehub studio", () => {
   beforeAll(async () => {
     server = await startStudio();
     studio = await connectStudio(server);
+    // El núcleo WebAssembly, leído del disco (Vite sirve el paquete en /@fs/… en los tests).
+    await loadEngine({
+      loadBytes: (url) =>
+        readFile(url.protocol === "file:" ? url : decodeURIComponent(url.pathname.slice(4))),
+    });
   }, 90_000);
 
   afterAll(async () => {
@@ -225,6 +232,16 @@ describe.skipIf(!serverAvailable)("con gamehub studio", () => {
     await studio.runPlayouts(30, 1);
     const stats = studio.getState().playouts;
     expect(stats?.finished).toBe(30);
+    // En el navegador, con las mismas partidas y cifras que el servidor.
+    expect(stats?.engine).toBe("wasm");
+    const file = studio.getState().file;
+    const server = await studio.connection.request<PlayoutStats>("gamehub/sim.playouts", {
+      uri: file?.uri,
+      games: 30,
+      seed: 1,
+    });
+    const strip = ({ seconds: _s, engine: _e, ...rest }: PlayoutStats) => rest;
+    expect(strip(stats as PlayoutStats)).toEqual(strip(server));
     expect(studio.getState().showCoverage).toBe(true);
     const graph = buildGraph(game, { coverage: stats?.coverage });
     const bid = graph.nodes.find((n) => n.id === "n:Bid");

@@ -5,6 +5,127 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — F8 approved and merged into `main`
+
+**Answer received**: "do it" to question 27: ADR-075 to 080 and 082 accepted (with ADR-076,
+question 13 is answered: exact 64-bit integers and rationals in the C++ core) and
+`f8/nucleo-cpp` merged into `main` with `--no-ff`. Nothing has been pushed.
+
+**Still open**: question 24 (code comments, CLI messages and commit messages stay in Spanish
+until it is answered); F8's optional IR → C++ code generation.
+
+**Next steps**: F9, heuristics and bots for the second-wave games, and Connect Four 7×6 with
+heuristic move ordering (ADR-081).
+
+**Progress**: ≈ 75 % (F0 to F8 in `main`).
+
+---
+
+## 2026-10-17 — Session 11 (continued): F8's WASM build, the core in the browser
+
+**Request**: the rest of phase 8 —"the WASM build (Emscripten) used by `play` and the Studio
+without a server; the same native plugins as in Python"— after you allowed installing the
+Emscripten SDK (`~/emsdk`, 6.0.12).
+
+**Done**
+- **The build** (ADR-082): Emscripten compiles `core/` and `core/wasm/bindings.cpp` (embind, a
+  JSON API that never throws) into `gamehub-core.mjs` + `.wasm` (590 kB, 212 kB gzipped).
+  `gamehub wasm --write` builds and copies them, with the stdlib's plugins, to
+  `web/packages/engine/wasm/`; `BUILD.json` keeps the SHA-256 of the sources and
+  `gamehub wasm --check` (and a test) catches C++ changes without a rebuild.
+- **Native plugins in the core**: a per-function `NativeHost` and the `gamehub-native/1` codec in
+  C++ (mirroring Python's); in the browser JavaScript instantiates `std.poker.wasm` and the core
+  calls it. Hold'em's random matches give the same fingerprint with the plugin, with the
+  reference body and with the native core.
+- **`@gamehub/engine`**: `loadEngine()`, `CoreGame`/`CoreSession` (views, events, legal actions,
+  progressive options, chance, undo, bots at random, first or MCTS with a time cap) and
+  **`LocalTable`**, which hosts matches with the server's semantics and speaks the room protocol
+  to `GameClient`-like clients reduced with the SDK's `reduce`. Sessions draw chance and random
+  bots from the same PCG32 streams as `play_match`, so they replay the golden traces by
+  themselves.
+- **`play`**: "On this device" runs in the browser (random or MCTS bots; MCTS only in games
+  without hidden information; no privacy screen with a single person), with a server room as a
+  fallback. **`gamehub web export DIR`** writes a static site (the app, `api/v1/info` with the
+  new optional `offline` field, every game's IR): checked with `python -m http.server`, a 3-player
+  Hold'em hand against a random bot and an MCTS bot, played to a split pot, no requests but files.
+- **The Studio**: its playouts with coverage run in the browser, in chunks (the C++ core now
+  records the transitions taken; `coverage_playouts`), with exactly the server's numbers; the IR
+  comes from the new `gamehub/ir` request.
+- **The differential sweep, finished**: 10,140,000 matches, 56 million compared steps, 0
+  differences (Hold'em with 6 players, Parchís and Skat with 4, Wizard and Bullshit with 5, and
+  300,000 more tic-tac-toe matches with other seeds included).
+
+**Tests**: the engine package runs the WASM in Node (the 16 traces, the same matches as Python
+from the session's bots, plugin = reference = native, the Studio's statistics equal to Python's
+for four games, `LocalTable`'s turns, rejections, hidden information, progressive actions and
+rematch); the app plays tic-tac-toe on one device and against MCTS with only the IR served; the
+Studio's integration test checks that its playouts ran in WASM and equal the server's.
+
+**Decisions**: ADR-082 (proposed). The desktop core keeps running plugins' reference bodies.
+
+**Next steps**: your approval of ADR-075 to 080 and 082 and the merge of F8 into `main`; then
+F9. The optional IR → C++ code generation stays open.
+
+**Progress**: ≈ 75 % (F8 complete except the optional code generation).
+
+---
+
+## 2026-10-17 — Session 11: Phase 8, the C++ core
+
+**Request**: "go with phase 8 of the roadmap". Worked on `f8/nucleo-cpp`, in a separate worktree
+(`.claude/worktrees/f8`) because another session was still committing F6's acceptance runs to
+`main` from the main checkout; `main` was merged into the branch once.
+
+**Done**
+- **`core/`** (C++20, CMake) and the **`gamehub-core`** package (nanobind, scikit-build-core,
+  editable with rebuild on import; ADR-075). `gamehub.engine.core` (`CoreGame`, `CoreState`)
+  has the reference engine's API, so `play_match`, `fuzz`, `record` and `replay` take either
+  engine.
+- **Values** (ADR-076): 16 bytes, immutable reference-counted containers with copy-on-write, a
+  per-thread arena, two incremental structural hashes (automatic Zobrist, 128-bit keys),
+  persistent states (undo = the previous state) and exact 64-bit integers and rationals (overflow
+  is a `RuleError`; question 13's default changes accordingly).
+- **The VM** (ADR-077): expressions as stack bytecode with lexical slots (the 87 operators,
+  errors included), statements as node trees, the whole flow of `_Tx`, views, events, snapshots,
+  digests and information states.
+- **Conformance** (ADR-078): the 16 golden traces bit for bit with both engines (`gamehub
+  conformance` checks both); `gamehub differential` compares the engines step by step (digest,
+  legal actions, chance; views and events of every seat in the deep matches). The catalog sweep
+  so far: every 2×2 game and Kuhn a million matches each, Nim and tic-tac-toe half a million,
+  Leduc and the iterated dilemma 300,000, Dudo 100,000, Connect Four 50,000, Hold'em 20,000,
+  Parchís 10,000, Skat and Bullshit 5,000, Wizard 2,000: **0 differences**.
+- **Speed**: ×57.7 tic-tac-toe, ×56.8 Connect Four, ×63.2 Kuhn (random matches per second, one
+  thread, the same matches; `gamehub bench`). The path there: an arena (the system `free` was
+  30 % of Kuhn), direct threading, fused comprehension loops and superinstructions, `cells` and
+  `lines` cached by grid size, an adaptive memo.
+- **Global action ids from the IR** (ADR-079, `gamehub.analysis.action_space`, also encoded in
+  C++): chess 20,481, two-player Hold'em 1,205; all 21 catalog games. **`@range(lo..hi)`** on state
+  variables (IR `"range"`): both engines check it on every write, the analysis uses it as a bound;
+  declared in Hold'em, Wizard and Solitaire (their rules hash changes; the custom UIs' types were
+  regenerated). **OpenSpiel without exploring**: `to_openspiel` wraps C++ states with those ids and
+  exact chance (merged, or draw by draw when a deck is shuffled); OpenSpiel's MCTS plays the
+  wrapped chess and its MCCFR runs on Hold'em (acceptance).
+- **Algorithms in C++** (ADR-080, `gamehub.analysis.cpp`): perft (chess *perft(5)* in 18 s on one
+  thread), exact alpha-beta, retrograde analysis (also with cycles), MCTS, the same tree and
+  CFR/CFR+ as Python (Leduc ×8), external- and outcome-sampling MCCFR, and a win/draw/loss
+  solver with Lazy SMP. `gamehub analyze --engine`, `--retrograde`; `gamehub perft --engine cpp`.
+
+**Not done yet**: the WASM build (the Emscripten SDK is being installed, with your permission)
+and the optional IR → C++ code generation. **Connect Four 7×6**: game-independent search solves
+4×4, 4×5 and 5×4 but 5×5 already needs more than 4·10⁷ nodes.
+
+**Answers received**: question 26 → Connect Four 7×6 moves to F9, with heuristic move ordering
+(ADR-081, accepted); install Emscripten in `~/emsdk` → yes.
+
+**Decisions**: ADR-075 to 080 (proposed), ADR-081 (accepted). Question 13's default revised.
+
+**Checks**: ruff, pyright, IR, schemas, `gamehub fmt/check/test` of the games, pytest (1,138
+tests collected, the long ones apart), the differential sweep.
+
+**Progress**: ≈ 73 % (F8 without WASM and the optional code generation).
+
+---
+
 ## 2026-10-17 — F6 acceptance: the last random matches
 
 **Request**: "it is taking a long time (3 h), you could commit as you go": each result is committed

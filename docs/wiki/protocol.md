@@ -43,7 +43,7 @@ stateDiagram-v2
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/v1/info` | Name, version, protocol, whether uploading games is allowed, catalog and number of rooms (`ServerInfo`) |
+| `GET` | `/api/v1/info` | Name, version, protocol, whether uploading games is allowed, catalog and number of rooms (`ServerInfo`); `offline: true` in a static export (no rooms) |
 | `GET` | `/api/v1/rooms` | Open public rooms (`RoomList`) |
 | `POST` | `/api/v1/rooms` | Create a room: `{game}` (from the catalog) or `{ir}` (if the server allows it), `players`, `params`, `settings`, `name` → `{code, token, url, room}` (the token is the host's session) |
 | `GET` | `/api/v1/rooms/{code}` | Public state of the room (`Room`) |
@@ -237,7 +237,7 @@ of legal actions per turn, is the expensive case (a match of 3 bots over the net
 
 | Mode | How |
 |---|---|
-| **Local / hot-seat** | `gamehub play` (terminal) or, in the web app, "On this device": a room on the server that serves the app, with one connection per seat in the same tab, covering the screen between turns when there is hidden information ([ADR-049](decisions.md)). Without a server, once the WASM engine arrives (F8). |
+| **Local / hot-seat** | `gamehub play` (terminal) or, in the web app, "On this device": a room on the server that serves the app, with one connection per seat in the same tab, covering the screen between turns when there is hidden information ([ADR-049](decisions.md)). Since F8 it runs in the browser with the core in WebAssembly, without a room (ADR-082); `gamehub web export` publishes the app and the games as a static site (`"offline": true` in `api/v1/info`). |
 | **LAN** | `gamehub host game.game` opens a server (port 7420) with a room, shows the code, the link (`http://192.168.1.20:7420/r/K7FQ2P`) and its **QR code**, announces it over **mDNS** (`_gamehub._tcp`) and lets you play from the same terminal. On another computer: `gamehub join K7F-Q2P` (it looks for it on this computer and on the LAN) or `gamehub join <link>`. `gamehub rooms` lists the rooms on the LAN. |
 | **Online** | `gamehub serve games/` on a reachable machine (the room is created with `POST /api/v1/rooms`); a *relay* for NAT later on. |
 | **Bots** | `gamehub bot run agent.py --room K7FQ2P`, or a server bot in a seat (`/bot N` in the terminal, `set_seat` in the protocol). |

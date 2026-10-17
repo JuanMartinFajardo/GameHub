@@ -18,6 +18,7 @@ from fractions import Fraction
 from typing import Any
 
 from gamehub.analysis import nash as nash_mod
+from gamehub.analysis.classify import classify
 from gamehub.analysis.feasibility import Feasibility, feasibility, knuth_estimate
 from gamehub.analysis.lp import Backend
 from gamehub.analysis.nash import GameShapeError
@@ -40,6 +41,7 @@ ANALYSES = (
     "feasibility",
     "count",
     "solve",
+    "retrograde",
     "tree",
     "normal_form",
     "nash",
@@ -80,6 +82,8 @@ class Options:
     max_nodes: int = MAX_NODES
     lp: Backend = "auto"
     seed: int = 0
+    #: "auto" (el núcleo C++ si está instalado), "cpp" o "python".
+    engine: str = "auto"
 
 
 class _Context:
@@ -226,10 +230,31 @@ def _count(ctx: _Context) -> dict[str, Any]:
     }
 
 
+def _use_cpp(ctx: _Context) -> bool:
+    from gamehub.engine.core import available
+
+    if ctx.options.engine == "python":
+        return False
+    if ctx.options.engine == "cpp" and not available():
+        raise ValueError("el núcleo C++ no está instalado (pip install 'gamehub[core]')")
+    return available()
+
+
 def _solve(ctx: _Context) -> dict[str, Any]:
     from gamehub.analysis.search import solve
 
-    solution = solve(ctx.state(), max_nodes=ctx.options.max_nodes)
+    state = ctx.state()
+    if _use_cpp(ctx) and state.n == 2 and classify(ctx.game.ir).zero_sum is not False:
+        from gamehub.analysis import cpp
+
+        try:
+            solution = cpp.alphabeta(ctx.game, num_players=ctx.num_players, params=ctx.params)
+        except EngineError as exc:
+            if "no suman siempre lo mismo" not in str(exc):
+                raise
+            solution = solve(state, max_nodes=ctx.options.max_nodes)
+    else:
+        solution = solve(state, max_nodes=ctx.options.max_nodes)
     out = solution.to_json()
     out["value"] = nums(solution.value)
     return out
@@ -354,6 +379,15 @@ def _cfr(ctx: _Context) -> dict[str, Any]:
     }
 
 
+def _retrograde(ctx: _Context) -> dict[str, Any]:
+    """Análisis retrógrado en C++: juegos deterministas de dos jugadores, también con ciclos."""
+    from gamehub.analysis import cpp
+
+    if not _use_cpp(ctx):
+        raise ValueError("el análisis retrógrado necesita el núcleo C++")
+    return cpp.retrograde(ctx.game, num_players=ctx.num_players, params=ctx.params)
+
+
 def _grundy(ctx: _Context) -> dict[str, Any]:
     from gamehub.analysis.cgt import grundy
 
@@ -422,6 +456,7 @@ _RUNNERS: dict[str, Callable[[_Context], Any]] = {
     "feasibility": _feasibility,
     "count": _count,
     "solve": _solve,
+    "retrograde": _retrograde,
     "tree": _tree,
     "normal_form": _normal_form,
     "nash": _nash,

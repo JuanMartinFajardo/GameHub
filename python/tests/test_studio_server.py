@@ -225,6 +225,9 @@ def test_the_simulator(session: Session, workspace: Path) -> None:
     stats = s.request("gamehub/sim.playouts", {"uri": uri, "games": 30, "seed": 1})
     assert stats["finished"] == 30 and stats["coverage"]["nodes"]["Bid"] > 0
     assert any(k.startswith("node/Roll/") for k in stats["coverage"]["transitions"])
+    # La IR compilada, para ejecutarla en el navegador (el núcleo WebAssembly).
+    ir = s.request("gamehub/ir", {"uri": uri})["ir"]
+    assert ir["game"]["id"] and ir["flow"]["nodes"]
     size = s.request("gamehub/sim.estimate", {"uri": uri, "samples": 20})
     assert size["log10States"] > 10
     report = s.request("gamehub/analyze", {"uri": uri, "analyses": ["feasibility", "solve"]})

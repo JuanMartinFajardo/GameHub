@@ -187,7 +187,7 @@ game that compiles and passes its tests, from a template (`--template`: `vacio` 
 | `params` | `params { name: Type = value … assert cond, "message" }` | Match options. A default value may only use earlier options. The `assert`s are checked when the match is created. |
 | `enum` | `enum Suit { Coins, Cups, Swords, Clubs }` | Ordered by declaration (`ord`, comparisons). |
 | `struct` | `struct Card { suit: Suit, rank: Rank }` | Immutable; literal `Card { suit: s, rank: r }`. |
-| `state` | `state { [@visible(…)] [@size_visible(…)] name: Type [= value] … }` | Without a value: the type's zero (`false`, `0`, `""`, `none`, an empty collection, the enum's first value…). In `per_player`, the value may use `owner`. |
+| `state` | `state { [@visible(…)] [@size_visible(…)] [@range(lo..hi)] name: Type [= value] … }` | Without a value: the type's zero (`false`, `0`, `""`, `none`, an empty collection, the enum's first value…). In `per_player`, the value may use `owner`. `@range` (below) declares the range of its numbers. |
 | `fn` | `fn name(p: T, …) -> R = expr` · `fn name(…) -> R { let … ; result }` | Pure; they may read state and options; no recursion (E208). Top-level ones may be `@native` (§4). |
 | `flow` | `flow { start … nodes … }` | See §9. |
 | `test` | `test "name" { steps }` | See §10. They are not part of the IR. |
@@ -227,6 +227,14 @@ Annotations on state variables, action parameters and events:
 | `@visible(face_up)` | in a zone, whatever is face up (also in a list of zones: zone by zone) |
 | `@visible(expr)` | whoever satisfies `expr`, with `viewer`, `owner`, `face_up` and `at(Node)`: `@visible(viewer == owner or at(Showdown))` |
 | `@size_visible(…)` | in zones and bags, who sees the size (everyone by default) |
+
+**Declared ranges** (F8, ADR-079): `@range(lo..hi)` (or `lo..<hi`) on a state variable whose
+numbers are `Int`, `Seat` or `Real` —also inside `per_player`, lists, sets, grids and options—
+declares that every one of them stays in that range, with bounds made of parameters and
+constants: `@range(0..stack * num_players) chips: per_player Int = stack`. The engines check it
+on every write (`chips: 9 fuera de su rango 0..8` is a rule error) and the analyses use it as a
+bound: the global action ids of a bet `amount in 1..chips[actor]` need to know how high `chips`
+can go. It is part of the rules (it changes the rules hash).
 
 In actions: `action play(@visible(none) @size_visible(all) cards in …)` hides which cards were
 played but not how many. In events: `@visible(owner) emit …`. `reveal x to all` /
@@ -436,6 +444,8 @@ hint replaces the one in the same slot of the base.
 | `gamehub play` · `fuzz` · `replay` | Play in the terminal, random matches (`fuzz --jobs N` across several processes), replays (they accept `.game`) |
 | `gamehub perft GAME --depth N` | Counts the sequences of legal moves (`--divide`, `--skip`, `--jobs`, `--param`); chance points add up all their outcomes |
 | `gamehub natives list\|check\|build` | Native plugins: which ones exist, whether they match the reference (`--trials`), compile WAT to WASM (`--check`, `--write`) |
+| `gamehub wasm --check\|--write` | The C++ core compiled to WebAssembly for the browser (`web/packages/engine/wasm`; `--write` needs Emscripten) |
+| `gamehub web export DIR [GAMES…]` | A static site with the play app and the games, without a match server: matches on one device with the engine in the browser |
 | `gamehub studio [PATH]` | The [Studio](studio.md): design with the diagram and the text at once, and simulate (`--open`, `--port`) |
 | `gamehub lsp` | Language server over standard input, for any editor with LSP |
 

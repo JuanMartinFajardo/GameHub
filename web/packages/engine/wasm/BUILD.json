@@ -1,0 +1,7 @@
+{
+  "sources": "b9452397493d99c97df5ce6734d0b6bcde5afc5d7e71f47ee5e43c3eec81cfba",
+  "emscripten": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.12 (5488e0871d46d19a3209988190fa6a653126256f)",
+  "natives": [
+    "std.poker"
+  ]
+}

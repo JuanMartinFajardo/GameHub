@@ -320,6 +320,13 @@ def _exact_counts(root: State, c: Classification, limit: int) -> dict[str, int]:
         return {}
 
 
+def _core_phase() -> str | None:
+    """Lo que hace falta para lo que corre en el núcleo C++: nada si está instalado."""
+    from gamehub.engine.core import available
+
+    return None if available() else "gamehub[core]"
+
+
 def recommend(f: Feasibility) -> list[Recommendation]:
     c = f.classification
     size = f.size_log10
@@ -344,7 +351,7 @@ def recommend(f: Feasibility) -> list[Recommendation]:
                     "cpp_exact",
                     "solución exacta en C++ (alfa-beta con tablas de transposición, "
                     "análisis retrógrado)",
-                    "F8",
+                    _core_phase(),
                 )
             )
         else:
@@ -385,7 +392,7 @@ def recommend(f: Feasibility) -> list[Recommendation]:
         return out
     infosets = f.exact.get("infosets")
     if (infosets is not None and infosets <= CPP_CFR_INFOSETS) or size <= CPP_EXACT:
-        out.append(Recommendation("cpp_cfr", "CFR tabular en C++", "F8"))
+        out.append(Recommendation("cpp_cfr", "CFR tabular en C++", _core_phase()))
     else:
         out.append(
             Recommendation(

@@ -69,8 +69,48 @@ def _parser() -> argparse.ArgumentParser:
     fuzz.add_argument(
         "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
     )
+    fuzz.add_argument(
+        "--engine",
+        choices=("python", "cpp"),
+        default="python",
+        help="motor: el de referencia o el núcleo C++ (las mismas partidas)",
+    )
     _match_options(fuzz)
     fuzz.set_defaults(handler=_fuzz)
+
+    differential = commands.add_parser(
+        "differential",
+        help="conformidad diferencial: el motor C++ contra el de referencia, paso a paso",
+    )
+    differential.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    differential.add_argument("--games", type=int, default=1000)
+    differential.add_argument("--players", type=int)
+    differential.add_argument("--max-steps", type=int, default=10_000)
+    differential.add_argument(
+        "--deep-every",
+        type=int,
+        default=10,
+        metavar="K",
+        help="una partida de cada K compara también vistas, eventos y acciones (0 = ninguna)",
+    )
+    differential.add_argument(
+        "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
+    )
+    _match_options(differential)
+    differential.set_defaults(handler=_differential)
+
+    bench = commands.add_parser(
+        "bench", help="partidas aleatorias por segundo: motor de referencia contra núcleo C++"
+    )
+    bench.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    bench.add_argument("--games", type=int, default=200, help="partidas con el motor de Python")
+    bench.add_argument(
+        "--cpp-games", type=int, default=0, help="partidas con el C++ (0 = 100 veces más)"
+    )
+    bench.add_argument("--players", type=int)
+    bench.add_argument("--max-steps", type=int, default=10_000)
+    _match_options(bench)
+    bench.set_defaults(handler=_bench)
 
     natives = commands.add_parser("natives", help="plugins nativos (WebAssembly) de la stdlib")
     natives_commands = natives.add_subparsers(dest="natives_command", required=True)
@@ -89,6 +129,13 @@ def _parser() -> argparse.ArgumentParser:
     natives_check.add_argument("--seed", type=int, default=0)
     natives_check.set_defaults(handler=_natives_check)
 
+    wasm = commands.add_parser(
+        "wasm", help="el núcleo C++ en WebAssembly para el navegador (web/packages/engine)"
+    )
+    _check_or_write(wasm)
+    wasm.add_argument("-v", "--verbose", action="store_true", help="enseña la compilación")
+    wasm.set_defaults(handler=_wasm)
+
     perft = commands.add_parser(
         "perft", help="cuenta las secuencias de jugadas legales hasta una profundidad"
     )
@@ -103,6 +150,9 @@ def _parser() -> argparse.ArgumentParser:
         help="acción que no cuenta como jugada (p. ej. claim_draw); se puede repetir",
     )
     perft.add_argument("--divide", action="store_true", help="el recuento por primera jugada")
+    perft.add_argument(
+        "--engine", choices=("python", "cpp"), default="python", help="motor (cpp = el núcleo C++)"
+    )
     perft.add_argument(
         "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
     )
@@ -120,6 +170,7 @@ def _parser() -> argparse.ArgumentParser:
         ("feasibility", "clasificación, tamaño (Knuth) y métodos recomendados"),
         ("count", "posiciones y partidas distintas (grafo de estados)"),
         ("solve", "solución exacta con información perfecta (alfa-beta / inducción hacia atrás)"),
+        ("retrograde", "análisis retrógrado en C++ (deterministas de dos jugadores, con ciclos)"),
         ("tree", "forma extensiva: nodos y conjuntos de información"),
         ("normal-form", "forma normal con estrategias puras reducidas"),
         ("nash", "equilibrios de Nash (puros; mixtos y suma cero con dos jugadores)"),
@@ -146,6 +197,12 @@ def _parser() -> argparse.ArgumentParser:
         "--lp", choices=["auto", "exact", "highs"], default="auto", help="programación lineal"
     )
     analyze.add_argument("--max-nodes", type=int, default=1_000_000)
+    analyze.add_argument(
+        "--engine",
+        choices=("auto", "cpp", "python"),
+        default="auto",
+        help="motor de la búsqueda exacta (auto = el núcleo C++ si está instalado)",
+    )
     analyze.add_argument("--json", action="store_true", help="el informe en JSON")
     _match_options(analyze)
     analyze.set_defaults(handler=_analyze)
@@ -348,6 +405,23 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--allow-upload", action="store_true", help="admitir salas con IR subida")
     serve.set_defaults(handler=_serve)
 
+    web = commands.add_parser("web", help="la app web para jugar")
+    web_commands = web.add_subparsers(dest="web_command", required=True)
+    web_export = web_commands.add_parser(
+        "export",
+        help="sitio estático sin servidor de partidas: se juega en el navegador (WebAssembly)",
+    )
+    web_export.add_argument("output", type=Path, metavar="DIR", help="directorio de salida")
+    web_export.add_argument(
+        "games",
+        nargs="*",
+        type=Path,
+        metavar="JUEGO",
+        help="juegos: .game, .ir.json o directorios (por defecto, el catálogo games/)",
+    )
+    web_export.add_argument("--server-name", default="GameHub", help="nombre visible")
+    web_export.set_defaults(handler=_web_export)
+
     host = commands.add_parser(
         "host", help="abre una sala de un juego en la LAN y juega en ella desde la terminal"
     )
@@ -442,6 +516,27 @@ def _server_options(parser: argparse.ArgumentParser) -> None:
         "--no-web", action="store_true", help="no servir la app web (jugar en el navegador)"
     )
     parser.add_argument("--open", action="store_true", help="abrir el navegador al arrancar")
+
+
+def _web_export(args: argparse.Namespace) -> int:
+    from gamehub.engine.core_wasm import repo_root
+    from gamehub.server.catalog import Catalog, CatalogError
+    from gamehub.server.export import ExportError, export_site
+    from gamehub.server.webapp import web_dir
+
+    web = web_dir()
+    if web is None:
+        print("error: no está la app compilada (pnpm build en la raíz)", file=sys.stderr)
+        return 1
+    paths = args.games or [repo_root() / "games"]
+    try:
+        catalog = Catalog.load(paths)
+        count = export_site(args.output, catalog, web=web, name=args.server_name)
+    except (CatalogError, ExportError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"✓ {args.output}: la app y {count} juegos, para servir como archivos estáticos")
+    return 0
 
 
 def _store(db: str | None) -> Any:
@@ -769,7 +864,31 @@ def _fuzz(args: argparse.Namespace) -> int:
     if args.failures:
         args.failures.mkdir(parents=True, exist_ok=True)
     jobs = _jobs(args.jobs)
-    if jobs > 1:
+    if args.engine == "cpp":
+        from gamehub.engine.core import core_fuzz
+
+        report = core_fuzz(
+            game,
+            args.games,
+            seed=args.seed,
+            num_players=args.players,
+            params=_params(args.param),
+            max_steps=args.max_steps,
+            jobs=jobs,
+        )
+        if args.failures:
+            # El replay de cada fallo, con el motor de referencia (falla en el mismo paso).
+            for seed, _ in report.errors:
+                fuzz(
+                    game,
+                    1,
+                    seed=seed,
+                    num_players=args.players,
+                    params=_params(args.param),
+                    max_steps=args.max_steps,
+                    on_error=_save_failure(game, args.failures),
+                )
+    elif jobs > 1:
         report = fuzz_parallel(
             functools.partial(_load_game, args.game.resolve(), args.name),
             args.games,
@@ -800,6 +919,71 @@ def _fuzz(args: argparse.Namespace) -> int:
     for seed, message in report.errors[:10]:
         print(f"  ✗ semilla {seed}: {message}")
     return 1 if report.errors else 0
+
+
+def _differential(args: argparse.Namespace) -> int:
+    from gamehub.engine.differential import diff, diff_parallel
+
+    game = _load_game(args.game, args.name)
+    jobs = _jobs(args.jobs)
+    options: dict[str, Any] = {
+        "num_players": args.players,
+        "params": _params(args.param),
+        "max_steps": args.max_steps,
+        "deep_every": args.deep_every,
+    }
+    if jobs > 1:
+        loader = functools.partial(_load_game, args.game.resolve(), args.name)
+        report = diff_parallel(loader, args.games, jobs=jobs, seed=args.seed, **options)
+    else:
+        report = diff(game, args.games, seed=args.seed, **options)
+    rate = report.games / report.seconds if report.seconds else 0.0
+    print(
+        f"{game.title}: {report.games} partidas ({report.deep_games} a fondo), "
+        f"{report.steps} pasos comparados en {report.seconds:.1f} s ({rate:.0f}/s)"
+    )
+    print(
+        f"  errores de reglas en los dos motores: {report.rule_errors} · "
+        f"truncadas: {report.truncated} · diferencias: {len(report.differences)}"
+    )
+    for seed, step, what in report.differences[:10]:
+        print(f"  ✗ semilla {seed}, paso {step}: {what}")
+    if not report.differences:
+        print("  ✓ los dos motores coinciden en todos los pasos")
+    return 1 if report.differences else 0
+
+
+def _bench(args: argparse.Namespace) -> int:
+    from gamehub.engine.core import core_fuzz
+    from gamehub.engine.match import fuzz
+
+    game = _load_game(args.game, args.name)
+    options: dict[str, Any] = {
+        "seed": args.seed,
+        "num_players": args.players,
+        "params": _params(args.param),
+        "max_steps": args.max_steps,
+    }
+    py = fuzz(game, args.games, **options)
+    same = core_fuzz(game, args.games, **options)
+    identical = (
+        same.payoff_sums == py.payoff_sums
+        and same.total_steps == py.total_steps
+        and len(same.errors) == len(py.errors)
+    )
+    cpp_games = args.cpp_games or args.games * 100
+    cpp = core_fuzz(game, cpp_games, **options)
+    py_rate = py.games / py.seconds if py.seconds else 0.0
+    cpp_rate = cpp.games / cpp.seconds if cpp.seconds else 0.0
+    print(f"{game.title} (partidas aleatorias por segundo, un hilo)")
+    steps = f"{py.mean_steps:.1f} pasos"
+    print(f"  motor de referencia: {py_rate:12.1f} /s  ({py.games} partidas, {steps})")
+    print(f"  núcleo C++:          {cpp_rate:12.1f} /s  ({cpp.games} partidas)")
+    if py_rate:
+        print(f"  aceleración: ×{cpp_rate / py_rate:.1f}")
+    mark = "✓" if identical else "✗"
+    print(f"  {mark} las {args.games} primeras partidas dan los mismos pasos y pagos en los dos")
+    return 0 if identical else 1
 
 
 def _save_failure(game: Any, failures: Path | None) -> Any:
@@ -855,6 +1039,21 @@ def _natives_check(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def _wasm(args: argparse.Namespace) -> int:
+    from gamehub.engine import core_wasm
+
+    if args.write:
+        out = core_wasm.build(verbose=args.verbose)
+        print(f"✓ núcleo compilado en {out}")
+        return 0
+    problems = core_wasm.check()
+    for problem in problems:
+        print(f"✗ {problem} (gamehub wasm --write)")
+    if not problems:
+        print("✓ el núcleo WebAssembly está al día")
+    return 1 if problems else 0
+
+
 def _perft(args: argparse.Namespace) -> int:
     import time
 
@@ -863,6 +1062,13 @@ def _perft(args: argparse.Namespace) -> int:
     game = _load_game(args.game, args.name)
     params = _params(args.param)
     started = time.perf_counter()
+    if args.engine == "cpp":
+        from gamehub.analysis import cpp
+
+        total = cpp.perft(game, args.depth, args.skip, num_players=args.players, params=params)
+        seconds = time.perf_counter() - started
+        print(f"perft({args.depth}) = {total}  ({seconds:.1f} s, núcleo C++)")
+        return 0
     if args.divide:
         state = game.new_state(args.players, params)
         total = 0
@@ -902,6 +1108,7 @@ def _analyze(args: argparse.Namespace) -> int:
         max_nodes=args.max_nodes,
         lp=args.lp,
         seed=args.seed,
+        engine=args.engine,
     )
     report = analyze(
         game,

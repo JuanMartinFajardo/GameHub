@@ -2,7 +2,8 @@
 
 > Status: **implemented** (Phase 1, 2026-10-09) in [`python/src/gamehub/engine`](../../python/src/gamehub/engine).
 > This document fixes the **exact operational semantics**: any other engine (C++, WASM) must
-> reproduce the [conformance traces](../../spec/conformance) bit for bit.
+> reproduce the [conformance traces](../../spec/conformance) bit for bit. Since Phase 8 the
+> [C++ core](core.md) does, 50–60 times faster, with the same API (`gamehub.engine.core`).
 
 ## 1. Usage
 
@@ -88,6 +89,10 @@ From Python too: `gamehub.engine.match` (`play_match`, `RandomAgent`, `fuzz`, `f
 **Canonical order** (`sort_key`): `null` < booleans < numbers < texts < enums (by type and
 declaration order) < tuples (lexicographic) < structs < sets < maps < zones < grids. Sets, bags and
 map keys are **always** traversed in this order, so execution does not depend on Python's hashing.
+
+**Declared ranges** (`"range"` of a state variable, `@range` in Nomos, F8): every write to the
+variable —and its initial value— checks that its numbers lie in the range, evaluated with the
+match's parameters; otherwise a `RuleError` such as `chips: 9 fuera de su rango 0..8`.
 
 ## 4. Chance
 
@@ -285,8 +290,9 @@ The Phase 6 games, in the acceptance run of 10⁵ matches (`fuzz --jobs 6`, 8 co
 
 Chess *perft*: memoization and the rewrite of the rules (check and pin lines, the king in the
 state, `std.boards`'s tables) brought *perft(3)* down from 52 s to 1.2 s, and *perft(5)*
-(4,865,609 positions) took 131 s with 6 processes; generated code came afterwards (×2). The C++
-engine (Phase 8) is meant to multiply these figures.
+(4,865,609 positions) took 131 s with 6 processes; generated code came afterwards (×2). The
+[C++ core](core.md#5-performance) (Phase 8) does it in 18 s on one thread and plays random
+matches 57–63 times faster (tic-tac-toe, Connect Four, Kuhn).
 
 ## 11. Known limitations
 

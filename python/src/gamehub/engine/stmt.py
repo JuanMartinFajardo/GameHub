@@ -180,12 +180,16 @@ class StmtCompiler:
             name = e[1]
             i = self.exprs.var_index[name]
 
+            ranged = self.variables[name].range is not None
+
             def set_var(env: Env, v: Any) -> None:
                 ctx = env.ctx
                 store = ctx.store
                 # Solo las transacciones escriben, y su almacén es una lista; los estados
                 # consultan una tupla (escribir en ella sería un fallo del motor).
                 assert isinstance(store, list)
+                if ranged:
+                    ctx.game.check_range(i, v, ctx.params, ctx.n)
                 store[i] = v
                 if ctx.memo:
                     ctx.memo.clear()

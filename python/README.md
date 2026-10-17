@@ -17,6 +17,15 @@ uv run gamehub new my-game --template tablero    # a new game from a template (b
 uv run gamehub perft ../games/chess --depth 4    # count legal move sequences
 uv run gamehub fuzz ../games/chess --games 1000 --jobs 6   # random matches in parallel
 uv run gamehub analyze ../games/kuhn-poker        # game theory: feasibility, equilibria, CFR…
+
+# The C++ core (gamehub-core, built by `uv sync`; pip install 'gamehub[core]')
+uv run gamehub bench ../games/tictactoe           # matches/s: reference engine vs C++ (×57)
+uv run gamehub fuzz ../games/chess --games 100000 --engine cpp --jobs 8
+uv run gamehub differential ../games/dudo --games 100000 --jobs 6   # C++ vs reference, step by step
+uv run gamehub perft ../games/chess --depth 5 --engine cpp          # 4,865,609 in 18 s
+uv run gamehub analyze ../games/nim --retrograde  # exact analyses in C++ (--engine auto|cpp|python)
+uv run gamehub wasm --check                       # the core for the browser is up to date (--write: Emscripten)
+uv run gamehub web export ../site                 # static site: the play app + the games, no server
 uv run gamehub export ../games/kuhn-poker --to gambit-efg   # to Gambit (.efg / .nfg)
 
 uv run gamehub studio ../games --open            # the Studio: diagram + text + simulator

@@ -140,6 +140,7 @@ export function PlayoutsPanel(props: { game: GameModel }) {
             <span className="gh-sd-muted">
               {t("length")}: {stats.length.min ?? "—"} / {stats.length.mean?.toFixed(1) ?? "—"} /{" "}
               {stats.length.max ?? "—"} · {stats.seconds}s
+              {stats.engine === "wasm" ? ` · ${t("inBrowser")}` : null}
             </span>{" "}
             {stats.drawRate ? (
               <span className="gh-sd-muted">

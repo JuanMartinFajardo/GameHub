@@ -18,14 +18,16 @@ export function Home(props: { server: string; only?: string }) {
   const games = (info.data?.games ?? []).filter(
     (g) => props.only === undefined || g.id === props.only,
   );
+  // Sin servidor de partidas (una exportación estática): solo se juega en este dispositivo.
+  const offline = info.data?.offline === true;
   return (
     <div className="gh-shell-home">
       <section className="gh-shell-hero">
         <div>
           <h1>{t("heroTitle")}</h1>
-          <p className="gh-muted">{t("heroText")}</p>
+          <p className="gh-muted">{offline ? t("heroOffline") : t("heroText")}</p>
         </div>
-        <JoinBox />
+        {!offline && <JoinBox />}
       </section>
       {info.error && <p className="gh-shell-error">{t("serverUnreachable")}</p>}
       <section>
@@ -33,14 +35,16 @@ export function Home(props: { server: string; only?: string }) {
         {info.data === null && info.error === null && <Spinner label={t("loading")} />}
         <div className="gh-shell-games">
           {games.map((g) => (
-            <GameCard key={g.id} server={props.server} game={g} />
+            <GameCard key={g.id} server={props.server} game={g} offline={offline} />
           ))}
         </div>
       </section>
-      <div className="gh-shell-columns">
-        <OpenRooms server={props.server} />
-        <RecentMatches server={props.server} games={info.data?.games ?? []} />
-      </div>
+      {!offline && (
+        <div className="gh-shell-columns">
+          <OpenRooms server={props.server} />
+          <RecentMatches server={props.server} games={info.data?.games ?? []} />
+        </div>
+      )}
     </div>
   );
 }
@@ -84,7 +88,7 @@ function JoinBox() {
   );
 }
 
-function GameCard(props: { server: string; game: GameInfo }) {
+function GameCard(props: { server: string; game: GameInfo; offline: boolean }) {
   const t = useMessages(messages);
   const { locale } = useLocale();
   const [model, setModel] = useState<GameModel | null>(null);
@@ -120,10 +124,15 @@ function GameCard(props: { server: string; game: GameInfo }) {
         </p>
       )}
       <footer>
-        <Button variant="primary" onClick={() => navigate(`/new/${props.game.id}`)}>
-          {t("createRoom")}
-        </Button>
-        <Button variant="ghost" onClick={() => navigate(`/local/${props.game.id}`)}>
+        {!props.offline && (
+          <Button variant="primary" onClick={() => navigate(`/new/${props.game.id}`)}>
+            {t("createRoom")}
+          </Button>
+        )}
+        <Button
+          variant={props.offline ? "primary" : "ghost"}
+          onClick={() => navigate(`/local/${props.game.id}`)}
+        >
           {t("playHere")}
         </Button>
       </footer>

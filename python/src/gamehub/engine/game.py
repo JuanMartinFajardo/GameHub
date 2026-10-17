@@ -41,6 +41,8 @@ class VarDef:
     init: Compiled
     policy: Policy
     size_policy: Policy
+    #: Rango declarado de sus enteros (`@range`): expresiones de parámetros, o None.
+    range: tuple[Compiled, Compiled] | None = None
 
 
 @dataclass(frozen=True)
@@ -158,9 +160,16 @@ class GameDef:
                 init=self.exprs.compile(v["init"]),
                 policy=compile_policy(v.get("visibility"), self.exprs),
                 size_policy=compile_policy(v.get("size_visibility"), self.exprs),
+                range=(
+                    (self.exprs.compile(v["range"][0]), self.exprs.compile(v["range"][1]))
+                    if "range" in v
+                    else None
+                ),
             )
             for i, v in enumerate(state)
         ]
+        #: Índices de las variables con rango declarado (las escrituras las comprueban).
+        self.ranged = frozenset(v.index for v in self.vars if v.range is not None)
         self.vars_by_name = {v.name: v for v in self.vars}
         self.params = [
             ParamDef(p["name"], self.types.parse(p["type"]), self.exprs.compile(p["default"]))
@@ -335,6 +344,16 @@ class GameDef:
                 raise InvalidParams(message)
         return values
 
+    def check_range(self, index: int, value: Any, params: dict[str, Any], n: int) -> None:
+        """Comprueba que los enteros de `value` están en el rango declarado de la variable."""
+        var = self.vars[index]
+        assert var.range is not None
+        env = Env(Ctx(self, [], params, n))
+        lo, hi = (num(f(env), "range") for f in var.range)
+        for leaf in _number_leaves(value, var.type):
+            if not lo <= leaf <= hi:
+                raise RuleError(f"{var.name}: {leaf} fuera de su rango {lo}..{hi}")
+
     def initial_store(self, n: int, params: dict[str, Any]) -> list[Any]:
         ctx = Ctx(self, [], params, n)
         store: list[Any] = []
@@ -348,6 +367,8 @@ class GameDef:
                 )
             else:
                 store.append(self._initial(var.init(Env(ctx)), var.type, params))
+            if var.range is not None:
+                self.check_range(var.index, store[-1], params, n)
         return store
 
     def _initial(self, value: Any, t: Type, params: dict[str, Any]) -> Any:
@@ -532,6 +553,27 @@ def _memo_kinds(functions: list[dict[str, Any]]) -> dict[str, str | None]:
         else:
             kinds[name] = "state" if name in stateful else "static"
     return kinds
+
+
+def _number_leaves(value: Any, t: Type) -> Any:
+    """Los números de un valor según su tipo (hojas Int, Seat o Real de per_player, listas,
+    conjuntos, rejillas y opcionales)."""
+    match t.kind:
+        case "prim":
+            if t.name in ("Int", "Seat", "Real"):
+                yield value
+        case "per_player" | "list":
+            for x in value:
+                yield from _number_leaves(x, t.inner)
+        case "set":
+            for x in value.items:
+                yield from _number_leaves(x, t.inner)
+        case "grid":
+            for x in value.cells:
+                yield from _number_leaves(x, t.inner)
+        case "option":
+            if value is not None:
+                yield from _number_leaves(value, t.inner)
 
 
 def _has_chance(block: list[Any]) -> bool:

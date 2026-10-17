@@ -79,8 +79,8 @@ def test_connect_four_four_by_four_is_a_draw() -> None:
 
 
 @pytest.mark.skip(
-    reason="Conecta 4 en 7×6 (gana el primero: Allis y Allen, 1988) necesita el núcleo en C++ "
-    "(fase 8): el motor de Python resuelve ~1.600 estados/s"
+    reason="Conecta 4 en 7×6 (gana el primero: Allis y Allen, 1988) necesita ordenar las jugadas "
+    "con heurísticas del juego (fase 9, ADR-081): la búsqueda genérica en C++ no llega"
 )
 def test_connect_four_first_player_wins() -> None:  # pragma: no cover
     assert search.alphabeta(game("connect-four")).value == (1, -1)

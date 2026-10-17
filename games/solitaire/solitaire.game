@@ -47,6 +47,7 @@ game Solitaire {
     @visible(face_up)
     tableau: List<Zone<Card>> = [[] for i in 0..6]
     /// Cuántas cartas boca abajo quedan debajo de cada columna
+    @range(0..6)
     hidden: List<Int> = [0 for i in 0..6]
     /// Un montón por palo, en el orden de `Suit`
     foundation: List<Zone<Card>> = [[] for i in 0..3]

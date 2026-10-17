@@ -84,6 +84,12 @@ Excerpt from [`tictactoe.ir.json`](../../spec/ir/examples/tictactoe.ir.json):
 `["set", T]`, `["map", K, V]`, `["tuple", …]`, `["per_player", T]`, `["zone", T]` (ordered),
 `["bag", T]` (unordered) and `["grid", width, height, T]`.
 
+**Declared ranges** (F8): a state variable may carry `"range": [lo, hi]`, two expressions of
+parameters and constants: the inclusive range of its numbers (its `Int`, `Seat` or `Real` leaves).
+Engines check it on every write (`RuleError` outside) and analyses use it as a bound (global
+action ids, ADR-079). Added without changing `ir_version`: it is optional, and an IR without it
+means exactly what it meant before.
+
 **Visibility**: `"all"`, `"none"`, `"owner"` or `{"when": predicate}` with `viewer`, `owner` and
 `item_face_up` bound ([ADR-019](decisions.md)). In zones, `size_visibility` controls the size.
 

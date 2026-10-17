@@ -690,6 +690,11 @@ export interface ServerInfo {
   upload: boolean;
   games: GameInfo[];
   rooms: number;
+  /**
+   * Sin servidor de partidas (una exportación estática, `gamehub web export`): no hay salas; se
+   * juega en el dispositivo con el motor en el navegador.
+   */
+  offline?: boolean;
 }
 
 /** GET /api/v1/rooms: salas públicas (no privadas) y abiertas. */

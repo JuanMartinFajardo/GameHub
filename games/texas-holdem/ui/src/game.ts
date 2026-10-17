@@ -7,7 +7,7 @@ import type { View } from "@gamehub/protocol";
 /** Texas Hold'em */
 export const GAME_ID = "texas-holdem";
 export const GAME_VERSION = "1.0.0";
-export const RULES_HASH = "sha256:a8d7f777a10ffd99b79507d244c5179b798f9637b6fb4c1550d7a6780a5632b2";
+export const RULES_HASH = "sha256:8232465cb2ef85ede1c9ca81800441085d96ff8b5c91ff201966b6c271c87ade";
 
 /** Un valor que quien mira no puede ver. */
 export interface Hidden {
@@ -86,6 +86,7 @@ export interface State {
   /** Las dos cartas de cada uno; en el enfrentamiento se enseñan las de quien sigue en la mano */
   hole: Zone<Card>[];
   board: Zone<Card>;
+  /** Nadie puede tener, apostar ni poner más fichas que las que hay en la mesa */
   chips: number[];
   /** Lo apostado en la ronda en curso y en toda la mano */
   bet: number[];

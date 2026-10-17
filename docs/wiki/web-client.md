@@ -31,9 +31,11 @@ cd python && uv run gamehub serve ../games --open    # the match server serves t
 - **Replays** (`/replay/ID`): the match state by state, from the perspective of any seat, a
   spectator or with everything visible; play, step by step or with the keyboard.
 - **On this device** (`/local/GAME`): several people taking turns on the same screen (with bots
-  if desired). If the game has hidden information, the screen is covered between turns ("Ana's
-  turn: pass her the device"). It uses the server that serves the app, with one connection per
-  seat; the in-browser engine will come with WASM (F8).
+  at random or, in games without hidden information, MCTS). If several people share a game with
+  hidden information, the screen is covered between turns ("Ana's turn: pass her the device").
+  It runs **in the browser** with the C++ core in WebAssembly (`@gamehub/engine`, ADR-082): a
+  `LocalTable` produces the room protocol's messages, so the UIs are the same; if the engine
+  cannot load, it falls back to a room on the server with one connection per seat.
 - **Kit gallery** (`/kit`): every component, to see them at a glance.
 - Spanish and English (the choice is remembered), light or dark theme, and a layout that adapts
   to phones.
@@ -48,6 +50,8 @@ flowchart LR
   kit --> auto["@gamehub/auto-ui<br/>generic UI"]
   client --> auto
   auto --> shell["@gamehub/shell<br/>the play experience"]
+  client --> engine["@gamehub/engine<br/>the C++ core in WASM"]
+  engine --> shell
   shell --> play["apps/play<br/>the web app"]
   shell --> uis["games/*/ui<br/>custom UIs"]
   uis --> play
@@ -61,6 +65,7 @@ flowchart LR
 | `@gamehub/i18n` | Translatable texts from the IR, es/en catalogs checked by TypeScript, remembered language |
 | `@gamehub/ui-kit` | Grid, card, fanned hand, pile, deck, die, token, track, graph, player badge, scoreboard, counter, betting chips, clock, action bar; all with `--gh-…` CSS variables (light and dark themes) |
 | `@gamehub/auto-ui` | The generic UI (§3) |
+| `@gamehub/engine` | The [C++ core](core.md) compiled to WebAssembly (`gamehub wasm`): games and sessions from the IR, the stdlib's native plugins, the Studio's playouts and `LocalTable`, which hosts matches in the page speaking the room protocol (ADR-082) |
 | `@gamehub/shell` | Home, create room, room, match, replays and local matches, as a library: used by the app and by each custom UI's development server |
 | `apps/play` | The app (Vite) served by the server; it registers the UIs in `games/*/ui` by itself |
 
@@ -155,8 +160,7 @@ clashes with jsdom's `Event` class.
 ## 6. Pending
 
 - Animating changes from events (cards flying from one zone to another).
-- An in-browser engine (WASM, F8): local matches and replays without a server, and an installable
-  app.
+- Replays without a server and an installable app (PWA) on top of the in-browser engine.
 - More ways of drawing in the hints (tracks, graphs, dice as an argument).
 - An accessibility review with a screen reader and keyboard of the seven custom UIs.
 - Custom UIs for Skat and Solitaire (today, the generic one).
