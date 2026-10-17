@@ -1,0 +1,27 @@
+[project]
+name = "gamehub-core"
+version = "0.0.1"
+description = "GameHub: el núcleo C++ (VM de la GameIR, algoritmos) con bindings de Python."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [{ name = "Juan Martin Fajardo" }]
+
+[build-system]
+requires = ["scikit-build-core>=0.11", "nanobind>=2.4"]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+# Un directorio de compilación estable: las recompilaciones son incrementales.
+build-dir = "build/{wheel_tag}"
+cmake.build-type = "Release"
+wheel.packages = []
+wheel.install-dir = "."
+# En modo editable, importar el módulo lo recompila si cambió el C++ (build-dir estable).
+editable.rebuild = true
+editable.verbose = false
+
+[tool.scikit-build.cmake.define]
+GAMEHUB_CORE_PYTHON = "ON"
+GAMEHUB_CORE_TESTS = "OFF"

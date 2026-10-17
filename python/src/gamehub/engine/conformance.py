@@ -67,13 +67,20 @@ def sync(*, write: bool) -> list[str]:
 
 
 def verify_all() -> list[str]:
-    """Re-simula todas las trazas guardadas con el motor de referencia."""
+    """Re-simula todas las trazas guardadas con el motor de referencia y, si está instalado, con
+    el núcleo C++ (F8): las trazas son el contrato entre los motores."""
+    from gamehub.engine.core import available, core_game
+
     problems: list[str] = []
     for path in sorted(conformance_dir().glob("*/*.ghr.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         game = load_game(examples_dir() / f"{path.parent.name}.ir.json")
-        try:
-            replay(game, data)
-        except EngineError as exc:
-            problems.append(f"{path.parent.name}/{path.name}: {exc}")
+        engines: list[tuple[str, Any]] = [("", game)]
+        if available():
+            engines.append(("C++: ", core_game(game)))
+        for label, engine in engines:
+            try:
+                replay(engine, data)
+            except EngineError as exc:
+                problems.append(f"{label}{path.parent.name}/{path.name}: {exc}")
     return problems

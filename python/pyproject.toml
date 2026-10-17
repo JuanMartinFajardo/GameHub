@@ -24,21 +24,36 @@ wasm = ["wasmtime>=36"]
 analysis = ["highspy>=1.7"]
 # Envolver los juegos como juegos de OpenSpiel (gamehub.analysis.openspiel).
 openspiel = ["open-spiel>=1.5"]
+# El núcleo C++ (F8): la misma semántica, decenas de veces más rápido (gamehub.engine.core).
+core = ["gamehub-core"]
 
 [project.scripts]
 gamehub = "gamehub.cli:main"
 
 [dependency-groups]
 dev = [
+  "cmake>=3.24",
+  "gamehub-core",
   "highspy>=1.7",
   "hypothesis>=6.140",
+  "nanobind>=2.4",
+  "ninja>=1.11",
   "open-spiel>=1.5",
   "pre-commit>=4.0",
   "pyright>=1.1.390",
   "pytest>=8.3",
   "ruff>=0.8",
+  "scikit-build-core>=0.11",
   "wasmtime>=36",
 ]
+
+# El núcleo C++ se compila en el entorno de desarrollo (sin aislamiento) y en modo editable: al
+# importarlo tras cambiar el C++, scikit-build-core lo recompila de forma incremental.
+[tool.uv.sources]
+gamehub-core = { path = "../core", editable = true }
+
+[tool.uv]
+no-build-isolation-package = ["gamehub-core"]
 
 [build-system]
 requires = ["hatchling>=1.26"]

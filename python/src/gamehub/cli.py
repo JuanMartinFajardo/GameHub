@@ -69,8 +69,48 @@ def _parser() -> argparse.ArgumentParser:
     fuzz.add_argument(
         "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
     )
+    fuzz.add_argument(
+        "--engine",
+        choices=("python", "cpp"),
+        default="python",
+        help="motor: el de referencia o el núcleo C++ (las mismas partidas)",
+    )
     _match_options(fuzz)
     fuzz.set_defaults(handler=_fuzz)
+
+    differential = commands.add_parser(
+        "differential",
+        help="conformidad diferencial: el motor C++ contra el de referencia, paso a paso",
+    )
+    differential.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    differential.add_argument("--games", type=int, default=1000)
+    differential.add_argument("--players", type=int)
+    differential.add_argument("--max-steps", type=int, default=10_000)
+    differential.add_argument(
+        "--deep-every",
+        type=int,
+        default=10,
+        metavar="K",
+        help="una partida de cada K compara también vistas, eventos y acciones (0 = ninguna)",
+    )
+    differential.add_argument(
+        "--jobs", type=int, default=1, help="procesos en paralelo (0 = uno por núcleo)"
+    )
+    _match_options(differential)
+    differential.set_defaults(handler=_differential)
+
+    bench = commands.add_parser(
+        "bench", help="partidas aleatorias por segundo: motor de referencia contra núcleo C++"
+    )
+    bench.add_argument("game", type=Path, metavar="JUEGO", help="archivo .game o .ir.json")
+    bench.add_argument("--games", type=int, default=200, help="partidas con el motor de Python")
+    bench.add_argument(
+        "--cpp-games", type=int, default=0, help="partidas con el C++ (0 = 100 veces más)"
+    )
+    bench.add_argument("--players", type=int)
+    bench.add_argument("--max-steps", type=int, default=10_000)
+    _match_options(bench)
+    bench.set_defaults(handler=_bench)
 
     natives = commands.add_parser("natives", help="plugins nativos (WebAssembly) de la stdlib")
     natives_commands = natives.add_subparsers(dest="natives_command", required=True)
@@ -769,7 +809,31 @@ def _fuzz(args: argparse.Namespace) -> int:
     if args.failures:
         args.failures.mkdir(parents=True, exist_ok=True)
     jobs = _jobs(args.jobs)
-    if jobs > 1:
+    if args.engine == "cpp":
+        from gamehub.engine.core import core_fuzz
+
+        report = core_fuzz(
+            game,
+            args.games,
+            seed=args.seed,
+            num_players=args.players,
+            params=_params(args.param),
+            max_steps=args.max_steps,
+            jobs=jobs,
+        )
+        if args.failures:
+            # El replay de cada fallo, con el motor de referencia (falla en el mismo paso).
+            for seed, _ in report.errors:
+                fuzz(
+                    game,
+                    1,
+                    seed=seed,
+                    num_players=args.players,
+                    params=_params(args.param),
+                    max_steps=args.max_steps,
+                    on_error=_save_failure(game, args.failures),
+                )
+    elif jobs > 1:
         report = fuzz_parallel(
             functools.partial(_load_game, args.game.resolve(), args.name),
             args.games,
@@ -800,6 +864,71 @@ def _fuzz(args: argparse.Namespace) -> int:
     for seed, message in report.errors[:10]:
         print(f"  ✗ semilla {seed}: {message}")
     return 1 if report.errors else 0
+
+
+def _differential(args: argparse.Namespace) -> int:
+    from gamehub.engine.differential import diff, diff_parallel
+
+    game = _load_game(args.game, args.name)
+    jobs = _jobs(args.jobs)
+    options: dict[str, Any] = {
+        "num_players": args.players,
+        "params": _params(args.param),
+        "max_steps": args.max_steps,
+        "deep_every": args.deep_every,
+    }
+    if jobs > 1:
+        loader = functools.partial(_load_game, args.game.resolve(), args.name)
+        report = diff_parallel(loader, args.games, jobs=jobs, seed=args.seed, **options)
+    else:
+        report = diff(game, args.games, seed=args.seed, **options)
+    rate = report.games / report.seconds if report.seconds else 0.0
+    print(
+        f"{game.title}: {report.games} partidas ({report.deep_games} a fondo), "
+        f"{report.steps} pasos comparados en {report.seconds:.1f} s ({rate:.0f}/s)"
+    )
+    print(
+        f"  errores de reglas en los dos motores: {report.rule_errors} · "
+        f"truncadas: {report.truncated} · diferencias: {len(report.differences)}"
+    )
+    for seed, step, what in report.differences[:10]:
+        print(f"  ✗ semilla {seed}, paso {step}: {what}")
+    if not report.differences:
+        print("  ✓ los dos motores coinciden en todos los pasos")
+    return 1 if report.differences else 0
+
+
+def _bench(args: argparse.Namespace) -> int:
+    from gamehub.engine.core import core_fuzz
+    from gamehub.engine.match import fuzz
+
+    game = _load_game(args.game, args.name)
+    options: dict[str, Any] = {
+        "seed": args.seed,
+        "num_players": args.players,
+        "params": _params(args.param),
+        "max_steps": args.max_steps,
+    }
+    py = fuzz(game, args.games, **options)
+    same = core_fuzz(game, args.games, **options)
+    identical = (
+        same.payoff_sums == py.payoff_sums
+        and same.total_steps == py.total_steps
+        and len(same.errors) == len(py.errors)
+    )
+    cpp_games = args.cpp_games or args.games * 100
+    cpp = core_fuzz(game, cpp_games, **options)
+    py_rate = py.games / py.seconds if py.seconds else 0.0
+    cpp_rate = cpp.games / cpp.seconds if cpp.seconds else 0.0
+    print(f"{game.title} (partidas aleatorias por segundo, un hilo)")
+    steps = f"{py.mean_steps:.1f} pasos"
+    print(f"  motor de referencia: {py_rate:12.1f} /s  ({py.games} partidas, {steps})")
+    print(f"  núcleo C++:          {cpp_rate:12.1f} /s  ({cpp.games} partidas)")
+    if py_rate:
+        print(f"  aceleración: ×{cpp_rate / py_rate:.1f}")
+    mark = "✓" if identical else "✗"
+    print(f"  {mark} las {args.games} primeras partidas dan los mismos pasos y pagos en los dos")
+    return 0 if identical else 1
 
 
 def _save_failure(game: Any, failures: Path | None) -> Any:
