@@ -11,6 +11,7 @@ app to play in the browser and the visual editor.
 | [`@gamehub/ui-kit`](packages/ui-kit) | React components: grid, card, hand, pile, deck, die, token, track, graph, scoreboard, clock, action bar; styles with CSS variables (light and dark themes) |
 | [`@gamehub/client`](packages/client) | Client SDK: WebSocket connection with reconnection and `resume`, room and match state (immutable, React-friendly), legal and progressive actions, stored sessions, REST API |
 | [`@gamehub/react`](packages/react) | React hooks on top of the SDK: room, match, view, legal actions, playing, the room's IR |
+| [`@gamehub/engine`](packages/engine) | The C++ core in **WebAssembly** (built by `gamehub wasm --write`, checked in): games and sessions from the IR, native plugins, the Studio's playouts and local matches without a server that speak the room protocol |
 | [`@gamehub/auto-ui`](packages/auto-ui) | **Generic UI**: any game drawn and playable from its IR (types, action domains and `ui` hints), with an event log and the result |
 | [`@gamehub/shell`](packages/shell) | The play experience as a library: home, creating and joining rooms, lobby (invite with a code, link or QR code; seats, bots, settings), match with the generic UI or a custom one, chat, rematch, step-by-step replays and matches on a single device |
 | [`apps/play`](apps/play) | The web app (Vite) served by `gamehub serve`: it registers the custom UIs in `games/*/ui` by itself and has a kit gallery at `/kit` |

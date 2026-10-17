@@ -3,8 +3,8 @@
 > Status: **implemented** (Phase 8, 2026-10-17) in [`core/`](../../core). A second engine with
 > exactly the semantics of the [reference engine](engine.md) —the golden
 > [conformance traces](../../spec/conformance) and a differential suite of more than ten million
-> random matches agree step by step— and 50–60 times faster. Decisions: ADR-075 to 080 in
-> [decisions](decisions.md).
+> random matches agree step by step— and 50–60 times faster, also **in the browser** as
+> WebAssembly. Decisions: ADR-075 to 080 and 082 in [decisions](decisions.md).
 
 ## 1. Usage
 
@@ -96,9 +96,13 @@ Optimizations, none of which changes a result:
   legal action, the views and events of every seat, of a spectator and the omniscient ones, the
   enumerated chance outcomes with their probabilities and the ranking. A `RuleError` must happen
   in the same step in both engines.
-- **The acceptance sweep** (2026-10-17): every catalog game, ≥ 10 million matches in total (a
-  million of each 2×2 game and of Kuhn, half a million of Nim and tic-tac-toe, … two thousand of
-  chess), **0 differences**. `tests/test_core.py` runs a smaller version in the normal suite.
+- **The acceptance sweep** (2026-10-17): every catalog game, **10,140,000 matches and 56
+  million compared steps, 0 differences**: a million of each 2×2 game and of Kuhn, 800,000 of
+  tic-tac-toe, half a million of Nim, 300,000 of Leduc and of the iterated dilemma, 130,000 of
+  Dudo, 50,000 of Connect Four, 25,000 of Hold'em (2 and 6 players), 13,000 of Parchís (2 and 4),
+  7,000 of Skat (3 and 4) and of Bullshit (3 and 5), 3,000 of Wizard (3 and 5), 3,000 of
+  Solitaire and 2,000 of chess, one match in 50 or 100 compared in depth.
+  `tests/test_core.py` runs a smaller version in the normal suite.
 
 ## 5. Performance
 
@@ -167,10 +171,47 @@ of the traverser's decisions).
 | `mccfr` | external or outcome sampling without building the tree; information sets identified on the fly with the same keys, so the strategy can be evaluated on the full tree (Kuhn < 0.05; Leduc 0.20 after 8,000 external-sampling iterations) |
 | `solve_wdl` | win, draw or loss for deterministic two-player games: null-window searches, a fixed-size transposition table with 128-bit keys, the history heuristic (no game knowledge) and Lazy SMP threads |
 
-## 8. Pending in F8
+## 8. In the browser (ADR-082)
 
-- The WASM build for `play` and the Studio without a server (it needs the Emscripten SDK).
+`gamehub wasm --write` compiles the core with **Emscripten** (in `$PATH`, `$EMSDK` or `~/emsdk`)
+into `web/packages/engine/wasm/`: `gamehub-core.mjs` and `gamehub-core.wasm` (590 kB, 212 kB
+gzipped), their types and the stdlib's native plugins. They are checked in, with `BUILD.json`
+holding the SHA-256 of the sources: `gamehub wasm --check` (and a test of the normal suite) fails
+when the C++ changes without recompiling, so the web part never needs Emscripten.
+
+```ts
+import { loadEngine, LocalTable } from "@gamehub/engine";
+const engine = await loadEngine();                 // once per page, lazily
+const game = await engine.game(ir);                // loads the native plugins it uses
+const s = game.session(2, {}, 7);                  // the server's match with seed 7
+s.act(0, s.legal(0).actions[0]); s.digest();       // the same digests as Python
+game.studioPlayouts({ players: 2, games: 1000 });  // the Studio's statistics and coverage
+const table = new LocalTable({ game, info, seats: [{ name: "Ana" }, { name: "Bot", bot: "mcts" }] });
+table.client(0).subscribe(…);                      // a GameClient-like client: the same ClientState
+```
+
+- The boundary speaks **JSON** and never throws: failures arrive as `EngineError` with a kind
+  (`rule`, `illegal`, `params`, `not_enumerable`).
+- **Native plugins:** JavaScript instantiates them and the core calls them through a
+  `NativeHost` with the `gamehub-native/1` words; arguments that do not fit the ABI use the
+  reference body. The fingerprint of Hold'em's random matches is the same with the plugin, with
+  the reference and with the native core.
+- **`LocalTable`** hosts matches with the server's semantics and produces the room protocol's
+  messages; its clients reduce them with the client SDK's `reduce`, so the generic and custom
+  UIs work unchanged. Chance uses `PCG32(seed, 1)` and random bots `PCG32(seed, 1000 + seat)`:
+  the session's own bots replay the golden traces. MCTS bots think up to a second per move.
+- **`play`**: "On this device" runs in the browser (falling back to a server room if the engine
+  cannot load); `gamehub web export DIR` writes a static site with every game (`"offline":
+  true` in `api/v1/info`: no rooms).
+- **The Studio**: playouts with coverage run in the browser, in chunks, with the numbers of
+  `gamehub.studio.sim` (≈ 25,000 tic-tac-toe matches per second); the IR comes from
+  `gamehub/ir`. Compiling, the simulator and the analyses stay on its server.
+
+## 9. Pending
+
 - The optional IR → C++ code generation for hot games.
+- The native plugins in the **desktop** core: it runs their reference bodies (a plugin call from
+  C++ would need a WebAssembly runtime and costs more than it saves at these speeds).
 - **Connect Four 7×6** (ADR-074): `solve_wdl` solves 4×4 (16,140 nodes), 4×5 and 5×4 (461,028
   nodes; all draws) at ~130,000 nodes per second, but 5×5 already exceeds 4·10⁷ nodes in five
   minutes: without game knowledge to order the moves (centre first, threats) the full board is

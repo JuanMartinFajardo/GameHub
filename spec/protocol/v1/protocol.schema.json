@@ -971,7 +971,11 @@
         "protocol": { "const": 1 },
         "upload": { "type": "boolean" },
         "games": { "type": "array", "items": { "$ref": "#/$defs/GameInfo" } },
-        "rooms": { "type": "integer", "minimum": 0 }
+        "rooms": { "type": "integer", "minimum": 0 },
+        "offline": {
+          "description": "Sin servidor de partidas (una exportación estática, `gamehub web export`): no hay salas; se juega en el dispositivo con el motor en el navegador.",
+          "type": "boolean"
+        }
       }
     },
     "RoomList": {

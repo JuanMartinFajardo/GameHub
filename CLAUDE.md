@@ -38,6 +38,8 @@
 - `uv run gamehub natives build --check` (the `.wasm` files in `stdlib/std/native` are their
   compiled `.wat`; `--write` after touching a `.wat`) · `uv run gamehub natives check`
   (plugin = reference)
+- `uv run gamehub wasm --check` (the C++ core compiled to WebAssembly in
+  `web/packages/engine/wasm`; `--write` after touching `core/`, with Emscripten in `~/emsdk`)
 - After changing the rules of a game with a custom UI: `pnpm types` in `games/<game>/ui`
 - Comment separators `# --- Title ---…` of at most 100 columns (ruff E501).
 

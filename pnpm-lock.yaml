@@ -816,6 +816,19 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
+  web/packages/engine:
+    dependencies:
+      '@gamehub/client':
+        specifier: workspace:*
+        version: link:../client
+      '@gamehub/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+
   web/packages/i18n:
     devDependencies:
       '@testing-library/dom':
@@ -897,6 +910,9 @@ importers:
       '@gamehub/client':
         specifier: workspace:*
         version: link:../client
+      '@gamehub/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@gamehub/i18n':
         specifier: workspace:*
         version: link:../i18n
@@ -970,6 +986,9 @@ importers:
       '@gamehub/auto-ui':
         specifier: workspace:*
         version: link:../auto-ui
+      '@gamehub/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@gamehub/i18n':
         specifier: workspace:*
         version: link:../i18n

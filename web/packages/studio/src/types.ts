@@ -276,6 +276,8 @@ export interface PlayoutStats {
   drawRate: number | null;
   coverage: Coverage;
   seconds: number;
+  /** Dónde se jugaron: en el navegador (núcleo WebAssembly) o en el servidor. */
+  engine?: "wasm" | "server";
 }
 
 export interface Coverage {

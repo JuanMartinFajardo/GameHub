@@ -196,6 +196,9 @@ class Game {
 // Acción del nodo dado desde JSON (sin comprobar la legalidad).
 Action decode_action(const GameDef& g, int node, const Json& data);
 
+// Cobertura: las transiciones que se tomen en este hilo se añaden a `trace` (nullptr = ninguna).
+void set_transition_trace(std::vector<const TransitionDef*>* trace);
+
 // Utilidades compartidas con los algoritmos.
 std::vector<int> competition_ranking(const ValueVec& scores);
 Json payoffs_json(const GameDef& g, const ValueVec& payoffs);

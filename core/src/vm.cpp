@@ -349,9 +349,13 @@ Value Vm::call(uint32_t fn_index, const Value* args, Ctx& ctx) {
       fn.memo_lookups = fn.memo_hits = 0;
     }
   }
-  ScopedFrame scope(*this, fn.body.frame);
-  for (uint32_t k = 0; k < fn.arity; ++k) scope.frame.slots[k] = args[k];
-  Value result = run(fn.body.chunk, ctx, scope.frame);
+  Value result;
+  // Con plugin nativo, el plugin (si los argumentos caben en su ABI); si no, la referencia.
+  if (fn.plugin.handle < 0 || !call_native(fn.plugin, game.types, args, result, fn.native)) {
+    ScopedFrame scope(*this, fn.body.frame);
+    for (uint32_t k = 0; k < fn.arity; ++k) scope.frame.slots[k] = args[k];
+    result = run(fn.body.chunk, ctx, scope.frame);
+  }
   if (memo != nullptr) memo->insert(fn_index, args, fn.arity, hash, result);
   return result;
 }
@@ -548,6 +552,8 @@ Value grid_lines(const ArrayObj* g, int64_t k) {
 #define GH_THREADED 1
 #else
 #define GH_THREADED 0
+// Las etiquetas del despacho directo quedan sin usar con el `switch`.
+#pragma clang diagnostic ignored "-Wunused-label"
 #endif
 
 #ifdef GH_COUNT_OPS

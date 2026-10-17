@@ -5,6 +5,55 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — Session 11 (continued): F8's WASM build, the core in the browser
+
+**Request**: the rest of phase 8 —"the WASM build (Emscripten) used by `play` and the Studio
+without a server; the same native plugins as in Python"— after you allowed installing the
+Emscripten SDK (`~/emsdk`, 6.0.12).
+
+**Done**
+- **The build** (ADR-082): Emscripten compiles `core/` and `core/wasm/bindings.cpp` (embind, a
+  JSON API that never throws) into `gamehub-core.mjs` + `.wasm` (590 kB, 212 kB gzipped).
+  `gamehub wasm --write` builds and copies them, with the stdlib's plugins, to
+  `web/packages/engine/wasm/`; `BUILD.json` keeps the SHA-256 of the sources and
+  `gamehub wasm --check` (and a test) catches C++ changes without a rebuild.
+- **Native plugins in the core**: a per-function `NativeHost` and the `gamehub-native/1` codec in
+  C++ (mirroring Python's); in the browser JavaScript instantiates `std.poker.wasm` and the core
+  calls it. Hold'em's random matches give the same fingerprint with the plugin, with the
+  reference body and with the native core.
+- **`@gamehub/engine`**: `loadEngine()`, `CoreGame`/`CoreSession` (views, events, legal actions,
+  progressive options, chance, undo, bots at random, first or MCTS with a time cap) and
+  **`LocalTable`**, which hosts matches with the server's semantics and speaks the room protocol
+  to `GameClient`-like clients reduced with the SDK's `reduce`. Sessions draw chance and random
+  bots from the same PCG32 streams as `play_match`, so they replay the golden traces by
+  themselves.
+- **`play`**: "On this device" runs in the browser (random or MCTS bots; MCTS only in games
+  without hidden information; no privacy screen with a single person), with a server room as a
+  fallback. **`gamehub web export DIR`** writes a static site (the app, `api/v1/info` with the
+  new optional `offline` field, every game's IR): checked with `python -m http.server`, a 3-player
+  Hold'em hand against a random bot and an MCTS bot, played to a split pot, no requests but files.
+- **The Studio**: its playouts with coverage run in the browser, in chunks (the C++ core now
+  records the transitions taken; `coverage_playouts`), with exactly the server's numbers; the IR
+  comes from the new `gamehub/ir` request.
+- **The differential sweep, finished**: 10,140,000 matches, 56 million compared steps, 0
+  differences (Hold'em with 6 players, Parchís and Skat with 4, Wizard and Bullshit with 5, and
+  300,000 more tic-tac-toe matches with other seeds included).
+
+**Tests**: the engine package runs the WASM in Node (the 16 traces, the same matches as Python
+from the session's bots, plugin = reference = native, the Studio's statistics equal to Python's
+for four games, `LocalTable`'s turns, rejections, hidden information, progressive actions and
+rematch); the app plays tic-tac-toe on one device and against MCTS with only the IR served; the
+Studio's integration test checks that its playouts ran in WASM and equal the server's.
+
+**Decisions**: ADR-082 (proposed). The desktop core keeps running plugins' reference bodies.
+
+**Next steps**: your approval of ADR-075 to 080 and 082 and the merge of F8 into `main`; then
+F9. The optional IR → C++ code generation stays open.
+
+**Progress**: ≈ 75 % (F8 complete except the optional code generation).
+
+---
+
 ## 2026-10-17 — Session 11: Phase 8, the C++ core
 
 **Request**: "go with phase 8 of the roadmap". Worked on `f8/nucleo-cpp`, in a separate worktree

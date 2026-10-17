@@ -25,6 +25,20 @@ if(NOT MSVC)
   target_compile_options(gamehub_core PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()
 
+# El navegador (Emscripten): el módulo ES `gamehub-core.mjs` con su `.wasm` (embind), con
+# excepciones nativas de WebAssembly.
+if(EMSCRIPTEN)
+  target_compile_options(gamehub_core PUBLIC -fwasm-exceptions)
+  add_executable(gamehub_core_wasm wasm/bindings.cpp)
+  target_link_libraries(gamehub_core_wasm PRIVATE gamehub_core)
+  set_target_properties(gamehub_core_wasm PROPERTIES OUTPUT_NAME gamehub-core SUFFIX ".mjs")
+  target_link_options(gamehub_core_wasm PRIVATE
+    -lembind -fwasm-exceptions -O3
+    -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createGameHubCore
+    -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=2097152 -sENVIRONMENT=web,worker,node
+    --emit-tsd gamehub-core.d.ts)
+endif()
+
 option(GAMEHUB_CORE_TOOLS "Herramientas de línea de órdenes (benchmark)" OFF)
 if(GAMEHUB_CORE_TOOLS)
   add_executable(gamehub_bench tools/bench.cpp)

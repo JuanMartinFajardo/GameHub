@@ -895,7 +895,19 @@ GameDef::GameDef(const Json& ir_doc) : ir(ir_doc), static_memo(std::make_unique<
     fd.arity = static_cast<uint32_t>(args.size());
     fd.body = c.expr_site(f["body"], args);
     fd.memo = kinds[fd.name];
-    if (const Json* native = opt(f, "native")) fd.native = native->as_string();
+    if (const Json* native = opt(f, "native")) {
+      fd.native = native->as_string();
+      if (NativeHost* host = native_host()) {
+        fd.plugin.handle = host->find(fd.native);
+        if (fd.plugin.handle >= 0) {
+          fd.plugin.host = host;
+          for (const auto& p : f["params"].as_array()) {
+            fd.plugin.params.push_back(types.parse(p.at(1)));
+          }
+          fd.plugin.returns = types.parse(f["returns"]);
+        }
+      }
+    }
     functions.push_back(std::move(fd));
   }
   for (size_t k = 0; k < state.size(); ++k) {

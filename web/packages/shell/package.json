@@ -19,6 +19,7 @@
   "dependencies": {
     "@gamehub/auto-ui": "workspace:*",
     "@gamehub/client": "workspace:*",
+    "@gamehub/engine": "workspace:*",
     "@gamehub/i18n": "workspace:*",
     "@gamehub/protocol": "workspace:*",
     "@gamehub/ui-kit": "workspace:*"

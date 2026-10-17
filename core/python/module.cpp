@@ -188,11 +188,12 @@ NB_MODULE(gamehub_core, m) {
       nb::arg("state"), nb::arg("max_nodes") = 100'000'000);
   m.def(
       "mcts",
-      [](const State& s, uint64_t simulations, double c, uint64_t seed, int max_rollout) {
+      [](const State& s, uint64_t simulations, double c, uint64_t seed, int max_rollout,
+         double max_seconds) {
         MctsResult r;
         {
           nb::gil_scoped_release release;
-          r = mcts(s, simulations, c, seed, max_rollout);
+          r = mcts(s, simulations, c, seed, max_rollout, max_seconds);
         }
         nb::dict out;
         out["actions"] = r.actions;
@@ -203,7 +204,7 @@ NB_MODULE(gamehub_core, m) {
         return out;
       },
       nb::arg("state"), nb::arg("simulations"), nb::arg("c") = 1.4, nb::arg("seed") = 0,
-      nb::arg("max_rollout") = 10'000);
+      nb::arg("max_rollout") = 10'000, nb::arg("max_seconds") = 0.0);
   m.def(
       "retrograde",
       [](const State& s, uint64_t max_positions) {

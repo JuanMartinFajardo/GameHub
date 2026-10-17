@@ -190,9 +190,12 @@ def mccfr(
     return dict(_core().mccfr(root.core, iterations, sampling, seed, epsilon, exploitability))
 
 
-def mcts(state: CoreState, simulations: int, *, c: float = 1.4, seed: int = 0) -> dict[str, Any]:
-    """UCT desde una decisión: visitas y valor medio de cada acción legal y la más visitada."""
-    result = dict(_core().mcts(state.core, simulations, c, seed))
+def mcts(
+    state: CoreState, simulations: int, *, c: float = 1.4, seed: int = 0, max_seconds: float = 0
+) -> dict[str, Any]:
+    """UCT desde una decisión: visitas y valor medio de cada acción legal y la más visitada
+    (`max_seconds` > 0: para también al pasar ese tiempo)."""
+    result = dict(_core().mcts(state.core, simulations, c, seed, max_seconds=max_seconds))
     node = state.node
     result["actions"] = [
         state.game.action_from_json(node, state.game.core.action_to_json(a))

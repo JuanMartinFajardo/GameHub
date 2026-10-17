@@ -708,6 +708,7 @@ class ServerInfo(TypedDict):
     upload: bool
     games: list[GameInfo]
     rooms: int
+    offline: NotRequired[bool]
 
 
 class RoomList(TypedDict):

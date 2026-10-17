@@ -1,0 +1,22 @@
+{
+  "name": "@gamehub/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "El núcleo C++ de GameHub en WebAssembly: jugar en el navegador sin servidor, con las mismas reglas, trazas y plugins nativos que el motor de Python.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@gamehub/client": "workspace:*",
+    "@gamehub/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

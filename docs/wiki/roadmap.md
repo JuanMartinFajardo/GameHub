@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 73 % (F0 to F7 in `main`; F8
-> on its branch, everything but the WASM build and the optional code generation).**
+> % is computed with the weight of each phase. **Current progress: ≈ 75 % (F0 to F7 in `main`; F8
+> complete on its branch, except the optional code generation).**
 
 ## Summary
 
@@ -289,8 +289,9 @@ See [the C++ core](core.md).
 - [x] Algorithms in C++: alpha-beta, MCTS, CFR/MCCFR, retrograde analysis, perft and a
       win/draw/loss solver (ADR-080)
 - [ ] IR → C++ code generation for "hot" games (optional)
-- [ ] WASM build (Emscripten) used by `play` and the Studio without a server; the same native
-      plugins as in Python
+- [x] WASM build (Emscripten) used by `play` and the Studio without a server; the same native
+      plugins as in Python: `@gamehub/engine` (`gamehub wasm`), local matches that speak the room
+      protocol, the Studio's playouts in the browser and `gamehub web export` (ADR-082)
 - [x] **Global action ids from the IR** (brought forward from F11 on 2026-10-17): mixed radix over
       finite universes, integers bounded by an interval analysis of the IR or by `@range`
       declared ranges, combinatorial ranking for sets; `to_openspiel` uses them, so OpenSpiel's
@@ -362,7 +363,6 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F8: the WASM build of the core for `play` and the Studio without a server (it needs the
-   Emscripten SDK installed), then your approval of ADR-075 to 080 and the merge into `main`.
+1. F8: your approval of ADR-075 to 080 and 082 and the merge into `main`.
 2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire; Connect
    Four 7×6 with heuristic move ordering (ADR-081).

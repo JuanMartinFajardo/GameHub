@@ -129,6 +129,13 @@ def _parser() -> argparse.ArgumentParser:
     natives_check.add_argument("--seed", type=int, default=0)
     natives_check.set_defaults(handler=_natives_check)
 
+    wasm = commands.add_parser(
+        "wasm", help="el núcleo C++ en WebAssembly para el navegador (web/packages/engine)"
+    )
+    _check_or_write(wasm)
+    wasm.add_argument("-v", "--verbose", action="store_true", help="enseña la compilación")
+    wasm.set_defaults(handler=_wasm)
+
     perft = commands.add_parser(
         "perft", help="cuenta las secuencias de jugadas legales hasta una profundidad"
     )
@@ -398,6 +405,23 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--allow-upload", action="store_true", help="admitir salas con IR subida")
     serve.set_defaults(handler=_serve)
 
+    web = commands.add_parser("web", help="la app web para jugar")
+    web_commands = web.add_subparsers(dest="web_command", required=True)
+    web_export = web_commands.add_parser(
+        "export",
+        help="sitio estático sin servidor de partidas: se juega en el navegador (WebAssembly)",
+    )
+    web_export.add_argument("output", type=Path, metavar="DIR", help="directorio de salida")
+    web_export.add_argument(
+        "games",
+        nargs="*",
+        type=Path,
+        metavar="JUEGO",
+        help="juegos: .game, .ir.json o directorios (por defecto, el catálogo games/)",
+    )
+    web_export.add_argument("--server-name", default="GameHub", help="nombre visible")
+    web_export.set_defaults(handler=_web_export)
+
     host = commands.add_parser(
         "host", help="abre una sala de un juego en la LAN y juega en ella desde la terminal"
     )
@@ -492,6 +516,27 @@ def _server_options(parser: argparse.ArgumentParser) -> None:
         "--no-web", action="store_true", help="no servir la app web (jugar en el navegador)"
     )
     parser.add_argument("--open", action="store_true", help="abrir el navegador al arrancar")
+
+
+def _web_export(args: argparse.Namespace) -> int:
+    from gamehub.engine.core_wasm import repo_root
+    from gamehub.server.catalog import Catalog, CatalogError
+    from gamehub.server.export import ExportError, export_site
+    from gamehub.server.webapp import web_dir
+
+    web = web_dir()
+    if web is None:
+        print("error: no está la app compilada (pnpm build en la raíz)", file=sys.stderr)
+        return 1
+    paths = args.games or [repo_root() / "games"]
+    try:
+        catalog = Catalog.load(paths)
+        count = export_site(args.output, catalog, web=web, name=args.server_name)
+    except (CatalogError, ExportError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"✓ {args.output}: la app y {count} juegos, para servir como archivos estáticos")
+    return 0
 
 
 def _store(db: str | None) -> Any:
@@ -992,6 +1037,21 @@ def _natives_check(args: argparse.Namespace) -> int:
         else:
             print(f"✓ {native_id}: {args.trials} entradas al azar, iguales que la referencia")
     return 1 if failed else 0
+
+
+def _wasm(args: argparse.Namespace) -> int:
+    from gamehub.engine import core_wasm
+
+    if args.write:
+        out = core_wasm.build(verbose=args.verbose)
+        print(f"✓ núcleo compilado en {out}")
+        return 0
+    problems = core_wasm.check()
+    for problem in problems:
+        print(f"✗ {problem} (gamehub wasm --write)")
+    if not problems:
+        print("✓ el núcleo WebAssembly está al día")
+    return 1 if problems else 0
 
 
 def _perft(args: argparse.Namespace) -> int:

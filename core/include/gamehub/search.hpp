@@ -84,9 +84,10 @@ struct MctsResult {
 };
 
 // UCT con partidas aleatorias hasta el final: n jugadores (cada nodo maximiza el pago de quien
-// decide), azar muestreado. Determinista con la semilla.
+// decide), azar muestreado. Determinista con la semilla; con `max_seconds` > 0 para además al
+// pasar ese tiempo (al menos una simulación).
 MctsResult mcts(const State& root, uint64_t simulations, double c = 1.4, uint64_t seed = 0,
-                int max_rollout = 10'000);
+                int max_rollout = 10'000, double max_seconds = 0);
 
 // --- Análisis retrógrado -----------------------------------------------------------------------
 

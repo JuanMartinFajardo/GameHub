@@ -4,6 +4,7 @@ las partidas terminadas paso a paso para verlas en el navegador."""
 
 from __future__ import annotations
 
+import json
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from gamehub.protocol import problems
 from gamehub.server.catalog import Catalog
 from gamehub.server.codes import display
 from gamehub.server.rooms import Limits, Rooms
@@ -120,3 +122,35 @@ def test_web_dir_from_the_environment(tmp_path: Path, monkeypatch: pytest.Monkey
     assert web_dir() is None
     (tmp_path / "index.html").write_text("<!doctype html>", encoding="utf-8")
     assert web_dir() == tmp_path
+
+
+# --- Exportación estática (F8) ----------------------------------------------------------------
+
+
+def test_web_export_writes_app_and_games(web: Path, tmp_path: Path) -> None:
+    from gamehub.server.export import ExportError, export_site
+
+    catalog = Catalog([game("tictactoe"), game("kuhn-poker")])
+    out = tmp_path / "site"
+    assert export_site(out, catalog, web=web, name="Casa") == 2
+    info = json.loads((out / "api/v1/info").read_text(encoding="utf-8"))
+    assert info["offline"] is True and info["rooms"] == 0 and info["name"] == "Casa"
+    assert [g["id"] for g in info["games"]] == ["kuhn-poker", "tictactoe"]
+    assert problems("ServerInfo", info) == []
+    ir = json.loads((out / "api/v1/games/tictactoe").read_text(encoding="utf-8"))
+    assert ir["game"]["id"] == "tictactoe"
+    assert json.loads((out / "api/v1/rooms").read_text(encoding="utf-8")) == {"rooms": []}
+    # Las rutas de la app sirven su index.html (y 404.html el resto).
+    index = (web / "index.html").read_text(encoding="utf-8")
+    assert (out / "local/kuhn-poker/index.html").read_text(encoding="utf-8") == index
+    assert (out / "404.html").read_text(encoding="utf-8") == index
+    assert (out / "assets/app.js").is_file()
+    # Se puede repetir sobre una exportación, pero no sobre otro directorio con cosas.
+    assert export_site(out, Catalog([game("tictactoe")]), web=web) == 1
+    assert not (out / "api/v1/games/kuhn-poker").exists()
+    other = tmp_path / "otro"
+    other.mkdir()
+    (other / "nota.txt").write_text("no borrar", encoding="utf-8")
+    with pytest.raises(ExportError, match="no está vacío"):
+        export_site(other, catalog, web=web)
+    assert (other / "nota.txt").is_file()

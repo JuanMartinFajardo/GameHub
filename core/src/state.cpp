@@ -14,6 +14,9 @@ namespace gh {
 
 namespace {
 
+// Las transiciones tomadas en este hilo (la cobertura del Studio), si alguien las pide.
+thread_local std::vector<const TransitionDef*>* g_transition_trace = nullptr;
+
 constexpr int MAX_ARRIVALS = 10'000;
 
 const JsonPtr HIDDEN_PTR = std::make_shared<const Json>(Json(JsonObject{{"$hidden", Json(true)}}));
@@ -343,6 +346,7 @@ class Tx {
           Value ok = eval_expr(t.when, ctx_, group.env.actor, group.env.args, group.env.argc);
           if (!expect_bool(ok, "when", ctx_)) continue;
         }
+        if (g_transition_trace != nullptr) g_transition_trace->push_back(&t);
         run_code(t.effects, ctx_, group.env.actor, group.env.args, group.env.argc);
         const NodeDef& o = g_.node(origin);
         if (t.to < 0) {
@@ -1312,6 +1316,10 @@ uint64_t State::hash() const {
     for (size_t k = 0; k < s_->payoffs.size(); ++k) h ^= positional_hash(k + 1000, hash_value(s_->payoffs[k]));
   }
   return h;
+}
+
+void set_transition_trace(std::vector<const TransitionDef*>* trace) {
+  g_transition_trace = trace;
 }
 
 }  // namespace gh

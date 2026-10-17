@@ -83,8 +83,8 @@
   to pick an argument (the face in Dudo), grouping variables into panels.
 - **Translatable tags in the IR**: today `meta.tags` are English words the app translates with a
   dictionary; a shared tag catalog would also serve the hub.
-- **An installable, offline app** (PWA) once there is an engine in the browser (WASM, F8): local
-  matches and replays without a server.
+- **An installable, offline app** (PWA) on top of the engine in the browser (F8 brought local
+  matches without a server and `gamehub web export`): a manifest, a service worker and replays.
 - **A theme per game**: the kit is already painted with CSS variables; a game could bring its
   palette (felt, wood, seat colors) in its `ui` section.
 - **Recording a match as a video or GIF** from the replay viewer, to share it.

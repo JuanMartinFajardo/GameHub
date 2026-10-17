@@ -10,6 +10,7 @@
 
 #include "gamehub/bytecode.hpp"
 #include "gamehub/json.hpp"
+#include "gamehub/natives.hpp"
 #include "gamehub/types.hpp"
 
 namespace gh {
@@ -67,6 +68,7 @@ struct FunctionDef {
   Expr body;
   MemoKind memo = MemoKind::None;
   std::string native;
+  NativeFn plugin;  // el plugin nativo, si el anfitrión tiene uno (natives.hpp)
   // Memo adaptativo: si tras muchas consultas casi nunca acierta, se deja de memorizar (es una
   // caché; no cambia ningún resultado).
   mutable uint32_t memo_lookups = 0;

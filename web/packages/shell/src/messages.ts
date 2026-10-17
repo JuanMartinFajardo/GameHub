@@ -17,6 +17,8 @@ export const messages = defineMessages(
     heroTitle: "Juega a cualquier juego, en cualquier dispositivo",
     heroText:
       "Crea una sala, comparte el código y juega con quien quieras: en el navegador, en el móvil o en la terminal.",
+    heroOffline:
+      "Juega en este dispositivo, contra bots o pasándoos el turno: el motor funciona en el navegador, sin servidor.",
     joinTitle: "Entrar en una sala",
     codePlaceholder: "Código (K7F-Q2P)",
     enter: "Entrar",
@@ -117,9 +119,12 @@ export const messages = defineMessages(
     // En este dispositivo
     localTitle: "{game} en este dispositivo",
     localIntro:
-      "Jugáis por turnos en este dispositivo. Si el juego tiene información oculta, se tapa la pantalla entre turnos.",
+      "Jugáis por turnos en este dispositivo, con el motor en el navegador. Si el juego tiene información oculta, se tapa la pantalla entre turnos.",
     playerName: "Jugador {n}",
     bot: "Bot",
+    botKind: "Tipo de bot",
+    botRandom: "Al azar",
+    botMcts: "MCTS (piensa)",
     start: "Empezar",
     passDevice: "Turno de {name}",
     passDeviceText: "Pásale el dispositivo a {name} y que nadie más mire.",
@@ -143,6 +148,8 @@ export const messages = defineMessages(
     heroTitle: "Play any game, on any device",
     heroText:
       "Create a room, share the code and play with anyone: in the browser, on your phone or in the terminal.",
+    heroOffline:
+      "Play on this device, against bots or taking turns: the engine runs in the browser, with no server.",
     joinTitle: "Join a room",
     codePlaceholder: "Code (K7F-Q2P)",
     enter: "Join",
@@ -239,9 +246,12 @@ export const messages = defineMessages(
     perspectivePublic: "Spectator",
     localTitle: "{game} on this device",
     localIntro:
-      "You take turns on this device. If the game has hidden information, the screen is covered between turns.",
+      "You take turns on this device, with the engine running in the browser. If the game has hidden information, the screen is covered between turns.",
     playerName: "Player {n}",
     bot: "Bot",
+    botKind: "Bot kind",
+    botRandom: "Random",
+    botMcts: "MCTS (thinks)",
     start: "Start",
     passDevice: "{name}'s turn",
     passDeviceText: "Pass the device to {name} and nobody else should look.",

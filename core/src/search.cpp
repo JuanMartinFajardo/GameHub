@@ -475,12 +475,20 @@ std::vector<double> rollout(State s, Pcg32& rng, int max_steps) {
 }  // namespace
 
 MctsResult mcts(const State& root_state, uint64_t simulations, double c, uint64_t seed,
-                int max_rollout) {
+                int max_rollout, double max_seconds) {
   if (root_state.status() != Status::Decision) throw EngineError("MCTS empieza en una decisión");
   int n = root_state.num_players();
   Pcg32 rng(seed, 77);
   TreeNode root{root_state, {}, {}, {}, 0, std::vector<double>(static_cast<size_t>(n), 0.0)};
+  auto started = std::chrono::steady_clock::now();
+  uint64_t done = 0;
   for (uint64_t sim = 0; sim < simulations; ++sim) {
+    if (max_seconds > 0 && sim > 0 &&
+        std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count() >
+            max_seconds) {
+      break;
+    }
+    ++done;
     std::vector<TreeNode*> path{&root};
     TreeNode* node = &root;
     std::vector<double> result;
@@ -553,7 +561,7 @@ MctsResult mcts(const State& root_state, uint64_t simulations, double c, uint64_
   }
   MctsResult r;
   r.actions = root.actions;
-  r.simulations = simulations;
+  r.simulations = done;
   int seat = root_state.first_active();
   uint64_t most = 0;
   for (size_t k = 0; k < root.children.size(); ++k) {

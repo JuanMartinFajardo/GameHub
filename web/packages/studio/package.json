@@ -26,6 +26,7 @@
     "@codemirror/state": "catalog:",
     "@codemirror/view": "catalog:",
     "@gamehub/auto-ui": "workspace:*",
+    "@gamehub/engine": "workspace:*",
     "@gamehub/i18n": "workspace:*",
     "@gamehub/nomos": "workspace:*",
     "@gamehub/protocol": "workspace:*",

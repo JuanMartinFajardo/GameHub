@@ -154,6 +154,7 @@ class StudioSession:
             "gamehub/analysis": self.analysis,
             "gamehub/edit": self.edit,
             "gamehub/modelOf": self.model_of,
+            "gamehub/ir": self.ir,
             "gamehub/sim.start": self.sim_start,
             "gamehub/sim.snapshot": self.sim_snapshot,
             "gamehub/sim.act": self.sim_act,
@@ -183,6 +184,13 @@ class StudioSession:
     async def analysis(self, params: Any) -> dict[str, Any]:
         p = _require(params, "uri")
         return analysis_json(self.document(p["uri"]), p.get("game"))
+
+    async def ir(self, params: Any) -> dict[str, Any]:
+        """La IR compilada del juego del documento: el Studio la ejecuta en el navegador con el
+        núcleo WebAssembly (F8)."""
+        p = _require(params, "uri")
+        compiled = self.compiled_of(p["uri"], p.get("game"))
+        return {"ir": compiled.ir}
 
     async def edit(self, params: Any) -> dict[str, Any]:
         p = _require(params, "uri", "ops")

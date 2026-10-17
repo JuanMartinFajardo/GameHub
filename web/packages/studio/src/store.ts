@@ -529,21 +529,61 @@ export class Studio {
     this.set({ sim: null });
   }
 
+  /**
+   * Partidas al azar con su cobertura: en el navegador con el núcleo WebAssembly (las mismas
+   * partidas y cifras que el servidor, decenas de veces más deprisa) o, si no se puede, en el
+   * servidor.
+   */
   async runPlayouts(games: number, seed: number): Promise<void> {
     const file = this.state.file;
     if (!file) return;
     this.set({ busy: true, panel: "playouts" });
+    const players = this.state.sim?.players;
+    const params = this.state.sim?.params;
     try {
-      const stats = await this.connection.request<PlayoutStats>("gamehub/sim.playouts", {
-        uri: file.uri,
-        games,
-        seed,
-        players: this.state.sim?.players,
-        params: this.state.sim?.params,
-      });
+      let stats: PlayoutStats;
+      try {
+        stats = await this.playoutsInBrowser(file.uri, games, seed, players, params);
+      } catch (local) {
+        console.warn("partidas en el servidor:", local);
+        stats = await this.connection.request<PlayoutStats>("gamehub/sim.playouts", {
+          uri: file.uri,
+          games,
+          seed,
+          players,
+          params,
+        });
+        stats = { ...stats, engine: "server" };
+      }
       this.set({ playouts: stats, showCoverage: true, busy: false });
     } catch (error) {
       this.set({ busy: false, notice: { kind: "error", text: failureOf(error).message } });
+    }
+  }
+
+  private async playoutsInBrowser(
+    uri: string,
+    games: number,
+    seed: number,
+    players: number | undefined,
+    params: Record<string, unknown> | undefined,
+  ): Promise<PlayoutStats> {
+    const { engineSupported, loadEngine } = await import("@gamehub/engine");
+    if (!engineSupported()) throw new Error("WebAssembly no disponible");
+    const { ir } = await this.connection.request<{ ir: GameIr }>("gamehub/ir", { uri });
+    const engine = await loadEngine();
+    const game = await engine.game(ir);
+    try {
+      const stats = await game.studioPlayoutsChunked({
+        players: players ?? ir.players.min,
+        params: params ?? {},
+        games: Math.min(games, 100_000),
+        seed,
+        timeLimit: 10,
+      });
+      return { ...stats, engine: "wasm" };
+    } finally {
+      game.dispose();
     }
   }
 

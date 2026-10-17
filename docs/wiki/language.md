@@ -444,6 +444,8 @@ hint replaces the one in the same slot of the base.
 | `gamehub play` · `fuzz` · `replay` | Play in the terminal, random matches (`fuzz --jobs N` across several processes), replays (they accept `.game`) |
 | `gamehub perft GAME --depth N` | Counts the sequences of legal moves (`--divide`, `--skip`, `--jobs`, `--param`); chance points add up all their outcomes |
 | `gamehub natives list\|check\|build` | Native plugins: which ones exist, whether they match the reference (`--trials`), compile WAT to WASM (`--check`, `--write`) |
+| `gamehub wasm --check\|--write` | The C++ core compiled to WebAssembly for the browser (`web/packages/engine/wasm`; `--write` needs Emscripten) |
+| `gamehub web export DIR [GAMES…]` | A static site with the play app and the games, without a match server: matches on one device with the engine in the browser |
 | `gamehub studio [PATH]` | The [Studio](studio.md): design with the diagram and the text at once, and simulate (`--open`, `--port`) |
 | `gamehub lsp` | Language server over standard input, for any editor with LSP |
 

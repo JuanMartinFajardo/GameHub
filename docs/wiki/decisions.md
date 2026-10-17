@@ -87,6 +87,7 @@
 | 079 | Global action ids from the IR (blocks by signature, finite universes in mixed radix, interval analysis with a fixpoint over the state) and `@range` declared ranges enforced by both engines; OpenSpiel without exploring (exact chance, merged or draw by draw) | Proposed (2026-10-17) |
 | 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Proposed (2026-10-17) |
 | 081 | Connect Four 7×6 moves from F8 to F9: game-independent search does not reach it; F9's heuristic move ordering in C++ will | Accepted (2026-10-17, user) |
+| 082 | The core in the browser: Emscripten + embind with a JSON API, binaries checked in with a source fingerprint (`gamehub wasm`), native plugins called through a JavaScript host, local matches that speak the room protocol, the Studio's playouts in WASM and a static export without a match server | Proposed (2026-10-17) |
 
 ---
 
@@ -944,3 +945,46 @@
   code generation stays optional.
 - **Consequences:** F8's acceptance does not include it; its test stays skipped, now pointing to
   F9.
+
+### ADR-082 — The core in the browser (WebAssembly)
+- **Context:** F8 asks for the core "used by `play` and the Studio without a server, with the same
+  native plugins as in Python". The web packages are TypeScript built with Vite; not every
+  developer has Emscripten; the Nomos compiler is Python.
+- **Decision:**
+  - **Build:** Emscripten (`-fwasm-exceptions`, `MODULARIZE`/`EXPORT_ES6`, embind) compiles
+    `core/` plus `core/wasm/bindings.cpp` into `gamehub-core.mjs` + `.wasm` (590 kB, 212 kB
+    gzipped). The API speaks **JSON** across the boundary (`Game`, `Session` with history and
+    undo, playouts) and never throws: failures come back as `{"ok": false, "kind", "error"}`.
+    The binaries are **checked in** at `web/packages/engine/wasm/` with `BUILD.json`, the SHA-256
+    of the sources they came from: `gamehub wasm --check` (and a test) fail when the C++ changed
+    without `gamehub wasm --write`, like the native plugins' `.wasm`.
+  - **Native plugins:** the core keeps a per-function `NativeHost`; in the browser it is
+    JavaScript, which instantiates the stdlib's plugins (`@gamehub/engine` ships them) and copies
+    the `gamehub-native/1` words between the two memories. The encoding mirrors Python's codec;
+    arguments that do not fit (a number outside 32 bits, a rational, a text) use the reference.
+    The native (desktop) core keeps the reference: the plugin would cost more than it saves there.
+  - **`@gamehub/engine`:** `loadEngine()` (lazy, one per page), `CoreGame`/`CoreSession` typed
+    over the JSON API, and **`LocalTable`**: a match host with the server's semantics (numbered
+    updates with the action and the chance that follows, enumerated or progressive legal actions,
+    bots, rejections, final ranking, aborting on a rule error) whose per-seat clients have the
+    `GameClient` interface and reduce the **same protocol messages** with the same `reduce`.
+    Sessions draw chance with `PCG32(seed, 1)` and random bots with `PCG32(seed, 1000 + seat)`,
+    so a seed plays the same match as the server or `play_match`.
+  - **`play`:** "On this device" runs locally (bots at random or MCTS), falling back to a server
+    room when the engine cannot load. **`gamehub web export DIR`** writes the built app plus
+    `api/v1/info` (`"offline": true`, a new optional field of `ServerInfo`) and the IR of every
+    game as static files; the home page then hides rooms and recent matches.
+  - **The Studio:** its playouts (results, lengths, rule errors and coverage of nodes, actions and
+    transitions) run in the browser with the same seeds and numbers as `gamehub.studio.sim`
+    (the C++ core records the transitions taken), in chunks that yield to the page; the IR comes
+    from a new `gamehub/ir` request. Compiling Nomos, the simulator (breakpoints written in Nomos)
+    and the analyses stay on the Studio's server.
+- **Alternatives:** Pyodide (the reference engine in the browser: megabytes and far slower);
+  building the WASM in every web build (everyone would need Emscripten); a WASM-specific API
+  with JS objects (slower to cross and a second API to keep in sync); a Web Worker per local
+  match (unnecessary at these speeds; MCTS bots block for well under a second with the default
+  budget).
+- **Consequences:** tests run the WASM in Node: the 16 golden traces, the same matches as Python
+  from the session's own chance and bots, plugin = reference = native C++ (fingerprints), the
+  Studio's statistics equal to Python's, and the app playing tic-tac-toe on one device and
+  against MCTS without a server. A static site serves every catalog game with no backend.

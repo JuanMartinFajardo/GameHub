@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,5 +35,26 @@ State random_playout(const Game& game, int n, const Json& params, uint64_t seed,
 
 PlayoutReport random_playouts(const Game& game, int n, const Json& params, uint64_t seed,
                               uint64_t games, int max_steps);
+
+// Las partidas al azar del Studio (`gamehub.studio.sim.playouts`): la partida g con
+// PCG32(seed + g, 1) para el azar y un solo PCG32(seed + g, 1000) para todos los asientos (cada
+// vez juega el primer asiento activo); resultados, longitudes, errores de reglas y cobertura.
+struct CoverageReport {
+  uint64_t games = 0;
+  uint64_t finished = 0;
+  uint64_t truncated = 0;
+  std::vector<std::pair<uint64_t, std::string>> errors;  // las 20 primeras: (partida, mensaje)
+  std::vector<uint64_t> lengths;                         // pasos de las terminadas
+  std::vector<Rational> totals;                          // suma de los pagos de cada asiento
+  std::vector<uint64_t> wins;                            // primer puesto (sin empates de todos)
+  uint64_t draws = 0;                                    // todos primeros
+  std::map<std::string, uint64_t> nodes;                 // llegadas a cada nodo
+  std::map<std::string, uint64_t> actions;               // "nodo.acción"
+  std::map<std::string, uint64_t> transitions;           // "node/N/i" o "action/N/a/i"
+  double seconds = 0;
+};
+
+CoverageReport coverage_playouts(const Game& game, int n, const Json& params, uint64_t seed,
+                                 uint64_t games, int max_steps = 10'000, double time_limit = 0);
 
 }  // namespace gh

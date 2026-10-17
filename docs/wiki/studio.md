@@ -142,7 +142,10 @@ and nothing was moved by hand, it is re-fitted; the selection is brought into vi
 - In the diagram, the **active node** and the **arrows of the last step**.
 - **Batch runs**: hundreds of random matches with statistics (finished, cut off, rule errors with
   their match, length, wins and draws, average payoff per seat) and **coverage** on the diagram:
-  how many times each node, action and arrow was visited (in red, what was never used).
+  how many times each node, action and arrow was visited (in red, what was never used). Since
+  F8 they run **in the browser** with the C++ core in WebAssembly (the same matches and numbers
+  as the server, ≈ 25,000 tic-tac-toe matches per second; the panel says so), falling back to the
+  server's `gamehub/sim.playouts` when the engine cannot load.
 - The game's **tree** from the current step (small games): open branches and count states,
   terminals and depth (with a 5 s limit).
 
@@ -204,5 +207,6 @@ With `--host` reachable from outside the machine, it warns that anyone with the 
   text.
 - The VS Code extension still uses `gamehub check`/`fmt`; moving it to the LSP (`gamehub lsp`)
   requires bundling an LSP client in it.
-- The Studio needs the local server: running without it (on the hub, or without Python) will come
-  with the WASM engine (F8) and the hub (F10).
+- The Studio needs the local server to compile Nomos, simulate and analyze; its playouts already
+  run in the browser with the WASM core (F8, ADR-082). Running entirely without it (on the hub,
+  without Python) needs a compiler in the browser and comes with the hub (F10).
