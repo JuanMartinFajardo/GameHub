@@ -174,5 +174,5 @@ of the traverser's decisions).
 - **Connect Four 7×6** (ADR-074): `solve_wdl` solves 4×4 (16,140 nodes), 4×5 and 5×4 (461,028
   nodes; all draws) at ~130,000 nodes per second, but 5×5 already exceeds 4·10⁷ nodes in five
   minutes: without game knowledge to order the moves (centre first, threats) the full board is
-  many orders of magnitude away. [Question 26](open-questions.md) proposes moving it to F9, whose
-  heuristic blocks bring that move ordering in C++.
+  many orders of magnitude away. It moved to F9 (ADR-081), whose heuristic blocks bring that
+  move ordering in C++.

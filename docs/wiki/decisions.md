@@ -86,6 +86,7 @@
 | 078 | Differential conformance: the golden traces with both engines and `gamehub differential` (digest every step, deep comparison every K matches, the same `RuleError` in the same step) | Proposed (2026-10-17) |
 | 079 | Global action ids from the IR (blocks by signature, finite universes in mixed radix, interval analysis with a fixpoint over the state) and `@range` declared ranges enforced by both engines; OpenSpiel without exploring (exact chance, merged or draw by draw) | Proposed (2026-10-17) |
 | 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Proposed (2026-10-17) |
+| 081 | Connect Four 7×6 moves from F8 to F9: game-independent search does not reach it; F9's heuristic move ordering in C++ will | Accepted (2026-10-17, user) |
 
 ---
 
@@ -931,3 +932,15 @@
   work.
 - **Consequences:** chess *perft(5)* in 18 s on one thread; Leduc's CFR+ ×8 faster with its tree;
   backward induction's "cyclic graph" limitation has an answer.
+
+### ADR-081 — Connect Four 7×6 moves to F9
+- **Context:** ADR-074 moved the 7×6 result to F8 ("C++ core, bitboards and transposition
+  tables"). The C++ core's win/draw/loss solver (null windows, a fixed transposition table with
+  128-bit keys, the history heuristic, Lazy SMP) solves 4×4, 4×5 and 5×4 (461,028 nodes) at about
+  130,000 nodes per second, but 5×5 already exceeds 4·10⁷ nodes in five minutes: without knowing
+  the game (centre-first ordering, threats) the full board is many orders of magnitude away.
+- **Decision (the user's):** the 7×6 result goes to F9, whose heuristic blocks (features, move
+  ordering) are evaluated in C++ and give the search the ordering it lacks; the typed IR → C++
+  code generation stays optional.
+- **Consequences:** F8's acceptance does not include it; its test stays skipped, now pointing to
+  F9.

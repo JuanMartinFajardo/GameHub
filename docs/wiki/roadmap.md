@@ -298,15 +298,15 @@ See [the C++ core](core.md).
 
 **Acceptance:** ≥ 50× more playouts/s than Python in tic-tac-toe, Connect Four and Kuhn ✅ (×57.7,
 ×56.8, ×63.2); identical traces ✅; OpenSpiel's MCTS and MCCFR run on the wrapped chess and Texas
-Hold'em ✅. Connect Four 7×6 (ADR-074): not reached with game-independent search (5×5 already
-needs more than 4·10⁷ nodes); proposed for F9, whose heuristic move ordering is what it needs
-([question 26](open-questions.md)).
+Hold'em ✅. Connect Four 7×6 (ADR-074) moved to F9 (ADR-081): game-independent search does not
+reach it (5×5 already needs more than 4·10⁷ nodes).
 
 ## F9 — Heuristics, bots, arena and balance analytics (75 → 82 %) · L
 
 See [heuristics and AI](heuristics-and-ai.md).
 
 - [ ] `heuristic` blocks (features + combination + move ordering) evaluated in C++
+- [ ] Connect Four 7×6 solved (the first player wins) with heuristic move ordering (ADR-081)
 - [ ] Bots: priority rules, minimax + heuristic, MCTS, ISMCTS, PIMC; a heuristic bot for each
       catalog game
 - [ ] Weight tuning (CMA-ES, SPSA, Texel)
@@ -365,4 +365,4 @@ i18n · security · up-to-date examples · recorded decisions.
 1. F8: the WASM build of the core for `play` and the Studio without a server (it needs the
    Emscripten SDK installed), then your approval of ADR-075 to 080 and the merge into `main`.
 2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire; Connect
-   Four 7×6 with heuristic move ordering if you agree ([question 26](open-questions.md)).
+   Four 7×6 with heuristic move ordering (ADR-081).

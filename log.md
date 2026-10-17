@@ -45,12 +45,14 @@ Format: date · what was done · decisions · pending / next steps.
   CFR/CFR+ as Python (Leduc ×8), external- and outcome-sampling MCCFR, and a win/draw/loss
   solver with Lazy SMP. `gamehub analyze --engine`, `--retrograde`; `gamehub perft --engine cpp`.
 
-**Not done**: the WASM build (it needs the Emscripten SDK: waiting for permission to install
-it), the optional IR → C++ code generation, and **Connect Four 7×6**: game-independent search
-solves 4×4, 4×5 and 5×4 but 5×5 already needs more than 4·10⁷ nodes; question 26 proposes F9's
-heuristic move ordering.
+**Not done yet**: the WASM build (the Emscripten SDK is being installed, with your permission)
+and the optional IR → C++ code generation. **Connect Four 7×6**: game-independent search solves
+4×4, 4×5 and 5×4 but 5×5 already needs more than 4·10⁷ nodes.
 
-**Decisions**: ADR-075 to 080 (proposed). Question 26 opened; question 13's default revised.
+**Answers received**: question 26 → Connect Four 7×6 moves to F9, with heuristic move ordering
+(ADR-081, accepted); install Emscripten in `~/emsdk` → yes.
+
+**Decisions**: ADR-075 to 080 (proposed), ADR-081 (accepted). Question 13's default revised.
 
 **Checks**: ruff, pyright, IR, schemas, `gamehub fmt/check/test` of the games, pytest (1,138
 tests collected, the long ones apart), the differential sweep.
