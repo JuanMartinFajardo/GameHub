@@ -122,6 +122,10 @@ class CoreGame:
         state = self.core.new_state(n, params or {}, events=events, history=history)
         return CoreState(self, state, params or {})
 
+    def core_bot(self, spec: dict[str, Any], seat: int) -> Any:
+        """Un bot del núcleo (`gamehub_core.Bot`) para `seat` (ver `gamehub.bots.agents`)."""
+        return _require().Bot(self.core, spec, seat)
+
     def action_from_json(self, node: str | None, data: dict[str, Any]) -> Action:
         """Una acción (JSON con su nombre y sus argumentos) como `Action` con valores del motor."""
         name = data["name"]

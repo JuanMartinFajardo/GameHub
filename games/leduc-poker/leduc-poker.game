@@ -129,6 +129,21 @@ game LeducPoker {
     node Showdown: label({ es: "Se enseñan las cartas", en: "Showdown" })
   }
 
+  /// Apostar y subir con pareja o rey, igualar con reina, retirarse con lo demás ante una
+  /// apuesta.
+  heuristic Strength {
+    /// Pareja con la carta común (3) o el valor de la carta (0 a 2)
+    fn power(s: Seat) -> Int =
+      3 if size(board) > 0 and only(hand[s]) == top(board) else ord(only(hand[s]))
+    /// La fuerza de la mano propia por las fichas en juego (estima el pago)
+    feature strength = (power(me) - 1) * put[other(me)]
+    prefer raise() when power(me) >= 2
+    prefer bet() when power(me) >= 2
+    prefer call() when power(me) >= 1
+    prefer check() when true
+    prefer fold() when true
+  }
+
   test "la pareja con la carta común gana" {
     chance where only(hand[0]) == J and only(hand[1]) == K
     play check(), check()

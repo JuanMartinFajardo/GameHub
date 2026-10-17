@@ -7,11 +7,14 @@
 #include <emscripten/em_js.h>
 
 #include <algorithm>
+#include <map>
+#include <memory>
 #include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "gamehub/bots.hpp"
 #include "gamehub/errors.hpp"
 #include "gamehub/natives.hpp"
 #include "gamehub/playout.hpp"
@@ -317,12 +320,28 @@ class JsSession {
   }
 
   // La jugada de un bot: "random" (uniforme con el generador del asiento), "first" (la primera
-  // legal) o "mcts" (UCT con `simulations` partidas aleatorias y, si `max_seconds` > 0, como
-  // mucho ese tiempo).
+  // legal), "mcts" (UCT con `simulations` partidas aleatorias y, si `max_seconds` > 0, como
+  // mucho ese tiempo) o uno de los bots de la F9 con la heurística del juego: "greedy",
+  // "alphabeta", "ismcts" o "pimc" (`max_seconds` por jugada; los de información oculta juegan
+  // sobre determinizaciones, sin ver lo que el asiento no ve).
   std::string botAction(int seat, const std::string& kind, int simulations, double max_seconds) {
     return guarded([&] {
       std::vector<Action> legal = current().legal_actions(seat);
       if (legal.empty()) throw IllegalAction("el asiento no tiene acciones legales");
+      if (kind == "greedy" || kind == "alphabeta" || kind == "ismcts" || kind == "pimc") {
+        auto key = std::make_pair(seat, kind);
+        auto found = bots_.find(key);
+        if (found == bots_.end()) {
+          BotSpec spec;
+          spec.kind = kind;
+          spec.seconds = max_seconds > 0 ? max_seconds : 0.5;
+          spec.iterations = kind == "ismcts" && max_seconds <= 0 ? static_cast<uint64_t>(simulations) : 0;
+          spec.seed = agents_[static_cast<size_t>(seat)].next_u32();
+          found = bots_.emplace(key, std::make_unique<Bot>(game_.def_ptr(), spec, seat)).first;
+        }
+        Action a = found->second->act(current());
+        return ok({{"action", a.to_json(current().game())}});
+      }
       if (kind == "mcts" && current().first_active() == seat && legal.size() > 1) {
         MctsResult r = mcts(current(), static_cast<uint64_t>(simulations), 1.4,
                             agents_[static_cast<size_t>(seat)].next_u32(), 10'000, max_seconds);
@@ -339,6 +358,7 @@ class JsSession {
   std::vector<State> states_;
   Pcg32 chance_;
   std::vector<Pcg32> agents_;
+  std::map<std::pair<int, std::string>, std::unique_ptr<Bot>> bots_;
   std::string error_;
 };
 

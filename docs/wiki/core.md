@@ -1,6 +1,7 @@
 # The C++ core
 
-> Status: **implemented** (Phase 8, 2026-10-17) in [`core/`](../../core). A second engine with
+> Status: **implemented** (Phase 8, 2026-10-17; heuristics and bots in Phase 9) in
+> [`core/`](../../core). A second engine with
 > exactly the semantics of the [reference engine](engine.md) —the golden
 > [conformance traces](../../spec/conformance) and a differential suite of more than ten million
 > random matches agree step by step— and 50–60 times faster, also **in the browser** as
@@ -81,6 +82,7 @@ Optimizations, none of which changes a result:
 | Superinstructions fused at emission when no jump target lies between: `index(var, local)`, `== local`, `== constant` | |
 | `cells(g)` and `lines(g, k)` cached by the grid's dimensions | the 69 lines of Connect Four built once |
 | Function memo as in Python (`static` for every match, `state` while the store does not change), cleared in O(1) by generation and **adaptive**: a `state` function that hits less than once in 16 lookups stops being memoized | |
+| A **`match` memo** (F9): functions that read only the options and the number of players are cached per match (in Python they are `state`) | Connect Four's heuristic geometry, computed once per cell |
 | Legal actions enumerated in one frame per action; one-argument actions without an allocation; chance sampled and applied in a single execution | |
 | Node paths precomputed; transactions without `shared_ptr` copies | |
 
@@ -207,13 +209,34 @@ table.client(0).subscribe(…);                      // a GameClient-like client
   `gamehub.studio.sim` (≈ 25,000 tic-tac-toe matches per second); the IR comes from
   `gamehub/ir`. Compiling, the simulator and the analyses stay on its server.
 
-## 9. Pending
+## 9. Heuristics and bots (F9)
+
+- **Heuristics** (`heuristic.hpp`, ADR-083): the `heuristics` of the IR are compiled with the
+  game; their own functions go to the end of `functions` and are only visible while their
+  expressions compile. `evaluate`/`evaluate_exact`, `feature_values`, `action_priority`,
+  `action_score` and `order_actions` give exactly the values of `gamehub.bots.heuristic`
+  (`State.heuristic_value`, `heuristic_features` and `heuristic_key` in Python).
+- **Determinization** (`determinize`, `has_hidden`; ADR-084): the hidden items of zones and bags
+  (walked like the views) are pooled by type and dealt back at random; other hidden values come
+  from a replay with chance drawn again; other seats' pending submissions are forgotten.
+- **Bots** (`bots.hpp`): `Bot(game, spec, seat).act(state)` with the kinds `random`, `first`,
+  `greedy`, `alphabeta`, `mcts`, `ismcts` and `pimc` ([heuristics and AI](heuristics-and-ai.md));
+  `play_bots` plays a whole match (chance with `PCG32(seed, 1)`) and, with `trace`, records each
+  step (seat, legal count, action, the heuristic's evaluation or features) and the transitions of
+  the match (not those of the bots' searches); `kingmaking` probes the late decisions of a match.
+  The arena, the balance analytics and the tuning drive them from Python, one `Game` per thread
+  (a `GameDef`'s caches are not shared between threads).
+- **Solver:** `solve_wdl(…, heuristic, moves)` orders the moves by the heuristic after the
+  transposition table's move (which is tried first, before computing any key) and before the
+  history; `moves` solves the position after those moves (`gamehub solve`).
+- **WebAssembly:** `Session.botAction` also plays `greedy`, `alphabeta`, `ismcts` and `pimc`.
+
+## 10. Pending
 
 - The optional IR → C++ code generation for hot games.
 - The native plugins in the **desktop** core: it runs their reference bodies (a plugin call from
   C++ would need a WebAssembly runtime and costs more than it saves at these speeds).
-- **Connect Four 7×6** (ADR-074): `solve_wdl` solves 4×4 (16,140 nodes), 4×5 and 5×4 (461,028
-  nodes; all draws) at ~130,000 nodes per second, but 5×5 already exceeds 4·10⁷ nodes in five
-  minutes: without game knowledge to order the moves (centre first, threats) the full board is
-  many orders of magnitude away. It moved to F9 (ADR-081), whose heuristic blocks bring that
-  move ordering in C++.
+- **Connect Four 7×6** (ADR-074, 081, 089): with the `Threats` heuristic ordering the solver
+  needs 5–6× fewer nodes (5×4: 78,664; 5×5: 1.07 M in 7 s; 6×5: 8.6 M in 2 min) at ~150,000
+  nodes per second and thread, but a 7×6 position after 4 moves exceeds 1.6·10⁸ nodes: the empty
+  board is still several orders of magnitude away (question 28).

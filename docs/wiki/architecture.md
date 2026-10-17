@@ -74,7 +74,8 @@ GameHub/
 │   ├── analysis/          # warnings and classification (F2), perft (F6); game theory (F7): feasibility, trees, Nash, CFR…
 │   ├── render/            # flow diagram, rulebook and semantic diff (F2)
 │   ├── packages.py        # game.toml, game.lock, dependencies, new/clone/fork (F2)
-│   ├── agents/            # Agent interface, random, minimax, MCTS, heuristics
+│   ├── bots/              # heuristics, the core's bots, arena and ratings, packages and
+│   │                      #   sandbox, balance analytics, tuning (F9)
 │   ├── protocol/          # protocol v1: message validation and generated types (F3)
 │   ├── server/            # rooms (pure core), Starlette transport, LAN/mDNS, SQLite (F3)
 │   ├── client/            # Python client SDK, network bots, terminal client (F3)

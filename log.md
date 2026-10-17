@@ -5,6 +5,69 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — Session 12: Phase 9, heuristics, bots, arena and balance analytics
+
+**Request**: "go on with phase 9 of the roadmap" (branch `f9/heuristicas-bots`).
+
+**Done**
+- **Heuristic blocks** (ADR-083): `heuristic Name { fn … feature … weights { … } prefer … order … }`
+  inside a game, with `me` as the seat evaluated and action patterns by position; through the
+  whole toolchain (parser, checker, formatter, decompiler with an exact round trip, mods with
+  `override`/`remove heuristic`, schema, well-formedness, LSP symbols, lint). In the IR under
+  `heuristics`, **outside the rules hash** (no catalog game changed its hash: the golden traces
+  stand) and with its own `heuristic_hash`. Evaluated identically by `gamehub.bots.heuristic` and
+  the C++ core (`heuristic.cpp`).
+- **A heuristic for every catalog game**: Connect Four (threats via per-cell segments), tic-tac-toe,
+  Nim (Bouton, also misère), Kuhn, Leduc, Hold'em, Dudo, Bullshit, Skat, Wizard, Parchís,
+  Solitaire, chess (material, MVV-LVA), the 2×2 family (inherited from `TwoByTwo`), RPS and the
+  prisoner's dilemma (inherited by the iterated one). The rule-based bot beats random in all of
+  them (e.g. 100 % in Connect Four, 95 % in Parchís, ~370 points per match in Wizard).
+- **Bots in the C++ core** (ADR-084): `greedy`, paranoid `alphabeta`, open-loop `mcts`, `ismcts`
+  and `pimc`, with **determinization** so they never peek at hidden information (hidden zone items
+  pooled and dealt back; other hidden values from a replay with fresh chance; others' pending
+  submissions forgotten). Available in Python (`make_bot`, `CoreBot` replays reference matches in
+  C++), `gamehub play --seats`, the server's seat bots (protocol `BotKind` extended), and the
+  browser ("On this device", rebuilt WASM). A **match memo** in the VM for functions of the options.
+- **Arena** (ADR-085): `gamehub arena` (round-robin, Swiss, gauntlet, mirror matches, matches in
+  C++ threads), Elo (MLE), Glicko-2 and TrueSkill per rules hash (checked against the published
+  reference values), a JSON database, and `gamehub sprt`.
+- **Bot packages and sandboxing** (ADR-086): `bot.toml`; Python bots in a child process with OS
+  limits and a per-move deadline (random fallback, failures recorded); `gamehub bot run PACKAGE`.
+- **Balance analytics and Balance CI** (ADR-087): `gamehub balance` (seat advantage with
+  intervals, draws, length, branching profile, skill vs. luck, skill chain, tension, dominant
+  actions, rule coverage, kingmaking) and `--against OLD [--fail-on-regression]`.
+- **Weight tuning** (ADR-088): `gamehub tune --method cmaes|spsa|texel [--write]`.
+- **Solver**: `gamehub solve --heuristic --moves --threads`; the TT move is tried before computing
+  any heuristic key.
+
+**Connect Four 7×6 (ADR-089, question 28)**: the heuristic ordering gives 5–6× fewer nodes (5×4:
+78,664 vs 459,131; 5×5: 1.07 M in 7 s vs 5.6 M) at ~150,000 nodes/s per thread, but 6×6 did not
+finish in 30 min on 4 threads and a 7×6 position after 4 moves exceeds 1.6·10⁸ nodes (after 6
+moves: 2 M). The empty board is several orders of magnitude away with the generic VM: **not met**;
+the test stays skipped.
+
+**Acceptance**: round-robin tournaments in tic-tac-toe, Connect Four, Kuhn, Dudo and Parchís
+(`docs/reports/f9-tournaments.md`); balance reports for Parchís and Wizard
+(`docs/reports/f9-balance-*.md`).
+
+**Fixed on the way**: MCTS with no finished rollout picked no child (null pointer; found with
+ASan); the engine's ranking starts at 1 (the arena and the analytics normalize it); a core
+`GameDef` cannot be shared by threads (one per worker); a heuristic's helper functions were
+classified for the memo without seeing the rules' functions.
+
+**Tests**: `tests/test_bots.py` (63 tests: language and IR, both engines' evaluation on random
+states of seven games, determinization, every bot on five games, ratings, SPRT, arena formats,
+sandbox, balance, kingmaking, CMA-ES, Texel and `--write`); the web packages' tests, typecheck and
+lint pass with the rebuilt WASM.
+
+**Waiting on you**: question 29 (approve ADR-083 to 088 and merge F9) and question 28 (7×6).
+
+**Next steps**: your review; custom UIs for Skat and Solitaire; F10 or F11.
+
+**Progress**: ≈ 81 % (F0 to F8 in `main`; F9 in its branch without the 7×6 proof).
+
+---
+
 ## 2026-10-17 — F8 approved and merged into `main`
 
 **Answer received**: "do it" to question 27: ADR-075 to 080 and 082 accepted (with ADR-076,

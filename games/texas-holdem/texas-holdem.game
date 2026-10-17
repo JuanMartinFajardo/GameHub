@@ -306,6 +306,34 @@ game TexasHoldem {
     hands: label({ es: "Manos", en: "Hands" })
   }
 
+  /// Jugar según la fuerza de la mano: antes del flop, parejas y cartas altas; después, la
+  /// jugada hecha. Subir con lo muy bueno, apostar con lo bueno, igualar con algo o si es barato
+  /// y, si no, pasar o retirarse.
+  heuristic Strength {
+    /// De 0 (nada) a 3 (muy buena). Después del flop, una pareja vale 2 y lo que la supera, 3
+    /// (`hand_value` guarda la categoría de la jugada en múltiplos de 2^20); sin nada, 1 con una
+    /// carta alta.
+    fn power(s: Seat) -> Int {
+      let hs = items(hole[s])
+      let made = hand_value(hs + items(board)) div 1048576 if size(board) > 0 else 0
+      case {
+        size(board) == 0 and hs[0].rank == hs[1].rank => 3 if ord(hs[0].rank) >= 8 else 2
+        size(board) == 0 => count(c in hs : ord(c.rank) >= ord(Rank.Jack))
+        made >= 1 => min(3, made + 1)
+        else => 1 if any(c in hs : ord(c.rank) >= ord(Rank.Jack)) else 0
+      }
+    }
+    /// Fichas ganadas o perdidas (el pago)
+    feature chips_won = chips[me] - stack
+    prefer raise(to) when power(me) >= 3
+    prefer bet(amount) when power(me) >= 2
+    prefer call() when power(me) >= 1 or current() - bet[me] <= big_blind
+    prefer check() when true
+    prefer fold() when true
+    order raise(to) by -to
+    order bet(amount) by -abs(amount - sum(t in seats : put[t]) div 2)
+  }
+
   test "las ciegas y quién habla primero" {
     players 3
     expect bet == [0, 1, 2] and chips == [200, 199, 198] and turn == 0

@@ -54,6 +54,27 @@ game Nim {
     )
   }
 
+  /// Bouton: dejar la suma-nim (el XOR de los montones) en cero. En misère, solo hasta que
+  /// quedan montones de un objeto (entonces conviene dejar un número impar de ellos).
+  heuristic NimSum {
+    /// El bit `b` de `x`
+    fn bit(x: Int, b: Int) -> Int = x div [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024][b] % 2
+    /// ¿Es cero la suma-nim de `hs`?
+    fn balanced(hs: List<Int>) -> Bool = all(b in 0..10 : sum(h in hs : bit(h, b)) % 2 == 0)
+    /// Los montones tras quitar `k` del montón `i`
+    fn after(i: Int, k: Int) -> List<Int> =
+      [heaps[j] - k if j == i else heaps[j] for j in 0..<len(heaps)]
+    /// Montones de más de un objeto en `hs`
+    fn big(hs: List<Int>) -> Int = count(h in hs : h > 1)
+    /// ¿Gana quien deja `hs` (juego perfecto)?
+    fn good(hs: List<Int>) -> Bool =
+      balanced(hs) if not misere or big(hs) > 0 else count(h in hs : h == 1) % 2 == 1
+    /// 1 si la posición es ganadora para `me`, -1 si es perdedora
+    feature winning = 1 if good(heaps) == (turn != me) else -1
+    prefer take(i, k) when good(after(i, k))
+    order take(i, k) by -k
+  }
+
   test "quien se lleva el último gana" {
     params { sizes: [2] }
     play take(0, 2)

@@ -35,7 +35,7 @@ def test_tictactoe() -> None:
     assert board.detail == "board: Grid[3, 3] of Mark?"
     assert [source.text[d.start : d.end] for d in board.decls] == ["board"]
     assert set(uses(index, source, "state:board")) == {"board"}
-    assert len(uses(index, source, "state:board")) == 12
+    assert len(uses(index, source, "state:board")) == 18  # 12 en las reglas, 6 en la heurística
     assert index.symbols["fn:wins"].detail == "fn wins(m: Mark) -> Bool"
     assert index.symbols["node:Move"].detail == "decision Move"
     # `start -> Move`, `-> Move` y la pista `node Move` del ui.

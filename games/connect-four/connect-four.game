@@ -82,6 +82,50 @@ game ConnectFour {
     )
   }
 
+  /// Ganar si se puede, tapar si hace falta, no jugar debajo de una amenaza del rival, crear
+  /// amenazas y jugar por el centro. Ordena las jugadas de la búsqueda que resuelve el 7×6.
+  heuristic Threats {
+    /// Los segmentos de `connect` casillas que pasan por (r, c). Solo dependen de las opciones:
+    /// se calculan una vez por casilla.
+    fn segments(r: Int, c: Int) -> List<List<Cell>> = [
+      [cell(r + (k - o) * d[0], c + (k - o) * d[1]) for k in 0..<connect]
+      for d in [(0, 1), (1, 0), (1, 1), (1, -1)]
+      for o in 0..<connect
+      if all(
+        k in 0..<connect :
+        r + (k - o) * d[0] in 0..<rows and c + (k - o) * d[1] in 0..<columns
+      )
+    ]
+    /// ¿Completa una línea de `d` una ficha de `d` en `x0`?
+    fn wins_at(x0: Cell, d: Disc) -> Bool =
+      any(seg in segments(x0[0], x0[1]) : all(x in seg : x == x0 or board[x] == d))
+    /// Amenazas nuevas de `d` con una ficha en `x0`: segmentos por `x0` a los que solo les
+    /// faltaría una ficha
+    fn threats_at(x0: Cell, d: Disc) -> Int = count(
+      seg in segments(x0[0], x0[1]) :
+      count(x in seg : x != x0 and board[x] == d) == connect - 2 and
+        count(x in seg : is_none(board[x])) == 2
+    )
+    /// ¿Deja la ficha de la columna `c` la casilla de encima a una victoria de `d`?
+    fn under(c: Int, d: Disc) -> Bool = landing(c) > 0 and wins_at(cell(landing(c) - 1, c), d)
+    /// Líneas a las que solo les falta una ficha de `d`
+    fn open(d: Disc) -> Int = count(
+      line in lines(board, connect) :
+      count(x in line : board[x] == d) == connect - 1 and count(x in line : is_none(board[x])) == 1
+    )
+    /// Cercanía al centro de las fichas de `d`
+    fn central(d: Disc) -> Int =
+      sum(x in cells(board) : columns - abs(2 * x[1] - (columns - 1)) if board[x] == d else 0)
+    feature threats = open(disc(me)) - open(disc(other(me)))
+    feature center = central(disc(me)) - central(disc(other(me)))
+    weights { threats: 0.05, center: 0.005 }
+    prefer drop(c) when wins_at(cell(landing(c), c), disc(me))
+    prefer drop(c) when wins_at(cell(landing(c), c), disc(other(me)))
+    order drop(c) by
+      2 * threats_at(cell(landing(c), c), disc(me)) + columns - abs(2 * c - (columns - 1)) -
+        (100 if under(c, disc(other(me))) else 0)
+  }
+
   test "cuatro en vertical" {
     play drop(0), drop(1), drop(0), drop(1), drop(0), drop(1), drop(0)
     expect at(Win) and payoff == [1, -1]

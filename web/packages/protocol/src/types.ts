@@ -116,8 +116,11 @@ export type OnTimeout = "random" | "pass" | "bot" | "forfeit";
  */
 export type SpectatorView = "public" | "omniscient";
 
-/** Bots que ejecuta el propio servidor. */
-export type BotKind = "random" | "first";
+/**
+ * Bots que ejecuta el propio servidor (los de búsqueda necesitan el núcleo C++; sin él juegan al
+ * azar).
+ */
+export type BotKind = "random" | "first" | "greedy" | "alphabeta" | "mcts" | "ismcts" | "pimc";
 
 export interface RoomSettings {
   players: number;

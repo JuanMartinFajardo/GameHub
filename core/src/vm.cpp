@@ -334,6 +334,9 @@ Value Vm::call(uint32_t fn_index, const Value* args, Ctx& ctx) {
     if (memo->size() > STATIC_MEMO_LIMIT) memo->clear();
   } else if (fn.memo == MemoKind::State && !fn.memo_off) {
     memo = ctx.memo;
+  } else if (fn.memo == MemoKind::Match && ctx.match_memo != nullptr) {
+    memo = ctx.match_memo;
+    if (memo->size() > STATIC_MEMO_LIMIT) memo->clear();
   }
   uint64_t hash = 0;
   if (memo != nullptr) {

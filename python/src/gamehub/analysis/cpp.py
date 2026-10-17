@@ -150,10 +150,14 @@ def solve_wdl(
     threads: int = 1,
     max_nodes: int | None = None,
     max_seconds: float = 0.0,
+    heuristic: str | None = None,
+    moves: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Ganar (1), empatar (0) o perder (-1) para el asiento 0, con búsquedas de ventana nula, una
-    tabla de transposiciones de 2^table_bits entradas y la heurística de historia (sin
-    conocimiento del juego); con `threads` > 1, Lazy SMP."""
+    tabla de transposiciones de 2^table_bits entradas y la heurística de historia; con
+    `heuristic` (F9), las prioridades y el orden de esa heurística del juego ordenan las jugadas
+    antes que la historia. Con `threads` > 1, Lazy SMP. `moves`: resuelve la posición a la que se
+    llega con esas jugadas (el JSON de cada acción)."""
     import json
 
     reference = initial_state(game, num_players, params)
@@ -168,6 +172,8 @@ def solve_wdl(
             threads,
             max_nodes if max_nodes is not None else 2**63,
             max_seconds,
+            heuristic or "",
+            moves or [],
         )
     )
 

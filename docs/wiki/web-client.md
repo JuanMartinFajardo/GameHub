@@ -31,7 +31,9 @@ cd python && uv run gamehub serve ../games --open    # the match server serves t
 - **Replays** (`/replay/ID`): the match state by state, from the perspective of any seat, a
   spectator or with everything visible; play, step by step or with the keyboard.
 - **On this device** (`/local/GAME`): several people taking turns on the same screen (with bots
-  at random or, in games without hidden information, MCTS). If several people share a game with
+  at random, rule-based with the game's heuristic and, in games without hidden information, MCTS
+  and alpha-beta; with hidden information, ISMCTS and PIMC, which only use what their seat sees;
+  F9). If several people share a game with
   hidden information, the screen is covered between turns ("Ana's turn: pass her the device").
   It runs **in the browser** with the C++ core in WebAssembly (`@gamehub/engine`, ADR-082): a
   `LocalTable` produces the room protocol's messages, so the UIs are the same; if the engine

@@ -18,6 +18,7 @@ partida termina.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import secrets
 import unicodedata
@@ -697,7 +698,9 @@ class Room:
         self.match = match
         self.status = "running"
         self.bots = {
-            s.index: _agent(s.bot, match.seed, s.index) for s in self.seats if s.bot is not None
+            s.index: _agent(s.bot, match.seed, s.index, self.game)
+            for s in self.seats
+            if s.bot is not None
         }
         self.bot_due.clear()
         self.match_players = self.players_json()
@@ -769,7 +772,8 @@ class Room:
         s = self.seats[seat]
         agent = self.bots.get(seat)
         if agent is None:
-            agent = self.bots[seat] = _agent(s.bot or s.takeover or "random", match.seed, seat)
+            kind = s.bot or s.takeover or "random"
+            agent = self.bots[seat] = _agent(kind, match.seed, seat, self.game)
         state = match.state
         legal = state.legal_actions(seat)
         action = agent.act(Observation(state, seat), legal)
@@ -932,5 +936,13 @@ class Room:
         self._send(p, "update", match.snapshot(p.seat, now=now, legal_limit=limit), now)
 
 
-def _agent(kind: str, seed: int, seat: int) -> Agent:
-    return FirstAgent() if kind == "first" else RandomAgent(seed, seat)
+def _agent(kind: str, seed: int, seat: int, game: Any = None) -> Agent:
+    if kind == "first":
+        return FirstAgent()
+    if kind != "random" and game is not None:
+        from gamehub.bots.agents import make_bot
+
+        # Los bots del servidor piensan poco (la sala no atiende mientras tanto).
+        with contextlib.suppress(ImportError):
+            return make_bot(game, {"kind": kind, "seconds": 0.2}, seat, seed)
+    return RandomAgent(seed, seat)

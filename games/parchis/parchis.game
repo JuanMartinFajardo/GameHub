@@ -257,6 +257,39 @@ game Parchis {
     )
   }
 
+  /// Comer, meter fichas en la meta, ponerse a salvo y avanzar; la evaluación es la ventaja en
+  /// la carrera.
+  heuristic Race {
+    /// Lo que lleva recorrido el asiento `s` (una ficha en casa cuenta -10)
+    fn progress(s: Seat) -> Int = sum(k in 0..3 : -10 if pos[s][k] < 0 else pos[s][k])
+    /// Dónde acaba la ficha `k` de quien mueve si avanza `n` (o sale de casa)
+    fn target(k: Int, n: Int) -> Int = 0 if pos[mover(turn)][k] < 0 else pos[mover(turn)][k] + n
+    /// ¿Come una ficha al acabar en `i`?
+    fn eats(i: Int) -> Bool {
+      let s = mover(turn)
+      let q = place(s, i)
+      let there = at_place(q)
+      i <= 63 and not safe(q) and len(there) == 1 and not friend(s, there[0][0])
+    }
+    /// ¿Queda a salvo en `i` (seguro, pasillo o meta)?
+    fn sheltered(i: Int) -> Bool = i > 63 or safe(place(mover(turn), i))
+    /// La ventaja en la carrera sobre la media de los rivales, en vueltas (estima el pago)
+    feature lead =
+      (
+        progress(mover(me)) -
+          sum(t in seats : progress(t) if t != mover(me) else 0) / (num_players - 1)
+      ) /
+        284
+    prefer advance(k) when eats(target(k, steps()))
+    prefer advance(k) when target(k, steps()) == 71
+    prefer count_bonus(k) when eats(target(k, bonus))
+    prefer count_bonus(k) when target(k, bonus) == 71
+    order advance(k) by
+      (10 if sheltered(target(k, steps())) else 0) - (5 if sheltered(pos[mover(turn)][k]) else 0) +
+        target(k, steps()) / 10
+    order count_bonus(k) by (10 if sheltered(target(k, bonus)) else 0) + target(k, bonus) / 10
+  }
+
   test "las salidas, los seguros y los pasillos" {
     players 4
     expect exit_square(0) == 5 and exit_square(1) == 22 and exit_square(3) == 56

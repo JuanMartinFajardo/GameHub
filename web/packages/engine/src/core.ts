@@ -181,7 +181,12 @@ export interface LegalList {
   truncated: boolean;
 }
 
-export type BotKind = "random" | "first" | "mcts";
+/**
+ * Bots: al azar, la primera legal, MCTS (ve el estado entero: solo con información perfecta) y los
+ * de la F9, que usan la heurística del juego y, con información oculta, determinizaciones:
+ * reglas de prioridad (`greedy`), alfa-beta, ISMCTS y PIMC.
+ */
+export type BotKind = "random" | "first" | "mcts" | "greedy" | "alphabeta" | "ismcts" | "pimc";
 
 interface Reply {
   ok: boolean;
@@ -566,8 +571,8 @@ export class CoreSession {
   }
 
   /**
-   * La jugada de un bot: al azar, la primera legal o MCTS con `simulations` partidas (y como
-   * mucho `maxSeconds`, si se indica).
+   * La jugada de un bot: al azar, la primera legal, MCTS con `simulations` partidas (y como
+   * mucho `maxSeconds`, si se indica) o un bot de la F9 (`maxSeconds` por jugada; 0,5 s si no).
    */
   botAction(
     seat: number,

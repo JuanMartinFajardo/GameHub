@@ -134,7 +134,10 @@
       "description": "Qué ven los espectadores: lo público, o todo (como en una retransmisión de póquer; conviene con retardo).",
       "enum": ["public", "omniscient"]
     },
-    "BotKind": { "description": "Bots que ejecuta el propio servidor.", "enum": ["random", "first"] },
+    "BotKind": {
+      "description": "Bots que ejecuta el propio servidor (los de búsqueda necesitan el núcleo C++; sin él juegan al azar).",
+      "enum": ["random", "first", "greedy", "alphabeta", "mcts", "ismcts", "pimc"]
+    },
     "RoomSettings": {
       "type": "object",
       "required": [

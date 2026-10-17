@@ -318,7 +318,206 @@ class Checker:
         ui_ir = self.check_ui(emitted)
         if ui_ir:
             ir["ui"] = ui_ir
+        heuristics_ir = self.check_heuristics(used)
+        if heuristics_ir:
+            ir["heuristics"] = heuristics_ir
         return ir
+
+    # --- heurísticas ----------------------------------------------------------------------------
+
+    def check_heuristics(self, used: set[str]) -> list[dict[str, Any]]:
+        """Las heurísticas (ADR-083): rasgos numéricos con `me` (el asiento evaluado), sus pesos,
+        reglas de prioridad y el orden de las acciones. No son reglas: la IR las guarda bajo
+        `heuristics`, fuera del hash de reglas; las funciones de módulo que solo usa una
+        heurística van en su propia lista `functions` (así no cambian las reglas)."""
+        out: list[dict[str, Any]] = []
+        for h in self.model.heuristics:
+            self.declare(
+                f"heuristic:{h.name}",
+                "heuristic",
+                h.name,
+                h.name_span(),
+                f"heuristic {h.name}",
+                h.doc,
+            )
+            local = self.heuristic_functions(h)
+            self.owner = f"heuristic:{h.name}"
+            ctx = Ctx(f"la heurística {h.name}")
+            features: list[dict[str, Any]] = []
+            weights: dict[str, tuple[Any, Span]] = {}
+            prefer: list[dict[str, Any]] = []
+            order: list[dict[str, Any]] = []
+            for item in h.items:
+                match item:
+                    case ast.FeatureDecl():
+                        if any(f["name"] == item.name for f in features):
+                            self.error("E202", f"rasgo repetido: {item.name}", item.name_span())
+                            continue
+                        scope = self.heuristic_scope(item.span)
+                        body = self.expect(
+                            self.expr(item.body, scope, ctx, T.REAL),
+                            T.REAL,
+                            item.body.span,
+                            f"el rasgo {item.name} es un número",
+                        )
+                        feature: dict[str, Any] = {"name": item.name, "body": body}
+                        if item.doc is not None:
+                            feature["doc"] = item.doc.to_ir()
+                        features.append(feature)
+                    case ast.WeightsBlock(entries=entries):
+                        for e in entries:
+                            if e.name in weights:
+                                self.error("E202", f"peso repetido: {e.name}", e.name_span())
+                                continue
+                            weights[e.name] = (self.weight(e.value), e.name_span())
+                    case ast.FnDecl():
+                        pass  # ya comprobada
+                    case ast.PreferDecl() | ast.OrderDecl():
+                        scope = self.pattern_scope(item)
+                        if scope is None:
+                            continue
+                        rule: dict[str, Any] = {"action": item.action, "params": item.params}
+                        if isinstance(item, ast.PreferDecl):
+                            rule["when"] = self.expect(
+                                self.expr(item.when, scope, ctx, T.BOOL), T.BOOL, item.when.span
+                            )
+                            prefer.append(rule)
+                        else:
+                            rule["key"] = self.expect(
+                                self.expr(item.key, scope, ctx, T.REAL),
+                                T.REAL,
+                                item.key.span,
+                                "la clave del orden es un número",
+                            )
+                            order.append(rule)
+                        if item.doc is not None:
+                            rule["doc"] = item.doc.to_ir()
+                    case _:
+                        self.error("E110", "elemento no válido en una heurística", item.span)
+            names = [f["name"] for f in features]
+            for name, (value, span) in weights.items():
+                if name not in names:
+                    self.error(
+                        "E201",
+                        f"peso de un rasgo que no existe: `{name}`",
+                        span,
+                        help=self.suggest(name, names),
+                    )
+                elif value != ["const", 1]:
+                    next(f for f in features if f["name"] == name)["weight"] = value
+            entry: dict[str, Any] = {"name": h.name}
+            if h.doc is not None:
+                entry["doc"] = h.doc.to_ir()
+            own = self.reachable_from(self.owner) - used
+            for name in sorted(own):
+                info = self.types.get(name)
+                if info is not None and info.external:
+                    self.error(
+                        "E205",
+                        f"la heurística {h.name} usa el tipo `{name}`, que las reglas no usan",
+                        h.name_span(),
+                        help="una heurística solo puede usar los tipos de las reglas",
+                    )
+            helpers = [
+                info.ir
+                for info in self.ordered_functions()
+                if info.ir is not None and info.external and info.decl.name in own
+            ]
+            helpers += [info.ir for info in local if info.ir is not None]
+            for info in local:
+                del self.functions[info.decl.name]
+            if helpers:
+                entry["functions"] = helpers
+            if features:
+                entry["features"] = features
+            if prefer:
+                entry["prefer"] = prefer
+            if order:
+                entry["order"] = order
+            out.append(entry)
+        self.owner = "game"
+        return out
+
+    def heuristic_functions(self, h: ast.HeuristicDecl) -> list[FnInfo]:
+        """Las funciones propias de una heurística: se ven solo dentro de ella y van a su lista
+        `functions` (no son reglas)."""
+        local: list[FnInfo] = []
+        for decl in h.items:
+            if not isinstance(decl, ast.FnDecl):
+                continue
+            if decl.native is not None:
+                self.error("E111", "@native no se admite en funciones de una heurística", decl.span)
+            if not self.declare_global(decl.name, decl.name_span(), "la función"):
+                continue
+            params: list[tuple[str, Ty]] = []
+            for p in decl.params:
+                if p.name in (n for n, _ in params):
+                    self.error("E202", f"parámetro repetido: {p.name}", p.span)
+                params.append((p.name, self.resolve_type(p.type)))
+            info = FnInfo(decl, params, self.resolve_type(decl.returns), external=False)
+            self.functions[decl.name] = info
+            local.append(info)
+            signature = ", ".join(f"{n}: {ty}" for n, ty in params)
+            self.declare(
+                f"fn:{decl.name}",
+                "fn",
+                decl.name,
+                decl.name_span(),
+                f"fn {decl.name}({signature}) -> {info.returns}",
+                decl.doc,
+            )
+        for info in local:
+            self.check_function(info.decl.name, info)
+        self.in_module = False
+        if local:
+            self.check_recursion()
+        return local
+
+    def heuristic_scope(self, span: Span) -> Scope:
+        scope = Scope()
+        self.bind(scope, "me", "arg", T.SEAT, span)
+        return scope.child()
+
+    def weight(self, e: ast.Expr) -> Any:
+        """Un peso: un número literal (entero o decimal, con signo)."""
+        ir, ty = self.expr(e, Scope(), Ctx("un peso", reads_state=False))
+        if not (ty.is_numeric or ty.is_unknown) or not _is_constant(ir):
+            self.error(
+                "E301", "un peso es un número literal", e.span, help="por ejemplo 2, -1 o 0.25"
+            )
+            return ["const", 1]
+        return ir
+
+    def pattern_scope(self, item: ast.PreferDecl | ast.OrderDecl) -> Scope | None:
+        """`me` y los parámetros de la acción del patrón, por posición."""
+        decls = self.actions.get(item.action)
+        if not decls:
+            self.error(
+                "E201",
+                f"acción desconocida: `{item.action}`",
+                item.name_span(),
+                help=self.suggest(item.action, list(self.actions)),
+            )
+            return None
+        declared = decls[0].params
+        if len(declared) != len(item.params):
+            self.error(
+                "E207",
+                f"la acción {item.action} tiene {len(declared)} parámetro(s), no "
+                f"{len(item.params)}",
+                item.name_span(),
+                help=f"{item.action}({', '.join(p.name for p in declared)})",
+            )
+            return None
+        self.note(item.name_span(), f"action:{item.action}")
+        scope = self.heuristic_scope(item.span)
+        types = self.action_params.get(item.action, {})
+        for k, (name, param) in enumerate(zip(item.params, declared, strict=True)):
+            ty = (types.get(param.name) or [T.UNKNOWN])[0]
+            if scope.lookup(name) is not None and name != "_":
+                self.error("E202", f"parámetro repetido: {name}", item.name_span(k + 1))
+            self.bind(scope, name, "arg", ty, item.span, decl=item.name_span(k + 1))
+        return scope.child()
 
     def check_ui(self, emitted_types: set[str]) -> dict[str, Any]:
         structs = {
@@ -361,6 +560,9 @@ class Checker:
         roots = {"game"}
         roots |= {name for name, info in self.types.items() if not info.external}
         roots |= {name for name, info in self.functions.items() if not info.external}
+        return self.reachable_from(*roots)
+
+    def reachable_from(self, *roots: str) -> set[str]:
         seen: set[str] = set()
         stack = list(roots)
         while stack:
@@ -795,34 +997,37 @@ class Checker:
 
     def check_functions(self) -> None:
         for name, info in self.functions.items():
-            self.owner = name
-            self.in_module = info.external
-            scope = Scope()
-            for param, (pname, pty) in zip(info.decl.params, info.params, strict=True):
-                self.bind(scope, pname, "arg", pty, info.decl.span, decl=param.name_span())
-            ctx = Ctx(f"la función {name}")
-            if info.external:
-                ctx = replace(ctx, reads_state=False, module=True)
-            body = self.expect(
-                self.expr(info.decl.body, scope, ctx, info.returns),
-                info.returns,
-                info.decl.body.span,
-                f"resultado de {name}",
-            )
-            out: dict[str, Any] = {
-                "name": name,
-                "params": [[p, T.to_ir(t)] for p, t in info.params],
-                "returns": T.to_ir(info.returns),
-                "body": body,
-            }
-            if info.decl.native is not None:
-                self.check_native(info)
-                out["native"] = info.decl.native
-            if info.decl.doc is not None:
-                out["doc"] = info.decl.doc.to_ir()
-            info.ir = out
+            self.check_function(name, info)
         self.owner = "game"
         self.in_module = False
+
+    def check_function(self, name: str, info: FnInfo) -> None:
+        self.owner = name
+        self.in_module = info.external
+        scope = Scope()
+        for param, (pname, pty) in zip(info.decl.params, info.params, strict=True):
+            self.bind(scope, pname, "arg", pty, info.decl.span, decl=param.name_span())
+        ctx = Ctx(f"la función {name}")
+        if info.external:
+            ctx = replace(ctx, reads_state=False, module=True)
+        body = self.expect(
+            self.expr(info.decl.body, scope, ctx, info.returns),
+            info.returns,
+            info.decl.body.span,
+            f"resultado de {name}",
+        )
+        out: dict[str, Any] = {
+            "name": name,
+            "params": [[p, T.to_ir(t)] for p, t in info.params],
+            "returns": T.to_ir(info.returns),
+            "body": body,
+        }
+        if info.decl.native is not None:
+            self.check_native(info)
+            out["native"] = info.decl.native
+        if info.decl.doc is not None:
+            out["doc"] = info.decl.doc.to_ir()
+        info.ir = out
 
     def check_native(self, info: FnInfo) -> None:
         """Una función `@native` solo admite tipos que un plugin puede recibir y devolver como

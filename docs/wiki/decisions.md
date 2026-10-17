@@ -88,6 +88,13 @@
 | 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Accepted (2026-10-17, user) |
 | 081 | Connect Four 7×6 moves from F8 to F9: game-independent search does not reach it; F9's heuristic move ordering in C++ will | Accepted (2026-10-17, user) |
 | 082 | The core in the browser: Emscripten + embind with a JSON API, binaries checked in with a source fingerprint (`gamehub wasm`), native plugins called through a JavaScript host, local matches that speak the room protocol, the Studio's playouts in WASM and a static export without a match server | Accepted (2026-10-17, user) |
+| 083 | `heuristic` blocks in Nomos: numeric `feature`s seen from `me`, linear `weights`, `prefer` priority rules and `order` keys, with their own functions; in the IR under `heuristics`, outside the rules hash, each with its own hash; evaluated in both engines | Proposed (2026-10-17) |
+| 084 | Bots in the C++ core (greedy rules, paranoid alpha-beta, open-loop MCTS, ISMCTS, PIMC) that only use what their seat sees: determinization by shuffling hidden zone items and replaying chance for the other hidden values; a `match` memo for functions of the options | Proposed (2026-10-17) |
+| 085 | The arena: round-robin, Swiss and gauntlet, mirror matches, Elo (maximum likelihood), Glicko-2 and TrueSkill per rules hash, SPRT; matches in C++ threads | Proposed (2026-10-17) |
+| 086 | Bot packages (`bot.toml`): the core's kinds run in-process; Python bots in a child process with OS limits and a per-move deadline, seeing only their observation; remote bots with `gamehub bot run` | Proposed (2026-10-17) |
+| 087 | Balance analytics from bot matches (seat advantage, draws and length, branching, skill vs. luck, skill chain, tension, dominant actions, rule coverage, kingmaking) and a Balance CI that compares two versions | Proposed (2026-10-17) |
+| 088 | Weight tuning: CMA-ES and SPSA against the current weights in mirror matches; Texel by logistic regression on self-play positions; `--write` edits the `.game` | Proposed (2026-10-17) |
+| 089 | Connect Four 7×6: heuristic ordering is not enough with the generic VM; the proof stays pending (question 28) | Proposed (2026-10-17) |
 
 ---
 
@@ -988,3 +995,125 @@
   from the session's own chance and bots, plugin = reference = native C++ (fingerprints), the
   Studio's statistics equal to Python's, and the app playing tic-tac-toe on one device and
   against MCTS without a server. A static site serves every catalog game with no backend.
+
+### ADR-083 — Heuristic blocks
+- **Context:** F9 asks for heuristics "written in the same expression language, so they run on
+  the C++ engine at full speed" (heuristics-and-ai.md §1) and versioned with the game, but they
+  are not rules: a better evaluation must not change the rules hash, the ratings or the replays.
+- **Decision:**
+  - **Nomos:** inside a game, `heuristic Name { … }` with `fn` (functions of the heuristic only),
+    `feature name = expr` (a number; `me` is the seat it is evaluated for), `weights { name:
+    number, … }` (literal numbers; 1 when missing), `prefer action(p, …) when cond` (priority
+    rules: the first one an action meets is its priority) and `order action(p, …) by key`
+    (higher first; 0 without a rule). The pattern names the action's parameters by position.
+    `extends` variants inherit heuristics and may add, `override` or `remove heuristic` them;
+    combinators keep the base's.
+  - **IR:** `heuristics: [{name, doc?, functions?, features: [{name, weight?, body}], prefer:
+    [{action, params, when}], order: [{action, params, key}]}]`, with `me` and the pattern as
+    `["arg", …]`. The module functions only a heuristic uses travel in its `functions` (so they do
+    not become rules); a type only a heuristic uses is an error (E205). `heuristics` is outside
+    the **rules hash** (like `ui`); `heuristic_hash` = the heuristic plus the rules hash.
+  - **Evaluation:** the evaluation is Σ weight·feature (exact in Python, `double` in the
+    searches); the key of an action is (priority, −score). `gamehub.bots.heuristic` (reference)
+    and `heuristic.cpp` (core) give the same values (a test compares them on random states of
+    seven games).
+- **Alternatives:** separate `heuristics/` files that import the game (a second compilation unit
+  for every engine and tool; variants with `extends` give the same separation); non-linear
+  `eval = expr` (weights could not be tuned); weights as IR expressions of the state.
+- **Consequences:** every catalog game ships a heuristic (the 2×2 family inherits one from
+  `TwoByTwo`, the iterated dilemma from the dilemma); none changed its rules hash, so the golden
+  traces stay valid.
+
+### ADR-084 — Bots and determinization in the C++ core
+- **Context:** F9 asks for "priority rules, minimax + heuristic, MCTS, ISMCTS, PIMC"; the server
+  and the arena host bots in-process with the real state, which they must not peek at.
+- **Decision:**
+  - **Determinization** (`gamehub_core.determinize`): the hidden **items** of zones and bags (by
+    visibility, like the views) are pooled by type and dealt back at random into the same hidden
+    slots (cards are conserved: the seat cannot tell them apart); the other hidden values (dice,
+    numbers) are taken from a **replay of the match with chance drawn again** and the same
+    actions (if one stops being legal, the value stays); other seats' pending submissions are
+    forgotten. Without hidden information it returns the same state.
+  - **Bots** (`Bot`, `play_bots`): `greedy` (the best key, ties broken one move ahead with the
+    payoff or the evaluation), `alphabeta` (paranoid minimax for any n, expectimax at chance,
+    iterative deepening, transposition table, heuristic ordering; on a determinization),
+    `mcts` (open-loop UCT with availability counts, heuristic expansion and rollouts that follow
+    the heuristic with probability `greedy`; the evaluation at the rollout horizon), `ismcts`
+    (one determinization per simulation) and `pimc` (the mean of alpha-beta —or MCTS when the
+    heuristic does not evaluate— over several determinizations). Budgets in seconds, depth or
+    iterations; random and first draw from `PCG32(seed, 1000 + seat)` like Python's.
+  - **Python:** `gamehub.bots.agents` (`make_bot`, `CoreBot`): the `Agent` interface; on the
+    reference engine the agent replays the match in C++ step by step. The server's seat bots,
+    `play --seats` and the browser (`LocalTable`) offer the new kinds.
+  - **VM:** functions that read only the options and the number of players get a **match memo**
+    (a cache per match), which made the heuristics' geometry (segments through a cell) free.
+- **Alternatives:** determinizing by rejection over the history (exact posterior, but the deal
+  that matches the seat's hand is astronomically unlikely); a heuristic-provided sampler (left
+  for later); bots in Python (50× slower).
+- **Consequences:** fair bots for every catalog game; the rule-based bot beats random in all of
+  them. Known limits: determinization ignores what play reveals (a void in a suit), values
+  derived from hidden ones are refreshed only by the replay, and search bots cannot play remotely
+  (the protocol only carries views).
+
+### ADR-085 — The arena
+- **Decision:** `gamehub arena GAME BOT…` (`gamehub.bots.arena`): round-robin (every table of n
+  different entrants; repeated if there are fewer), Swiss (rounds that seat neighbours in the
+  standings) and gauntlet; **mirror** matches (each seed with every rotation of the table, same
+  chance stream); matches of core bots run in C++ threads with one engine per thread. Ratings:
+  **Elo** by maximum likelihood (Bradley–Terry, Hunter's MM, one virtual draw against the mean so
+  that perfect scores stay finite), **Glicko-2** (one rating period per seed) and **TrueSkill**
+  for n players (EP on the chain of performance differences with draws); n-player matches count
+  as all their pairs for Elo and Glicko-2. A JSON database accumulates matches **per rules
+  hash**. `gamehub sprt GAME A B` runs Wald's test with the trinomial model of fishtest.
+- **Consequences:** the three rating systems are checked against the published reference values
+  (TrueSkill 29.396/7.171; Glicko-2's worked example 1464.06/151.52/0.05999).
+
+### ADR-086 — Bot packages and sandboxing
+- **Decision:** a bot is a directory with `bot.toml` (`name`, `version`, `game`, optional `rules`
+  hash, `kind`, `heuristic`, `[options]`, `[limits]`). Kinds of the core are trusted code run
+  in-process. `kind = "python"` (a `make_agent`, `Agent` or `act` file, as for `gamehub bot run`)
+  runs in a **child process** with `RLIMIT_CPU`, `RLIMIT_AS` (where the OS supports it), no core
+  dumps, an empty environment and a per-move deadline; it only receives its seat's observation
+  (JSON lines). A timeout, crash or illegal answer kills it and the seat plays random moves to the
+  end; the failure is recorded. The same file plays remotely with `gamehub bot run PACKAGE --room
+  CODE`.
+- **Alternatives:** containers or WebAssembly sandboxes (heavier; left for the hub's job queues,
+  F10).
+
+### ADR-087 — Balance analytics and Balance CI
+- **Decision:** `gamehub balance GAME` measures, from bot matches in C++: seat advantage (mean
+  payoff and first places per seat with 95 % intervals, Wilson), draws and length, the branching
+  profile by tenths of the match and forced decisions, skill vs. luck (the reference bot against
+  random ones: (P(first) − 1/n)/(1 − 1/n)), the skill chain (a ladder of bots; steps whose
+  interval clears 1/n), tension (lead changes by the heuristic's evaluation and when the winner
+  takes the lead for good), dominant actions (win-rate lift when used), rule coverage (actions
+  and transitions never taken; the core records the transitions of the match, not of the bots'
+  searches) and kingmaking for n ≥ 3 (late decisions of a seat that cannot win, < 5 % with any
+  action, whose choice changes the winner's distribution by a total variation ≥ 0.25).
+  `--against OLD` is the **Balance CI**: it runs the same measurements on both versions and flags
+  regressions (a new seat advantage, +5 points of draws, +25 % length, −0.1 skill share, a shorter
+  chain, rules that stop being used, new dominant actions, +5 points of kingmaking);
+  `--fail-on-regression` makes it a CI step.
+
+### ADR-088 — Weight tuning
+- **Decision:** `gamehub tune GAME --method cmaes|spsa|texel`: CMA-ES (Hansen's tutorial version,
+  pure Python: the dimension is the number of features) and SPSA maximize the share of first
+  places of the bot with candidate weights against the same bot with the current ones (or another
+  bot), in mirror matches; Texel fits a logistic model of "this seat finished first" on the
+  features of every seat in self-play positions (the core records them) with Adam.
+  `--write` rewrites the heuristic's `weights` block in the `.game`. The arena with SPRT decides
+  whether the new weights really are better.
+
+### ADR-089 — Connect Four 7×6 after F9
+- **Context:** ADR-081 moved the 7×6 proof to F9 expecting heuristic move ordering in C++ to close
+  the gap. Measurements (2026-10-17, Apple M1): with the `Threats` heuristic (immediate wins and
+  blocks first, then new threats, centre and avoiding the square under a rival threat) the
+  win/draw/loss solver needs **5–6× fewer nodes** (5×4: 78,664 instead of 459,131; 5×5: 1.07 M
+  instead of 5.6 M) at about 150,000 nodes per second and thread, and the match memo made it
+  4× faster than the first version. But 6×5 takes 8.6 M nodes and 2 minutes, 6×6 did not finish
+  in 30 minutes on four threads, and on 7×6 a position after 6 moves needs 2 M nodes while one
+  after 4 moves exceeds 1.6·10⁸ nodes: the empty board is several orders of magnitude away.
+  Bitboard solvers reach it with ~10⁷ nodes per second and stronger pruning.
+- **Decision (proposed):** F9 does not claim the 7×6 result; `gamehub solve --heuristic` and the
+  measurements stay, and the test remains skipped pointing here. Question 28 offers the ways
+  forward.

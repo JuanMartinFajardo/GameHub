@@ -2,8 +2,9 @@
 """Hash de reglas: SHA-256 del JSON canónico de la IR, sin metadatos ni documentación.
 
 Dos documentos que solo difieren en orden de claves, espacios, `meta`, pistas de presentación
-(`ui`), campos `doc` o mensajes de las restricciones tienen el mismo hash: describen exactamente
-las mismas reglas.
+(`ui`), heurísticas (`heuristics`), campos `doc` o mensajes de las restricciones tienen el mismo
+hash: describen exactamente las mismas reglas. Cada heurística tiene su propio hash
+(`heuristic_hash`), que incluye el de las reglas.
 
 La canonicalización coincide con RFC 8785 (JCS) en el subconjunto de JSON que usa la IR
 (objetos, listas, cadenas, enteros, booleanos y null; claves ASCII): claves ordenadas, sin
@@ -23,8 +24,9 @@ def canonical_json(value: Any) -> str:
 
 
 def strip_cosmetic(doc: dict[str, Any]) -> dict[str, Any]:
-    """Copia del documento sin `meta`, sin `ui`, sin campos `doc`, sin `message` en `constraints`
-    y sin valores por defecto explícitos (listas vacías, visibilidad `all`).
+    """Copia del documento sin `meta`, sin `ui`, sin `heuristics`, sin campos `doc`, sin
+    `message` en `constraints` y sin valores por defecto explícitos (listas vacías, visibilidad
+    `all`).
 
     No entra en las S-expresiones (listas que empiezan por una cadena): un campo llamado `doc`
     dentro de un literal de struct o de un evento forma parte de las reglas.
@@ -32,7 +34,7 @@ def strip_cosmetic(doc: dict[str, Any]) -> dict[str, Any]:
     stripped = {
         k: _strip(v)
         for k, v in doc.items()
-        if k not in ("meta", "ui", "doc") and not _is_default(k, v)
+        if k not in ("meta", "ui", "heuristics", "doc") and not _is_default(k, v)
     }
     if "constraints" in stripped:
         stripped["constraints"] = [
@@ -43,6 +45,17 @@ def strip_cosmetic(doc: dict[str, Any]) -> dict[str, Any]:
 
 def rules_hash(doc: dict[str, Any]) -> str:
     digest = hashlib.sha256(canonical_json(strip_cosmetic(doc)).encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
+
+
+def heuristic_hash(doc: dict[str, Any], name: str) -> str:
+    """Hash de una heurística del juego: su contenido sin documentación y el hash de las reglas
+    para las que se escribió (las valoraciones de la arena la identifican con él)."""
+    found = [h for h in doc.get("heuristics", []) if h["name"] == name]
+    if not found:
+        raise KeyError(f"el juego no tiene la heurística {name}")
+    body = {"heuristic": _strip(found[0]), "rules": rules_hash(doc)}
+    digest = hashlib.sha256(canonical_json(body).encode("utf-8")).hexdigest()
     return f"sha256:{digest}"
 
 

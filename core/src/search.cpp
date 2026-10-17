@@ -11,6 +11,7 @@
 #include <thread>
 
 #include "gamehub/errors.hpp"
+#include "gamehub/heuristic.hpp"
 
 namespace gh {
 
@@ -284,8 +285,8 @@ class WdlTable {
 class WdlSearch {
  public:
   WdlSearch(WdlTable& table, std::atomic<uint64_t>& nodes, std::atomic<bool>& stop,
-            uint64_t max_nodes, uint64_t seed)
-      : table_(table), nodes_(nodes), stop_(stop), max_nodes_(max_nodes), rng_(seed, 99) {}
+            uint64_t max_nodes, uint64_t seed, const HeuristicDef* h)
+      : table_(table), nodes_(nodes), stop_(stop), max_nodes_(max_nodes), rng_(seed, 99), h_(h) {}
 
   // Valor para el asiento 0, buscando en la ventana (alpha, beta).
   int search(const State& s, int alpha, int beta, int depth) {
@@ -317,26 +318,14 @@ class WdlSearch {
       actions.push_back(a);
       return true;
     });
-    // Orden: la jugada de la tabla, después por la historia (cortes que produjo cada acción).
-    std::vector<size_t> order(actions.size());
-    std::vector<uint64_t> score(actions.size());
-    for (size_t k = 0; k < actions.size(); ++k) {
-      order[k] = k;
-      score[k] = history_[actions[k].hash() & 4095];
-    }
-    std::stable_sort(order.begin(), order.end(),
-                     [&](size_t x, size_t y) { return score[x] > score[y]; });
-    if (hint >= 0 && static_cast<size_t>(hint) < actions.size()) {
-      order.erase(std::find(order.begin(), order.end(), static_cast<size_t>(hint)));
-      order.insert(order.begin(), static_cast<size_t>(hint));
-    }
     bool maximizing = seat == 0;
     int a0 = alpha, b0 = beta;
     int best = maximizing ? -2 : 2;
-    int best_move = static_cast<int>(order.front());
-    for (size_t k : order) {
+    int best_move = -1;
+    bool cut = false;
+    auto visit = [&](size_t k) {
       int v = search(s.apply_action(seat, actions[k], SEARCH), alpha, beta, depth + 1);
-      if ((maximizing && v > best) || (!maximizing && v < best)) {
+      if (best_move < 0 || (maximizing && v > best) || (!maximizing && v < best)) {
         best = v;
         best_move = static_cast<int>(k);
       }
@@ -347,7 +336,36 @@ class WdlSearch {
       }
       if (alpha >= beta) {
         history_[actions[k].hash() & 4095] += uint64_t(1) << std::min(40, 40 - std::min(depth, 40));
-        break;
+        cut = true;
+      }
+    };
+    // La jugada de la tabla, primero y sin calcular nada más (suele cortar).
+    bool hinted = hint >= 0 && static_cast<size_t>(hint) < actions.size();
+    if (hinted) visit(static_cast<size_t>(hint));
+    if (!cut) {
+      // El resto: por la heurística del juego (si se da) y, a igual clave, por la historia
+      // (cortes que produjo cada acción).
+      std::vector<size_t> order;
+      std::vector<uint64_t> score(actions.size());
+      std::vector<ActionKey> keys;
+      if (h_ != nullptr) {
+        keys.resize(actions.size());
+        for (size_t k = 0; k < actions.size(); ++k) {
+          if (!hinted || k != static_cast<size_t>(hint)) keys[k] = action_key(s, *h_, seat, actions[k]);
+        }
+      }
+      for (size_t k = 0; k < actions.size(); ++k) {
+        if (hinted && k == static_cast<size_t>(hint)) continue;
+        order.push_back(k);
+        score[k] = history_[actions[k].hash() & 4095];
+      }
+      std::stable_sort(order.begin(), order.end(), [&](size_t x, size_t y) {
+        if (!keys.empty() && (keys[x] < keys[y] || keys[y] < keys[x])) return keys[x] < keys[y];
+        return score[x] > score[y];
+      });
+      for (size_t k : order) {
+        visit(k);
+        if (cut) break;
       }
     }
     uint8_t flag = 1;
@@ -368,13 +386,26 @@ class WdlSearch {
   std::atomic<bool>& stop_;
   uint64_t max_nodes_;
   Pcg32 rng_;
+  const HeuristicDef* h_;
   uint64_t history_[4096] = {};
 };
 
 }  // namespace
 
 WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int table_bits,
-                    int threads, uint64_t max_nodes, double max_seconds) {
+                    int threads, uint64_t max_nodes, double max_seconds,
+                    const std::string& heuristic, const std::vector<Json>& moves) {
+  // La posición de partida: la inicial y, si se dan, unas jugadas (JSON de cada acción).
+  auto start = [&](const Game& g) {
+    State root = g.new_state(num_players, params, SEARCH);
+    for (const auto& m : moves) {
+      root = root.apply_action(root.first_active(), root.decode_action(m), ApplyOptions{false, false, true});
+    }
+    return root;
+  };
+  if (!heuristic.empty() && game.def().heuristic(heuristic) == nullptr) {
+    throw EngineError("el juego no tiene la heurística " + heuristic);
+  }
   auto started = std::chrono::steady_clock::now();
   WdlTable table(table_bits);
   std::atomic<uint64_t> nodes{0};
@@ -382,7 +413,8 @@ WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int t
   WdlResult result;
   // Valor con dos búsquedas de ventana nula: ¿gana el 0? y, si no, ¿pierde?
   auto solve_one = [&](const State& root, uint64_t seed) -> std::pair<int, uint64_t> {
-    WdlSearch search(table, nodes, stop, max_nodes, seed);
+    const HeuristicDef* h = heuristic.empty() ? nullptr : root.game().heuristic(heuristic);
+    WdlSearch search(table, nodes, stop, max_nodes, seed, h);
     int v = search.search(root, 0, 1, 0);
     if (v < 1) v = search.search(root, -1, 0, 0);
     return {v, search.hits};
@@ -393,7 +425,7 @@ WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int t
     helpers.emplace_back([&, t] {
       try {
         Game local(game.def().ir);  // cada hilo con su juego (cachés propias)
-        State root = local.new_state(num_players, params, SEARCH);
+        State root = start(local);
         solve_one(root, static_cast<uint64_t>(t));
       } catch (const EngineError&) {
       }
@@ -412,7 +444,8 @@ WdlResult solve_wdl(const Game& game, int num_players, const Json& params, int t
   }
   std::string error;
   try {
-    State root = game.new_state(num_players, params, SEARCH);
+    State root = start(game);
+    if (root.is_terminal()) throw EngineError("la posición ya es final");
     auto [v, hits] = solve_one(root, 0);
     answer = v;
     result.table_hits = hits;

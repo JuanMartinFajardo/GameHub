@@ -30,6 +30,7 @@ Ctx query_ctx(const StateNode& s) {
   ctx.n = s.n;
   ctx.path = s.path;
   ctx.memo = &s.memo;
+  ctx.match_memo = &s.match->memo;
   ctx.seats = s.match->seats;
   return ctx;
 }
@@ -178,6 +179,7 @@ class Tx {
     ctx_.draws = draws;
     ctx_.events = record ? &events_ : nullptr;
     ctx_.memo = &memo_;
+    ctx_.match_memo = &match_->memo;
     ctx_.seats = match_->seats;
     set_node(node);
   }
@@ -1138,6 +1140,8 @@ Rational State::outcome_probability(const Outcome& outcome) const {
 State State::edited(const Json&) const {
   throw EngineError("State.edited no está disponible en el motor C++ (solo para los tests de Nomos)");
 }
+
+Ctx state_query_ctx(const State& s) { return query_ctx(s.data()); }
 
 Value State::evaluate(const Json& expr) const {
   Expr e = game().compile_expression(expr);

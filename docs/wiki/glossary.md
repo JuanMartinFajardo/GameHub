@@ -5,7 +5,9 @@
 | Action | A seat's choice at a decision point: name + parameters with a domain. |
 | Action builder | The part of the generic UI that composes an action argument by argument with the values the legal actions allow (enumerated or with `query_actions`). |
 | Agent / bot | A program that plays: `act(observation, legal actions) → action`. The same agent plays in process or over the network. |
+| Arena | Tournaments between bots (`gamehub arena`): round-robin, Swiss or gauntlet, mirror matches, Elo, Glicko-2 and TrueSkill per rules hash (F9). |
 | Bag | An unordered zone (a multiset), typical for hands; whoever cannot see its contents only sees its size. |
+| Balance CI | `gamehub balance NEW --against OLD`: the balance analytics of two versions of a game, with the regressions flagged (F9). |
 | CFR / CFR+ | Counterfactual regret minimization: per information set, the regret of each action is accumulated and the average strategy converges to an equilibrium; CFR+ keeps regrets ≥ 0 and weights recent iterations more (`gamehub.analysis.cfr`). |
 | Chance / nature | The pseudo-player that resolves `chance` nodes according to explicit distributions. |
 | Combinator | A game built from another one by transforming its IR: `repeat(G, rounds: n)`, `best_of(G, rounds: n)`. |
@@ -16,6 +18,7 @@
 | Custom UI | A hand-made interface for a game (`games/<game>/ui`, with `defineGameUi`); the app uses it instead of the generic one. |
 | Deadline / clock | Time to decide: fixed per turn (`move`) or a total time per seat with an increment (`match`); when it runs out, `on_timeout` applies. |
 | Decision point | A configuration in which one or more seats must act. |
+| Determinization | A sample of the state consistent with what a seat sees (hidden cards dealt again, hidden dice drawn again): bots with hidden information decide on them (F9). |
 | Diagnostic | A compiler error or warning with a code, position, explanation and help (rustc style). |
 | Digest | SHA-256 of a state's snapshot; it allows comparing engines step by step. |
 | Edit operation (Studio) | A change from the diagram or a form (`addNode`, `addTransition`, `updateAction`…) applied to the tree of the `.game`; the text is rewritten only where it changed. |
@@ -31,6 +34,7 @@
 | Generic UI | The interface that draws and lets you play any game from its IR, without writing anything (`@gamehub/auto-ui`). |
 | Grundy value (nimber) | The *mex* of the values of a position's options in an impartial game; 0 ⇔ the player to move loses; a sum of games is worth the XOR. |
 | Guard | A pure boolean condition of an action (`requires`) or a transition (`when`). |
+| Heuristic | Knowledge about a game that is not a rule: `heuristic` blocks with features, weights, priority rules and move order; outside the rules hash (F9). |
 | Host | The participant who administers a room: configures it, opens or reserves seats, adds bots, kicks someone out. |
 | Hot-seat | Several people taking turns on the same screen; in the web app, with one connection per seat and the screen covered between turns if there is hidden information. |
 | Information leak | Hidden data reaching someone who should not see it (through the state, an event, the path taken or the legal moves); `gamehub check` warns about it (W405). |
@@ -38,6 +42,7 @@
 | Information state | The sequence of a player's observations and own actions. |
 | Interface hash | A digest of the view/action/event schemas; compatibility of UIs and bots. |
 | Invariant | A condition that must hold in every reachable state; `gamehub test` checks it in tests and random matches. |
+| ISMCTS / PIMC | Search with hidden information: MCTS over a fresh determinization per simulation / the mean of a search over several determinizations (F9). |
 | Knuth's estimator | An unbiased estimate of a tree's size from random walks: each depth weighs the product of the branching factors (at chance, the inverse of the outcome's probability). |
 | Language server (LSP) | `gamehub lsp`: diagnostics, completion, hover, definition, rename… for any editor; the Studio uses the same one over WebSocket. |
 | Layout (of the diagram) | Where each box of the Studio diagram goes: ELK computes it and the user adjusts it; it is stored in `<game>.layout.json`, outside the rules. |
@@ -71,8 +76,10 @@
 | Seat | A position in the rules (0..n-1). A participant occupies it. |
 | Sequence form | A two-player zero-sum game as a linear program over realization plans (the probability of each sequence of one's own actions): exact equilibria in the size of the tree. |
 | Session | Someone's participation in a room, identified by a secret token that allows reconnecting. |
+| Skill chain | A ladder of bots of increasing strength; its depth is the number of steps that significantly beat the previous one (F9). |
 | Snapshot | The complete configuration of a state as canonical JSON (including card faces and pending submissions). |
 | Spectator | A participant without a seat: sees the public view (or the omniscient one, if the room allows it), with an optional delay. |
+| SPRT | Wald's sequential probability ratio test: plays matches until it can say whether A beats B by at least a given Elo margin (`gamehub sprt`). |
 | Standard library | The `std.…` modules that come with GameHub (`std.cards`, `std.dice`, `std.grid`, `std.graph`, `std.boards`, `std.tricktaking`, `std.bidding`, `std.betting`, `std.poker`). |
 | State graph | The distinct states of a game (by digest) and the moves between them: counts positions and games without walking the whole tree. |
 | Statechart | A hierarchical state machine (Harel); the model of the flow. |

@@ -146,7 +146,46 @@ class _Decompiler:
         items.append(self.blank(self.flow()))
         if ir.get("ui"):
             items.append(self.blank(ast.UiBlock(entries=entries_from_ir(ir["ui"]))))
+        for h in ir.get("heuristics", []):
+            items.append(self.blank(self.heuristic(h)))
         return ast.GameDecl(name=name, items=items)
+
+    def heuristic(self, h: dict[str, Any]) -> ast.HeuristicDecl:
+        # Sus funciones (las de módulo que solo usa ella también) quedan dentro: al volver a
+        # compilar siguen fuera de las reglas.
+        items: list[ast.Item] = [self.function(f) for f in h.get("functions", [])]
+        features = h.get("features", [])
+        for f in features:
+            items.append(
+                ast.FeatureDecl(
+                    name=f["name"], body=self.expr(f["body"]), doc=self.text(f.get("doc"))
+                )
+            )
+        weighted = [f for f in features if "weight" in f]
+        if weighted:
+            entries = [
+                ast.WeightEntry(name=f["name"], value=self.expr(f["weight"])) for f in weighted
+            ]
+            items.append(ast.WeightsBlock(entries=entries))
+        for r in h.get("prefer", []):
+            items.append(
+                ast.PreferDecl(
+                    action=r["action"],
+                    params=list(r["params"]),
+                    when=self.expr(r["when"]),
+                    doc=self.text(r.get("doc")),
+                )
+            )
+        for r in h.get("order", []):
+            items.append(
+                ast.OrderDecl(
+                    action=r["action"],
+                    params=list(r["params"]),
+                    key=self.expr(r["key"]),
+                    doc=self.text(r.get("doc")),
+                )
+            )
+        return ast.HeuristicDecl(name=h["name"], items=items, doc=self.text(h.get("doc")))
 
     @staticmethod
     def blank(item: ast.Item) -> ast.Item:
