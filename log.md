@@ -5,6 +5,60 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — Session 11: Phase 8, the C++ core
+
+**Request**: "go with phase 8 of the roadmap". Worked on `f8/nucleo-cpp`, in a separate worktree
+(`.claude/worktrees/f8`) because another session was still committing F6's acceptance runs to
+`main` from the main checkout; `main` was merged into the branch once.
+
+**Done**
+- **`core/`** (C++20, CMake) and the **`gamehub-core`** package (nanobind, scikit-build-core,
+  editable with rebuild on import; ADR-075). `gamehub.engine.core` (`CoreGame`, `CoreState`)
+  has the reference engine's API, so `play_match`, `fuzz`, `record` and `replay` take either
+  engine.
+- **Values** (ADR-076): 16 bytes, immutable reference-counted containers with copy-on-write, a
+  per-thread arena, two incremental structural hashes (automatic Zobrist, 128-bit keys),
+  persistent states (undo = the previous state) and exact 64-bit integers and rationals (overflow
+  is a `RuleError`; question 13's default changes accordingly).
+- **The VM** (ADR-077): expressions as stack bytecode with lexical slots (the 87 operators,
+  errors included), statements as node trees, the whole flow of `_Tx`, views, events, snapshots,
+  digests and information states.
+- **Conformance** (ADR-078): the 16 golden traces bit for bit with both engines (`gamehub
+  conformance` checks both); `gamehub differential` compares the engines step by step (digest,
+  legal actions, chance; views and events of every seat in the deep matches). The catalog sweep
+  so far: every 2×2 game and Kuhn a million matches each, Nim and tic-tac-toe half a million,
+  Leduc and the iterated dilemma 300,000, Dudo 100,000, Connect Four 50,000, Hold'em 20,000,
+  Parchís 10,000, Skat and Bullshit 5,000, Wizard 2,000: **0 differences**.
+- **Speed**: ×57.7 tic-tac-toe, ×56.8 Connect Four, ×63.2 Kuhn (random matches per second, one
+  thread, the same matches; `gamehub bench`). The path there: an arena (the system `free` was
+  30 % of Kuhn), direct threading, fused comprehension loops and superinstructions, `cells` and
+  `lines` cached by grid size, an adaptive memo.
+- **Global action ids from the IR** (ADR-079, `gamehub.analysis.action_space`, also encoded in
+  C++): chess 20,481, two-player Hold'em 1,205; all 21 catalog games. **`@range(lo..hi)`** on state
+  variables (IR `"range"`): both engines check it on every write, the analysis uses it as a bound;
+  declared in Hold'em, Wizard and Solitaire (their rules hash changes; the custom UIs' types were
+  regenerated). **OpenSpiel without exploring**: `to_openspiel` wraps C++ states with those ids and
+  exact chance (merged, or draw by draw when a deck is shuffled); OpenSpiel's MCTS plays the
+  wrapped chess and its MCCFR runs on Hold'em (acceptance).
+- **Algorithms in C++** (ADR-080, `gamehub.analysis.cpp`): perft (chess *perft(5)* in 18 s on one
+  thread), exact alpha-beta, retrograde analysis (also with cycles), MCTS, the same tree and
+  CFR/CFR+ as Python (Leduc ×8), external- and outcome-sampling MCCFR, and a win/draw/loss
+  solver with Lazy SMP. `gamehub analyze --engine`, `--retrograde`; `gamehub perft --engine cpp`.
+
+**Not done**: the WASM build (it needs the Emscripten SDK: waiting for permission to install
+it), the optional IR → C++ code generation, and **Connect Four 7×6**: game-independent search
+solves 4×4, 4×5 and 5×4 but 5×5 already needs more than 4·10⁷ nodes; question 26 proposes F9's
+heuristic move ordering.
+
+**Decisions**: ADR-075 to 080 (proposed). Question 26 opened; question 13's default revised.
+
+**Checks**: ruff, pyright, IR, schemas, `gamehub fmt/check/test` of the games, pytest (1,138
+tests collected, the long ones apart), the differential sweep.
+
+**Progress**: ≈ 73 % (F8 without WASM and the optional code generation).
+
+---
+
 ## 2026-10-17 — F6 acceptance: the last random matches
 
 **Request**: "it is taking a long time (3 h), you could commit as you go": each result is committed

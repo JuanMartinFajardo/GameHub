@@ -5,6 +5,7 @@
 
 | # | Question | Default recommendation | Affects |
 |---|---|---|---|
+| 26 | **Connect Four 7×6** (ADR-074 moved it to F8): the C++ core solves 4×4, 4×5 and 5×4 with game-independent search, but 5×5 already needs more than 4·10⁷ nodes; 7×6 needs move ordering that knows the game (centre first, threats). Move it to F9 (heuristic blocks evaluated in C++), or write the typed IR → C++ code generation now? | Move it to F9: its heuristic move ordering is exactly what is missing, and it serves every game | F8, F9 |
 | 24 | How far does the English switch go beyond the documentation: **code comments and docstrings**, **CLI and terminal messages** (`/listo`, "partidas en … s"), the **default language of the games and UIs** (Spanish today, English as a translation) and **commit messages**? | Everything in English: comments, docstrings, CLI messages and commands, commit messages from now on; games and UIs with English as the default and Spanish as an optional translation they ship | Whole repository |
 | 20 | Do you need to play **over the internet** (outside the LAN) before the hub? | Until F10, `gamehub serve` on a reachable machine or a Tailscale-like tunnel; our own relay with the hub (F10) | F4, F10 |
 | 3b | Will there be a remote repository on GitHub (or another host)? | Whenever you like; CI is ready | Everything |

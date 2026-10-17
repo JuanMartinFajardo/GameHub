@@ -164,8 +164,15 @@ of the traverser's decisions).
 | `retrograde` | deterministic two-player zero-sum games **with cycles or without**: the whole state graph, labelled backwards from the terminals; what stays unlabelled draws by repetition (tic-tac-toe: 5,478 positions, a draw; Nim 3-5-7: 376, a first-player win) |
 | `mcts` | UCT with random rollouts, n players, sampled chance |
 | `cfr` | the same tree as `build_tree` (preorder, merged chance, information sets by the same SHA-256 keys) and the same CFR/CFR+ operations: the same average strategy |
+| `mccfr` | external or outcome sampling without building the tree; information sets identified on the fly with the same keys, so the strategy can be evaluated on the full tree (Kuhn < 0.05; Leduc 0.20 after 8,000 external-sampling iterations) |
+| `solve_wdl` | win, draw or loss for deterministic two-player games: null-window searches, a fixed-size transposition table with 128-bit keys, the history heuristic (no game knowledge) and Lazy SMP threads |
 
 ## 8. Pending in F8
 
-The WASM build for `play` and the Studio without a server (it needs the Emscripten SDK), the
-optional IR → C++ code generation for hot games and Connect Four 7×6 (ADR-074).
+- The WASM build for `play` and the Studio without a server (it needs the Emscripten SDK).
+- The optional IR → C++ code generation for hot games.
+- **Connect Four 7×6** (ADR-074): `solve_wdl` solves 4×4 (16,140 nodes), 4×5 and 5×4 (461,028
+  nodes; all draws) at ~130,000 nodes per second, but 5×5 already exceeds 4·10⁷ nodes in five
+  minutes: without game knowledge to order the moves (centre first, threats) the full board is
+  many orders of magnitude away. [Question 26](open-questions.md) proposes moving it to F9, whose
+  heuristic blocks bring that move ordering in C++.

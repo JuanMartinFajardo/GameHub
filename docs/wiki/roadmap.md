@@ -1,7 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 66 % (F0 to F7 in `main`).**
+> % is computed with the weight of each phase. **Current progress: ≈ 73 % (F0 to F7 in `main`; F8
+> on its branch, everything but the WASM build and the optional code generation).**
 
 ## Summary
 
@@ -273,24 +274,33 @@ See the [log](../../log.md) of 2026-10-17.
 
 ## F8 — C++ core + bindings + WASM (66 → 75 %) · XL
 
-- [ ] Compact state representation (memory arena, bitboards when the schema allows it)
-- [ ] IR → bytecode compiler and a **VM**; effects, chance, visibility, events
-- [ ] `nanobind` bindings with the same API as the reference engine
-- [ ] **Differential conformance suite** (Python vs C++ over millions of playouts)
-- [ ] Automatic Zobrist hashing; incremental *undo* for search
-- [ ] Algorithms in C++: alpha-beta, MCTS, CFR/MCCFR, retrograde analysis
+See [the C++ core](core.md).
+
+- [x] Compact state representation: 16-byte values, immutable containers with copy-on-write and a
+      per-thread memory arena (ADR-076); true bitboards were left to the optional code generation
+- [x] IR → bytecode compiler and a **VM**; effects, chance, visibility, events (ADR-077)
+- [x] `nanobind` bindings with the same API as the reference engine (`gamehub-core`,
+      `gamehub.engine.core`, ADR-075)
+- [x] **Differential conformance suite** (Python vs C++ over millions of playouts): golden traces
+      with both engines and `gamehub differential`; the catalog sweep, > 10⁷ matches, 0
+      differences (ADR-078)
+- [x] Automatic Zobrist hashing (two incremental structural hashes, 128-bit keys); *undo* by
+      persistent states that share structure (ADR-076)
+- [x] Algorithms in C++: alpha-beta, MCTS, CFR/MCCFR, retrograde analysis, perft and a
+      win/draw/loss solver (ADR-080)
 - [ ] IR → C++ code generation for "hot" games (optional)
 - [ ] WASM build (Emscripten) used by `play` and the Studio without a server; the same native
       plugins as in Python
-- [ ] **Global action ids from the IR** (brought forward from F11 on 2026-10-17): every action
-      gets a fixed integer computed from its parameters' types (mixed radix over finite domains;
-      integers bounded by the game's parameters; combinatorial ranking for sets), without
-      exploring the game. `to_openspiel` uses it, so OpenSpiel's algorithms run on any game in
-      the catalog (today the wrapper explores the whole game, ADR-072); F11's tensorization
-      reuses it for the action space
+- [x] **Global action ids from the IR** (brought forward from F11 on 2026-10-17): mixed radix over
+      finite universes, integers bounded by an interval analysis of the IR or by `@range`
+      declared ranges, combinatorial ranking for sets; `to_openspiel` uses them, so OpenSpiel's
+      algorithms run on any game in the catalog (ADR-079)
 
-**Acceptance:** ≥ 50× more playouts/s than Python in tic-tac-toe, Connect Four and Kuhn; identical
-traces; OpenSpiel's MCTS and MCCFR run on the wrapped chess and Texas Hold'em.
+**Acceptance:** ≥ 50× more playouts/s than Python in tic-tac-toe, Connect Four and Kuhn ✅ (×57.7,
+×56.8, ×63.2); identical traces ✅; OpenSpiel's MCTS and MCCFR run on the wrapped chess and Texas
+Hold'em ✅. Connect Four 7×6 (ADR-074): not reached with game-independent search (5×5 already
+needs more than 4·10⁷ nodes); proposed for F9, whose heuristic move ordering is what it needs
+([question 26](open-questions.md)).
 
 ## F9 — Heuristics, bots, arena and balance analytics (75 → 82 %) · L
 
@@ -352,6 +362,7 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F8: the C++ core, bindings and WASM (and Connect Four 7×6, ADR-074; global action ids from
-   the IR, so the OpenSpiel bridge works on every game).
-2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire.
+1. F8: the WASM build of the core for `play` and the Studio without a server (it needs the
+   Emscripten SDK installed), then your approval of ADR-075 to 080 and the merge into `main`.
+2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire; Connect
+   Four 7×6 with heuristic move ordering if you agree ([question 26](open-questions.md)).
