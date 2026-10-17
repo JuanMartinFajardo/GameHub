@@ -214,7 +214,8 @@ See the [log](../../log.md) of 2026-10-12 and the [Studio](studio.md).
 
 **Acceptance:** chess *perft(5)* = 4,865,609; Skat scores verified with official examples; 10⁵
 playouts of each game without errors; the 7 requested games playable online.
-Result: ✅ (except for Solitaire's and Hold'em's random matches, still running at merge time)
+Result: ✅ (except for Solitaire's 50,000 random matches with draw three, still running at merge
+time)
 - *perft(5)* = **4,865,609** from the initial position (131 s with 6 processes), and the *perft*
   counts of Kiwipete (d3 = 97,862), positions 3 (d4 = 43,238), 4 (d3 = 9,467), 5 (d3 = 62,379) and
   6 (d3 = 89,890) from the Chess Programming Wiki (`pytest -m slow`).
@@ -224,9 +225,9 @@ Result: ✅ (except for Solitaire's and Hold'em's random matches, still running 
 - 10⁵ random matches of each game, **0 errors and 0 truncated** (`gamehub fuzz --jobs 6`): chess
   100,000; Skat 50,000 with 3 and 50,000 with 4; Wizard 25,000 with 3, 4, 5 and 6; Parchís 25,000
   with 2, 3 and 4 and 25,000 in pairs; Solitaire 50,000 with draw one (2026-10-17, 4.4 h: almost
-  every random game reaches the 1,000-move cap). Solitaire's 50,000 with draw three and Texas
-  Hold'em's (16,667 with 2, 3, 4, 6, 8 and 10 players) were still running at merge time; their
-  result goes to the log.
+  every random game reaches the 1,000-move cap); Texas Hold'em 16,667 with 2, 3, 4, 6, 8 and 10
+  players (100,002). Solitaire's 50,000 with draw three were still
+  running at merge time; their result goes to the log.
 - The 22 catalog packages (23 games) are played to the end against the real server only with the
   generic UI (web app test), and the four new UIs have been tested in the browser.
 
