@@ -49,7 +49,8 @@ flowchart TB
 
 ## 2. Monorepo layout
 
-> **Status (2026-10-16, Phase 6):** there are `spec/` (IR v0, protocol v1, conformance traces),
+> **Status (2026-10-17, Phase 8):** there are `core/` (the [C++ core](core.md): VM, compact
+> values, algorithms and the `gamehub-core` Python package), `spec/` (IR v0, protocol v1, conformance traces),
 > `python/` (the `gamehub` package: the Nomos language, validation, analysis, the engine with
 > native plugins, renderers, packages, protocol, match server, client SDK, LSP, Studio, CLI and the
 > UI template), `web/` (TypeScript SDK, UI kit, generic UI, the play app and the Studio), `stdlib/`
@@ -160,7 +161,7 @@ the server, the Studio's simulator, the RL trainer, tournaments).
 | Server | **Starlette + uvicorn + websockets** (F3, [ADR-036](decisions.md)) | Async and lightweight; contracts in JSON Schema | FastAPI, aiohttp |
 | Local persistence | SQLite | Zero configuration | — |
 | Native plugins | **WebAssembly** without imports, `wasmtime` in Python (F6, [ADR-062](decisions.md)) | The same binary in Python, the browser and C++; sandboxed | Python plugins, shared libraries |
-| C++ | C++20, CMake, **nanobind**, Catch2 | Speed + lightweight bindings | pybind11 |
+| C++ | C++20, CMake, **nanobind** + scikit-build-core (the `gamehub-core` package, F8, [ADR-075](decisions.md)); Catch2 optional | Speed + lightweight bindings; the contract is checked from Python | pybind11 |
 | Browser | Emscripten (C++ core → WASM) | The same engine everywhere | Pyodide (stopgap) |
 | Web | TypeScript 7, React 19, Vite 8, pnpm, Biome, Vitest (F4, [ADR-044](decisions.md)) | Ecosystem; Biome is JS's ruff | Svelte; ESLint + Prettier |
 | Diagrams | React Flow (`@xyflow/react`) + ELK.js (F5, [ADR-055](decisions.md)) | The standard for node editors + auto-layout | Rete.js, JointJS, dagre |
@@ -177,7 +178,7 @@ the server, the Studio's simulator, the RL trainer, tournaments).
 | Rule scenarios | `test` blocks inside each game | `gamehub test` |
 | Properties | Invariants (`invariant total_cards == 52`), random playouts without errors | hypothesis + our own fuzzer |
 | Golden traces | Same seed + actions ⇒ same events, views and payoffs | `spec/conformance/` |
-| Differential | Python vs C++ vs WASM over millions of playouts | conformance runner |
+| Differential | Python vs C++ (vs WASM) over millions of playouts, step by step (F8: > 10⁷ matches, 0 differences) | `gamehub differential`, `gamehub conformance` |
 | External references | Chess *perft* (F6), ISkO examples (Skat), Kuhn's value (−1/18), tic-tac-toe = draw and its 5,478 positions, Nim's P-positions, Leduc's value, the Talmud nucleolus (F7) | analysis tests and each game's tests |
 | Native plugins | Plugin = Nomos reference on random inputs | `gamehub natives check`, tests |
 | Information leaks | No view contains non-visible data | static analysis + view tests |

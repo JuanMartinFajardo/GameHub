@@ -64,7 +64,11 @@ Tree (extensive form) · DAG with transpositions · state graph (cyclic games) �
 
 - **Gambit:** export `.efg` / `.nfg` and use `pygambit` (its n-player solvers are mature).
 - **OpenSpiel:** wrap any GameHub game as a `pyspiel` game → access to its whole algorithm catalog
-  from day one.
+  from day one. Since F8 without exploring the game: global action ids from the IR, C++ states,
+  exact chance merged or draw by draw (chess with MCTS, no-limit Hold'em with MCCFR).
+- **C++ core (F8):** perft, exact alpha-beta with transposition tables, retrograde analysis (also
+  for games with cycles), MCTS and the same CFR/CFR+ as the Python version, through
+  `gamehub.analysis.cpp` and `gamehub analyze --engine cpp|--retrograde` ([C++ core](core.md)).
 - **CGSuite:** export positions of combinatorial games for complex canonical forms.
 
 ## 6. Reference results (validation tests)
@@ -160,5 +164,6 @@ index theorem (an odd number of equilibria) on random nondegenerate games.
 - Not implemented yet: QRE, replicator dynamics, fictitious play, ESS and Moran processes;
   *-minimax and proof-number search; partizan canonical forms and temperature (CGSuite export);
   DCFR, MCCFR and the sequence form for more than two players.
-- The OpenSpiel wrapper needs the game to fit in memory (it explores the game to number the
-  actions); F8 computes the ids from the IR's action types instead, so it will work on any game.
+- Since F8 the OpenSpiel wrapper numbers actions from the IR (no exploration: any catalog game,
+  [C++ core](core.md#6-global-action-ids-and-range)); `numbering="explore"` keeps the old
+  behaviour. MCCFR runs through OpenSpiel; GameHub's own DCFR/MCCFR are F9 work.

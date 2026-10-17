@@ -15,7 +15,7 @@
 | 10 | Do you work alone? How many hours per week? A target date for the MVP? | Alone + AI; pace to be defined | Order and size of phases |
 | 11 | Continuous real-time games (arcade-like), or are discrete + `race` nodes enough? | Discrete + `race`; continuous out of scope | Model |
 | 12 | Platforms: only macOS, or also Linux/Windows? | Development on macOS; CI on Linux. The F3 server and client are portable (no mandatory Unix signals, input in a thread) but **have not been tested on Windows**: add it to CI once there is a remote repository (3b) | F0, F8 |
-| 13 | Exact numeric payoffs (rationals) or floating point? | Rationals in the IR and in the reference engine; `double` in the C++ core | F1 |
+| 13 | Exact numeric payoffs (rationals) or floating point? | Rationals in the IR and in the reference engine; in the C++ core, **exact 64-bit integers and rationals** (a result that does not fit is a rule error), so that traces are identical (ADR-076; it was `double`) | F1, F8 |
 | 14 | Hub hosting (own server, cloud, budget?) | Decide in F10; everything works locally before that | F10 |
 | 15 | Store statistics of human matches for balance analytics? (privacy) | Since F3 the server stores replays only locally (SQLite, with player names); using them for analytics: optional and anonymous, enabled by the host | F9 |
 

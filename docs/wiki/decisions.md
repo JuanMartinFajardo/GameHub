@@ -80,6 +80,12 @@
 | 072 | Interoperability: Gambit `.efg`/`.nfg` (ASCII labels, rationals) and an OpenSpiel wrapper with global action ids found by exploring the game | Accepted (2026-10-17, user) |
 | 073 | `gamehub analyze`: one JSON report for the CLI and the Studio's "Analysis" tab, with per-analysis errors and size guards | Accepted (2026-10-17, user) |
 | 074 | Connect Four 7×6 is solved in F8 (C++); in F7 it is verified on small boards against an independent solver | Accepted (2026-10-17, user) |
+| 075 | The C++ core in `core/` (C++20, CMake) as the `gamehub-core` package (nanobind, scikit-build-core, editable with rebuild on import); `gamehub.engine.core` gives it the reference engine's API | Proposed (2026-10-17) |
+| 076 | Values of 16 bytes, immutable reference-counted containers with copy-on-write, a per-thread arena, two incremental structural hashes (automatic Zobrist, 128-bit keys) and exact 64-bit integers and rationals (overflow = `RuleError`; revises question 13) | Proposed (2026-10-17) |
+| 077 | Expressions as stack bytecode with lexical slots, statements as node trees; only semantics-preserving optimizations (direct threading, fused loops and superinstructions, caches by grid dimensions, adaptive memo) | Proposed (2026-10-17) |
+| 078 | Differential conformance: the golden traces with both engines and `gamehub differential` (digest every step, deep comparison every K matches, the same `RuleError` in the same step) | Proposed (2026-10-17) |
+| 079 | Global action ids from the IR (blocks by signature, finite universes in mixed radix, interval analysis with a fixpoint over the state) and `@range` declared ranges enforced by both engines; OpenSpiel without exploring (exact chance, merged or draw by draw) | Proposed (2026-10-17) |
+| 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Proposed (2026-10-17) |
 
 ---
 
@@ -827,3 +833,101 @@
 - **Consequences:** F7's acceptance is met for every reference result except that one, which
   depends on F8.
 
+### ADR-075 — The C++ core and its Python package
+- **Context:** F8 asks for a C++ engine with the reference engine's API and semantics, usable from
+  Python, the server, the arena and (later) the browser.
+- **Decision:** the core lives in `core/` (C++20, CMake; a static library plus the Python module
+  and a profiling tool). It ships as its own Python package, **`gamehub-core`** (module
+  `gamehub_core`, built with nanobind and scikit-build-core): `gamehub` stays pure Python and
+  takes it as an optional extra (`gamehub[core]`); in development it is a path dependency built
+  without isolation and in editable mode, so importing it after a C++ change rebuilds it
+  incrementally. `gamehub_core` speaks JSON (Python dicts and lists); `gamehub.engine.core`
+  (`CoreGame`, `CoreState`) wraps it with the exact API of `Game` and `State`, Python values
+  included, so every driver works with either engine. The engine's exceptions become
+  `gamehub.engine.errors`'.
+- **Alternatives:** pybind11 (heavier bindings); building the extension inside `gamehub`
+  (every install would need a compiler); a C API with ctypes.
+- **Consequences:** `uv sync` compiles the core (about a minute the first time). The core's own
+  C++ tests (Catch2) are an option of the CMake build; the contract is checked from Python
+  against the reference engine.
+
+### ADR-076 — Values, memory and hashing in the C++ core
+- **Decision:** a `Value` is 16 bytes (tag + payload); small values inline, rationals, texts and
+  containers as immutable objects with a non-atomic reference count. Writes into a container
+  shared with another state copy it first (**copy-on-write**); unique ones are modified in place.
+  Containers, states and stores come from a **per-thread arena** of free lists by size. Each
+  container caches **two independent structural hashes** (positional XOR of element hashes): the
+  first is updated in O(1) when one position is written, the second is recomputed lazily; with
+  the node, the pending submissions and the payoffs they give each state a **128-bit key**
+  (automatic Zobrist hashing for transposition tables). States are persistent (they share
+  structure with their parent): **undo** is returning to the previous state. **Integers and
+  rationals are exact in 64 bits**; a result that does not fit is a `RuleError`, never another
+  value.
+- **Alternatives:** `double` payoffs (the default answer to question 13: traces would differ);
+  arbitrary precision (slow, and no catalog game needs it); a mutable state with an undo trail
+  (faster for a few games, but two semantics to maintain); true bitboards (left to the optional
+  code generation: the VM keeps one representation for every game).
+- **Consequences:** the default recommendation of question 13 changes to "exact 64-bit integers
+  and rationals in the C++ core" (it stays open until you answer). A game whose numbers exceed 64
+  bits fails in C++ where Python would go on.
+
+### ADR-077 — Bytecode VM and semantics-preserving optimizations
+- **Decision:** IR expressions compile to a **stack bytecode** per site, with arguments and locals
+  in frame **slots** resolved lexically at load time; statements are trees of C++ nodes that run
+  that bytecode, and the flow (`Tx`) mirrors `_Tx` step by step. Only optimizations that cannot
+  change a result are allowed: direct threading (computed goto), stack and instruction pointers
+  in registers, rotated comprehension loops with the step fused into the loop, superinstructions
+  fused at emission when no jump target lies between, `cells`/`lines` cached by grid dimensions,
+  the Python memo policy cleared in O(1) and made **adaptive** (a `state` function that hits
+  less than once in 16 lookups stops being memoized), legal actions enumerated in one frame,
+  chance sampled and applied in one execution. Error messages follow Python's where practical.
+- **Alternatives:** compiling expressions to closures (simpler, 2–3× slower); generating C++ per
+  game (the optional item of F8: it needs a compiler at run time).
+- **Consequences:** ×57.7 in tic-tac-toe, ×56.8 in Connect Four and ×63.2 in Kuhn (random matches
+  per second, one thread).
+
+### ADR-078 — Differential conformance
+- **Decision:** the golden traces are verified with both engines (`gamehub conformance`); and
+  `gamehub differential` plays each random match (the seeds of `fuzz`) in both engines at once,
+  comparing at every step the digest, status, active seats, payoffs, the chance outcome drawn
+  from the same generator and the legal actions; every `--deep-every`-th match also compares all
+  legal actions, the views and events of every seat, of a spectator and the omniscient ones, the
+  enumerated chance outcomes and the ranking. A `RuleError` must happen in the same step in both.
+  `gamehub fuzz --engine cpp` plays the same matches in C++ threads and `gamehub bench` measures
+  both engines on the same matches.
+- **Consequences:** the acceptance sweep covers every catalog game with more than ten million
+  matches and no difference; the normal test suite runs a small version of it.
+
+### ADR-079 — Global action ids from the IR, `@range` and OpenSpiel without exploring
+- **Context:** the OpenSpiel wrapper numbered actions by exploring the whole game (ADR-072), so
+  only small games could be wrapped. Brought forward from F11 on 2026-10-17 (user).
+- **Decision:** `action_space(ir, n, params)` numbers every action of a match from the IR: one
+  **block** per distinct signature (name and parameter universes) in flow order plus `pass`; inside
+  a block the **mixed radix** of the arguments' ranks in finite **universes** (Bool, enums or the
+  listed subset of their values, seats, cells of the largest grid, structs, tuples, options,
+  bounded integers, subsets by combinatorial ranking). Integers are bounded by an **interval
+  abstract interpretation** of their domain with a fixpoint (and widening) over every assignment
+  of the state; where that cannot bound them, the game declares the variable's range with
+  **`@range(lo..hi)`** (IR: `"range": [lo, hi]`, expressions of parameters and constants), which
+  both engines enforce on every write (`RuleError` outside). The same specification is encoded in
+  C++. `to_openspiel` uses it by default and wraps the C++ states; chance is exact, presented as
+  the merged list of outcomes when it can be enumerated and fits, or draw by draw otherwise.
+- **Alternatives:** numbering actions as they appear (not fixed across runs); per-node numbering
+  (OpenSpiel needs a global action set); a cap given by the user (unsound); bounds inferred only
+  from domains (Hold'em's chips grow and shrink: no interval analysis without the declared range
+  can bound them).
+- **Consequences:** chess has 20,481 ids, two-player Hold'em 1,205; all 21 catalog games can be
+  wrapped. `@range` changes the rules hash of Hold'em, Wizard and Solitaire (they declare it). F11
+  reuses the action spaces and the declared ranges for its tensors.
+
+### ADR-080 — Algorithms in the C++ core
+- **Decision:** perft, exact alpha-beta (rationals, expectimax at chance, transposition table with
+  128-bit keys), **retrograde analysis** (deterministic two-player zero-sum games with or without
+  cycles; unlabelled positions draw by repetition), UCT MCTS (n players, sampled chance) and the
+  extensive form with CFR/CFR+ built exactly as Python's (same preorder, merged chance and SHA-256
+  information-set keys: the same average strategy). `gamehub.analysis.cpp` exposes them;
+  `gamehub analyze` uses the C++ alpha-beta when the core is installed (`--engine`), adds
+  `--retrograde`, and the feasibility advisor no longer marks `cpp_exact`/`cpp_cfr` as future
+  work.
+- **Consequences:** chess *perft(5)* in 18 s on one thread; Leduc's CFR+ ×8 faster with its tree;
+  backward induction's "cyclic graph" limitation has an answer.
