@@ -15,7 +15,6 @@
 | 10 | Do you work alone? How many hours per week? A target date for the MVP? | Alone + AI; pace to be defined | Order and size of phases |
 | 11 | Continuous real-time games (arcade-like), or are discrete + `race` nodes enough? | Discrete + `race`; continuous out of scope | Model |
 | 12 | Platforms: only macOS, or also Linux/Windows? | Development on macOS; CI on Linux. The F3 server and client are portable (no mandatory Unix signals, input in a thread) but **have not been tested on Windows**: add it to CI once there is a remote repository (3b) | F0, F8 |
-| 13 | Exact numeric payoffs (rationals) or floating point? | Rationals in the IR and in the reference engine; in the C++ core, **exact 64-bit integers and rationals** (a result that does not fit is a rule error), so that traces are identical (ADR-076; it was `double`) | F1, F8 |
 | 14 | Hub hosting (own server, cloud, budget?) | Decide in F10; everything works locally before that | F10 |
 | 15 | Store statistics of human matches for balance analytics? (privacy) | Since F3 the server stores replays only locally (SQLite, with player names); using them for analytics: optional and anonymous, enabled by the host | F9 |
 
@@ -46,3 +45,5 @@
 | 2026-10-17 | — | Bring forward global action ids from the IR (for the OpenSpiel bridge on large games)? | Yes, to F8 (they were part of F11's tensorization). → [roadmap](roadmap.md) |
 | 2026-10-17 | 26 | Connect Four 7×6: move it to F9 (heuristic move ordering) or write the typed C++ code generation now? | Move it to F9. → [ADR-081](decisions.md) |
 | 2026-10-17 | — | Install the Emscripten SDK for the WASM build? | Yes (`~/emsdk`). |
+| 2026-10-17 | 27 | Do you approve ADR-075 to 080 and 082 of Phase 8 and merge the `f8/nucleo-cpp` branch? | Yes ("do it"): ADR-075 to 080 and 082 accepted and F8 merged into `main`. The optional IR → C++ code generation stays unticked. Next: F9. |
+| 2026-10-17 | 13 | Exact numeric payoffs (rationals) or floating point? | Rationals in the IR and in the reference engine; **exact 64-bit integers and rationals** in the C++ core (a result that does not fit is a rule error), accepted with ADR-076. → [ADR-076](decisions.md) |

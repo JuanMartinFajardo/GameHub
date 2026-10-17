@@ -80,14 +80,14 @@
 | 072 | Interoperability: Gambit `.efg`/`.nfg` (ASCII labels, rationals) and an OpenSpiel wrapper with global action ids found by exploring the game | Accepted (2026-10-17, user) |
 | 073 | `gamehub analyze`: one JSON report for the CLI and the Studio's "Analysis" tab, with per-analysis errors and size guards | Accepted (2026-10-17, user) |
 | 074 | Connect Four 7×6 is solved in F8 (C++); in F7 it is verified on small boards against an independent solver | Accepted (2026-10-17, user) |
-| 075 | The C++ core in `core/` (C++20, CMake) as the `gamehub-core` package (nanobind, scikit-build-core, editable with rebuild on import); `gamehub.engine.core` gives it the reference engine's API | Proposed (2026-10-17) |
-| 076 | Values of 16 bytes, immutable reference-counted containers with copy-on-write, a per-thread arena, two incremental structural hashes (automatic Zobrist, 128-bit keys) and exact 64-bit integers and rationals (overflow = `RuleError`; revises question 13) | Proposed (2026-10-17) |
-| 077 | Expressions as stack bytecode with lexical slots, statements as node trees; only semantics-preserving optimizations (direct threading, fused loops and superinstructions, caches by grid dimensions, adaptive memo) | Proposed (2026-10-17) |
-| 078 | Differential conformance: the golden traces with both engines and `gamehub differential` (digest every step, deep comparison every K matches, the same `RuleError` in the same step) | Proposed (2026-10-17) |
-| 079 | Global action ids from the IR (blocks by signature, finite universes in mixed radix, interval analysis with a fixpoint over the state) and `@range` declared ranges enforced by both engines; OpenSpiel without exploring (exact chance, merged or draw by draw) | Proposed (2026-10-17) |
-| 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Proposed (2026-10-17) |
+| 075 | The C++ core in `core/` (C++20, CMake) as the `gamehub-core` package (nanobind, scikit-build-core, editable with rebuild on import); `gamehub.engine.core` gives it the reference engine's API | Accepted (2026-10-17, user) |
+| 076 | Values of 16 bytes, immutable reference-counted containers with copy-on-write, a per-thread arena, two incremental structural hashes (automatic Zobrist, 128-bit keys) and exact 64-bit integers and rationals (overflow = `RuleError`; revises question 13) | Accepted (2026-10-17, user) |
+| 077 | Expressions as stack bytecode with lexical slots, statements as node trees; only semantics-preserving optimizations (direct threading, fused loops and superinstructions, caches by grid dimensions, adaptive memo) | Accepted (2026-10-17, user) |
+| 078 | Differential conformance: the golden traces with both engines and `gamehub differential` (digest every step, deep comparison every K matches, the same `RuleError` in the same step) | Accepted (2026-10-17, user) |
+| 079 | Global action ids from the IR (blocks by signature, finite universes in mixed radix, interval analysis with a fixpoint over the state) and `@range` declared ranges enforced by both engines; OpenSpiel without exploring (exact chance, merged or draw by draw) | Accepted (2026-10-17, user) |
+| 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Accepted (2026-10-17, user) |
 | 081 | Connect Four 7×6 moves from F8 to F9: game-independent search does not reach it; F9's heuristic move ordering in C++ will | Accepted (2026-10-17, user) |
-| 082 | The core in the browser: Emscripten + embind with a JSON API, binaries checked in with a source fingerprint (`gamehub wasm`), native plugins called through a JavaScript host, local matches that speak the room protocol, the Studio's playouts in WASM and a static export without a match server | Proposed (2026-10-17) |
+| 082 | The core in the browser: Emscripten + embind with a JSON API, binaries checked in with a source fingerprint (`gamehub wasm`), native plugins called through a JavaScript host, local matches that speak the room protocol, the Studio's playouts in WASM and a static export without a match server | Accepted (2026-10-17, user) |
 
 ---
 
@@ -869,9 +869,9 @@
   arbitrary precision (slow, and no catalog game needs it); a mutable state with an undo trail
   (faster for a few games, but two semantics to maintain); true bitboards (left to the optional
   code generation: the VM keeps one representation for every game).
-- **Consequences:** the default recommendation of question 13 changes to "exact 64-bit integers
-  and rationals in the C++ core" (it stays open until you answer). A game whose numbers exceed 64
-  bits fails in C++ where Python would go on.
+- **Consequences:** question 13 is answered with "exact 64-bit integers and rationals in the C++
+  core" (this ADR's approval, 2026-10-17). A game whose numbers exceed 64 bits fails in C++ where
+  Python would go on.
 
 ### ADR-077 — Bytecode VM and semantics-preserving optimizations
 - **Decision:** IR expressions compile to a **stack bytecode** per site, with arguments and locals

@@ -5,6 +5,22 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-17 — F8 approved and merged into `main`
+
+**Answer received**: "do it" to question 27: ADR-075 to 080 and 082 accepted (with ADR-076,
+question 13 is answered: exact 64-bit integers and rationals in the C++ core) and
+`f8/nucleo-cpp` merged into `main` with `--no-ff`. Nothing has been pushed.
+
+**Still open**: question 24 (code comments, CLI messages and commit messages stay in Spanish
+until it is answered); F8's optional IR → C++ code generation.
+
+**Next steps**: F9, heuristics and bots for the second-wave games, and Connect Four 7×6 with
+heuristic move ordering (ADR-081).
+
+**Progress**: ≈ 75 % (F0 to F8 in `main`).
+
+---
+
 ## 2026-10-17 — Session 11 (continued): F8's WASM build, the core in the browser
 
 **Request**: the rest of phase 8 —"the WASM build (Emscripten) used by `play` and the Studio

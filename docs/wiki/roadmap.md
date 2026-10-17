@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 75 % (F0 to F7 in `main`; F8
-> complete on its branch, except the optional code generation).**
+> % is computed with the weight of each phase. **Current progress: ≈ 75 % (F0 to F8 in `main`; F8's
+> optional code generation left).**
 
 ## Summary
 
@@ -363,6 +363,6 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F8: your approval of ADR-075 to 080 and 082 and the merge into `main`.
-2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire; Connect
+1. F9: heuristic bots for the second-wave games and custom UIs for Skat and Solitaire; Connect
    Four 7×6 with heuristic move ordering (ADR-081).
+2. Optional: the IR → C++ code generation for "hot" games (F8).
