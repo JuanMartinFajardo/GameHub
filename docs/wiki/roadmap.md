@@ -224,8 +224,8 @@ Result: ✅ (except for Solitaire's and Hold'em's random matches, still running 
 - 10⁵ random matches of each game, **0 errors and 0 truncated** (`gamehub fuzz --jobs 6`): chess
   100,000; Skat 50,000 with 3 and 50,000 with 4; Wizard 25,000 with 3, 4, 5 and 6; Parchís 25,000
   with 2, 3 and 4 and 25,000 in pairs; Solitaire 50,000 with draw one (2026-10-17, 4.4 h: almost
-  every random game reaches the 1,000-move cap); Texas Hold'em 16,667 with 2, 3, 4 and 6 players.
-  Solitaire's 50,000 with draw three and Hold'em's 16,667 with 8 and 10 players were still
+  every random game reaches the 1,000-move cap); Texas Hold'em 16,667 with 2, 3, 4, 6 and 8 players.
+  Solitaire's 50,000 with draw three and Hold'em's 16,667 with 10 players were still
   running at merge time; their result goes to the log.
 - The 22 catalog packages (23 games) are played to the end against the real server only with the
   generic UI (web app test), and the four new UIs have been tested in the browser.

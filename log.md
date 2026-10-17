@@ -16,10 +16,10 @@ as soon as it is in, instead of waiting for all of them.
   the foundations.
 - Texas Hold'em, 16,667 matches each (2 processes, in parallel with Solitaire): 2 players in
   117 s (16.5 steps per hand on average), 3 players in 182 s (24.2), 4 players in 296 s (30.0),
-  6 players in 451 s (39.6).
+  6 players in 451 s (39.6), 8 players in 688 s (47.4).
 
-**Still running**: Solitaire with draw three and three passes (50,000), and Texas Hold'em with 8
-and 10 players (slower now: the machine is shared with the F8 session's builds).
+**Still running**: Solitaire with draw three and three passes (50,000), and Texas Hold'em with 10
+players (slower now: the machine is shared with the F8 session's builds).
 
 ---
 
