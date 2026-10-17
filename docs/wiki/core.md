@@ -239,4 +239,5 @@ table.client(0).subscribe(…);                      // a GameClient-like client
 - **Connect Four 7×6** (ADR-074, 081, 089): with the `Threats` heuristic ordering the solver
   needs 5–6× fewer nodes (5×4: 78,664; 5×5: 1.07 M in 7 s; 6×5: 8.6 M in 2 min) at ~150,000
   nodes per second and thread, but a 7×6 position after 4 moves exceeds 1.6·10⁸ nodes: the empty
-  board is still several orders of magnitude away (question 28).
+  board is still several orders of magnitude away; it waits for the optional code generation
+  (ADR-089).

@@ -88,13 +88,13 @@
 | 080 | Algorithms in C++ (perft, exact alpha-beta with 128-bit keys, retrograde analysis with cycles, MCTS, the same tree and CFR as Python) behind `gamehub.analysis.cpp` and `analyze --engine` | Accepted (2026-10-17, user) |
 | 081 | Connect Four 7×6 moves from F8 to F9: game-independent search does not reach it; F9's heuristic move ordering in C++ will | Accepted (2026-10-17, user) |
 | 082 | The core in the browser: Emscripten + embind with a JSON API, binaries checked in with a source fingerprint (`gamehub wasm`), native plugins called through a JavaScript host, local matches that speak the room protocol, the Studio's playouts in WASM and a static export without a match server | Accepted (2026-10-17, user) |
-| 083 | `heuristic` blocks in Nomos: numeric `feature`s seen from `me`, linear `weights`, `prefer` priority rules and `order` keys, with their own functions; in the IR under `heuristics`, outside the rules hash, each with its own hash; evaluated in both engines | Proposed (2026-10-17) |
-| 084 | Bots in the C++ core (greedy rules, paranoid alpha-beta, open-loop MCTS, ISMCTS, PIMC) that only use what their seat sees: determinization by shuffling hidden zone items and replaying chance for the other hidden values; a `match` memo for functions of the options | Proposed (2026-10-17) |
-| 085 | The arena: round-robin, Swiss and gauntlet, mirror matches, Elo (maximum likelihood), Glicko-2 and TrueSkill per rules hash, SPRT; matches in C++ threads | Proposed (2026-10-17) |
-| 086 | Bot packages (`bot.toml`): the core's kinds run in-process; Python bots in a child process with OS limits and a per-move deadline, seeing only their observation; remote bots with `gamehub bot run` | Proposed (2026-10-17) |
-| 087 | Balance analytics from bot matches (seat advantage, draws and length, branching, skill vs. luck, skill chain, tension, dominant actions, rule coverage, kingmaking) and a Balance CI that compares two versions | Proposed (2026-10-17) |
-| 088 | Weight tuning: CMA-ES and SPSA against the current weights in mirror matches; Texel by logistic regression on self-play positions; `--write` edits the `.game` | Proposed (2026-10-17) |
-| 089 | Connect Four 7×6: heuristic ordering is not enough with the generic VM; the proof stays pending (question 28) | Proposed (2026-10-17) |
+| 083 | `heuristic` blocks in Nomos: numeric `feature`s seen from `me`, linear `weights`, `prefer` priority rules and `order` keys, with their own functions; in the IR under `heuristics`, outside the rules hash, each with its own hash; evaluated in both engines | Accepted (2026-10-18, user) |
+| 084 | Bots in the C++ core (greedy rules, paranoid alpha-beta, open-loop MCTS, ISMCTS, PIMC) that only use what their seat sees: determinization by shuffling hidden zone items and replaying chance for the other hidden values; a `match` memo for functions of the options | Accepted (2026-10-18, user) |
+| 085 | The arena: round-robin, Swiss and gauntlet, mirror matches, Elo (maximum likelihood), Glicko-2 and TrueSkill per rules hash, SPRT; matches in C++ threads | Accepted (2026-10-18, user) |
+| 086 | Bot packages (`bot.toml`): the core's kinds run in-process; Python bots in a child process with OS limits and a per-move deadline, seeing only their observation; remote bots with `gamehub bot run` | Accepted (2026-10-18, user) |
+| 087 | Balance analytics from bot matches (seat advantage, draws and length, branching, skill vs. luck, skill chain, tension, dominant actions, rule coverage, kingmaking) and a Balance CI that compares two versions | Accepted (2026-10-18, user) |
+| 088 | Weight tuning: CMA-ES and SPSA against the current weights in mirror matches; Texel by logistic regression on self-play positions; `--write` edits the `.game` | Accepted (2026-10-18, user) |
+| 089 | Connect Four 7×6: heuristic ordering is not enough with the generic VM; the proof waits for F8's optional IR → C++ code generation and sound pruning (question 28) | Accepted (2026-10-18, user) |
 
 ---
 
@@ -1114,6 +1114,9 @@
   in 30 minutes on four threads, and on 7×6 a position after 6 moves needs 2 M nodes while one
   after 4 moves exceeds 1.6·10⁸ nodes: the empty board is several orders of magnitude away.
   Bitboard solvers reach it with ~10⁷ nodes per second and stronger pruning.
-- **Decision (proposed):** F9 does not claim the 7×6 result; `gamehub solve --heuristic` and the
-  measurements stay, and the test remains skipped pointing here. Question 28 offers the ways
-  forward.
+- **Decision (the user's, question 28):** F9 does not claim the 7×6 result; `gamehub solve
+  --heuristic` and the measurements stay, and the test remains skipped pointing here. The proof is
+  retried with F8's optional IR → C++ code generation plus stronger, sound pruning (discarding
+  moves under a rival threat, not only ordering them after the rest).
+- **Consequences:** F9 is merged without it; the roadmap item stays unticked and moves with F8's
+  optional item.

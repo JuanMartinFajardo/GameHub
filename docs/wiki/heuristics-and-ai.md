@@ -1,6 +1,6 @@
 # Heuristics, bots, arena and AI
 
-> Status: **implemented** (Phase 9, 2026-10-17): heuristic blocks in both engines, the core's
+> Status: **implemented** (Phase 9, 2026-10-17; accepted 2026-10-18): heuristic blocks in both engines, the core's
 > bots with determinization, the arena with ratings, bot packages and sandboxing, balance
 > analytics with a Balance CI and weight tuning. AI (RL, Deep RL, LLM) is Phase 11. Decisions:
 > ADR-083 to 089 in [decisions](decisions.md).
@@ -176,8 +176,8 @@ positions. `--write` rewrites the `weights` block; the arena with SPRT says whet
 
 `gamehub solve games/connect-four --heuristic Threats --threads 4` solves small boards and
 positions with the heuristic ordering (5–6× fewer nodes than the history heuristic alone), but the
-empty 7×6 board is still several orders of magnitude away with the generic VM (ADR-089, question
-28).
+empty 7×6 board is still several orders of magnitude away with the generic VM; it waits for F8's
+optional IR → C++ code generation and sound pruning (ADR-089).
 
 ## 8. AI (Phase 11)
 

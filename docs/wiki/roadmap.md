@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 81 % (F0 to F8 in `main`; F9 in
-> its branch without the Connect Four 7×6 proof; F8's optional code generation left).**
+> % is computed with the weight of each phase. **Current progress: ≈ 81 % (F0 to F9 in `main`,
+> without the Connect Four 7×6 proof; F8's optional code generation left).**
 
 ## Summary
 
@@ -288,7 +288,8 @@ See [the C++ core](core.md).
       persistent states that share structure (ADR-076)
 - [x] Algorithms in C++: alpha-beta, MCTS, CFR/MCCFR, retrograde analysis, perft and a
       win/draw/loss solver (ADR-080)
-- [ ] IR → C++ code generation for "hot" games (optional)
+- [ ] IR → C++ code generation for "hot" games (optional); with sound pruning, the way to the
+      Connect Four 7×6 proof (ADR-089)
 - [x] WASM build (Emscripten) used by `play` and the Studio without a server; the same native
       plugins as in Python: `@gamehub/engine` (`gamehub wasm`), local matches that speak the room
       protocol, the Studio's playouts in the browser and `gamehub web export` (ADR-082)
@@ -311,7 +312,7 @@ See [heuristics and AI](heuristics-and-ai.md).
       both engines (ADR-083)
 - [ ] Connect Four 7×6 solved (the first player wins) with heuristic move ordering (ADR-081): the
       ordering cuts the nodes 5–6× (`gamehub solve --heuristic`), not enough for the empty board
-      with the generic VM (ADR-089, question 28)
+      with the generic VM; retried with F8's optional code generation (ADR-089)
 - [x] Bots: priority rules, minimax + heuristic, MCTS, ISMCTS, PIMC; a heuristic bot for each
       catalog game (the core's bots with determinization, in the terminal, the server's rooms and
       the browser; ADR-084)
@@ -373,6 +374,7 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. Your review of F9 (question 29) and the way forward for Connect Four 7×6 (question 28).
+1. F10, the web hub (branch `f10/hub`).
 2. Custom UIs for Skat and Solitaire (left from the F9 plan; not part of its checklist).
-3. Optional: the IR → C++ code generation for "hot" games (F8).
+3. Optional: the IR → C++ code generation for "hot" games (F8) and with it Connect Four 7×6
+   (ADR-089).

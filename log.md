@@ -5,6 +5,22 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-18 — F9 approved and merged into `main`
+
+**Answers received**: "I approve what you say, merge" to questions 29 and 28: ADR-083 to 088
+accepted and `f9/heuristicas-bots` merged into `main` with `--no-ff`; Connect Four 7×6 stays
+documented (ADR-089 accepted) and is retried with F8's optional IR → C++ code generation plus sound
+pruning. Nothing has been pushed.
+
+**Still open**: question 24 (code comments, CLI messages and commit messages stay in Spanish until
+it is answered).
+
+**Next steps**: F10, the web hub (branch `f10/hub`).
+
+**Progress**: ≈ 81 % (F0 to F9 in `main`, without the 7×6 proof).
+
+---
+
 ## 2026-10-17 — Session 12: Phase 9, heuristics, bots, arena and balance analytics
 
 **Request**: "go on with phase 9 of the roadmap" (branch `f9/heuristicas-bots`).
