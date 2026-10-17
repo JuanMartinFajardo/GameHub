@@ -221,6 +221,180 @@ PolicyEF CfrSolver::average() const {
   return out;
 }
 
+// --- MCCFR -------------------------------------------------------------------------------------
+
+namespace {
+
+ApplyOptions observing() {
+  ApplyOptions o;  // eventos sí (son parte de lo observado), historial no
+  o.history = false;
+  o.validate = false;
+  return o;
+}
+
+std::string set_key(int seat, const Sha256& running) {
+  Sha256 copy = running;
+  return std::to_string(seat) + ":" + copy.hexdigest();
+}
+
+}  // namespace
+
+Mccfr::Mccfr(const State& root, Sampling sampling, uint64_t seed, double epsilon)
+    : root_(root), sampling_(sampling), rng_(seed, 4242), epsilon_(epsilon) {
+  int n = root.num_players();
+  root_keys_.resize(static_cast<size_t>(n));
+  for (int k = 0; k < n; ++k) root_keys_[static_cast<size_t>(k)].update(observe(root, k));
+}
+
+std::vector<Sha256> Mccfr::extend(const std::vector<Sha256>& keys, const State& child) const {
+  std::vector<Sha256> out = keys;
+  for (size_t k = 0; k < out.size(); ++k) out[k].update(observe(child, static_cast<int>(k)));
+  return out;
+}
+
+Mccfr::Node& Mccfr::node(int player, const std::vector<Sha256>& keys, size_t actions,
+                         std::string& key) {
+  key = set_key(player, keys[static_cast<size_t>(player)]);
+  auto it = table_.find(key);
+  if (it == table_.end()) {
+    it = table_.emplace(key, Node{player, std::vector<double>(actions, 0.0),
+                                  std::vector<double>(actions, 0.0)})
+             .first;
+  }
+  return it->second;
+}
+
+std::vector<double> Mccfr::current(const Node& n) const {
+  std::vector<double> out(n.regret.size());
+  double total = 0.0;
+  for (double r : n.regret) total += r > 0 ? r : 0.0;
+  for (size_t a = 0; a < out.size(); ++a) {
+    out[a] = total > 0 ? (n.regret[a] > 0 ? n.regret[a] : 0.0) / total
+                       : 1.0 / static_cast<double>(out.size());
+  }
+  return out;
+}
+
+size_t Mccfr::sample(const std::vector<double>& probs) {
+  double u = static_cast<double>(rng_.next_u32()) / 4294967296.0;
+  double acc = 0.0;
+  for (size_t k = 0; k < probs.size(); ++k) {
+    acc += probs[k];
+    if (u < acc) return k;
+  }
+  return probs.size() - 1;
+}
+
+double Mccfr::external(const State& s, const std::vector<Sha256>& keys, int player) {
+  if (s.is_terminal()) return to_double(s.payoffs()[static_cast<size_t>(player)].as_rational());
+  if (s.status() == Status::Chance) {
+    State child = s.sample_and_apply(rng_, observing());
+    return external(child, extend(keys, child), player);
+  }
+  int seat = s.first_active();
+  std::vector<Action> actions = s.legal_actions(seat);
+  std::string key;
+  std::vector<double> sigma = current(node(seat, keys, actions.size(), key));
+  if (seat == player) {
+    std::vector<double> values(actions.size());
+    double v = 0.0;
+    for (size_t a = 0; a < actions.size(); ++a) {
+      State child = s.apply_action(seat, actions[a], observing());
+      values[a] = external(child, extend(keys, child), player);
+      v += sigma[a] * values[a];
+    }
+    Node& n = table_.at(key);
+    for (size_t a = 0; a < actions.size(); ++a) n.regret[a] += values[a] - v;
+    return v;
+  }
+  Node& n = table_.at(key);
+  for (size_t a = 0; a < actions.size(); ++a) n.strategy_sum[a] += sigma[a];
+  size_t a = sample(sigma);
+  State child = s.apply_action(seat, actions[a], observing());
+  return external(child, extend(keys, child), player);
+}
+
+double Mccfr::outcome(const State& s, const std::vector<Sha256>& keys, int player,
+                      double my_reach, double opp_reach, double sample_reach) {
+  if (s.is_terminal()) return to_double(s.payoffs()[static_cast<size_t>(player)].as_rational());
+  if (s.status() == Status::Chance) {
+    State child = s.sample_and_apply(rng_, observing());
+    return outcome(child, extend(keys, child), player, my_reach, opp_reach, sample_reach);
+  }
+  int seat = s.first_active();
+  std::vector<Action> actions = s.legal_actions(seat);
+  size_t count = actions.size();
+  std::string key;
+  std::vector<double> policy = current(node(seat, keys, count, key));
+  std::vector<double> sampling = policy;
+  if (seat == player) {
+    for (size_t a = 0; a < count; ++a) {
+      sampling[a] = epsilon_ / static_cast<double>(count) + (1.0 - epsilon_) * policy[a];
+    }
+  }
+  size_t a = sample(sampling);
+  double new_my = seat == player ? my_reach * policy[a] : my_reach;
+  double new_opp = seat == player ? opp_reach : opp_reach * policy[a];
+  State child = s.apply_action(seat, actions[a], observing());
+  double child_value = outcome(child, extend(keys, child), player, new_my, new_opp,
+                               sample_reach * sampling[a]);
+  std::vector<double> values(count, 0.0);
+  values[a] = child_value / sampling[a];
+  double estimate = 0.0;
+  for (size_t k = 0; k < count; ++k) estimate += policy[k] * values[k];
+  if (seat == player) {
+    Node& n = table_.at(key);
+    double cf_value = estimate * opp_reach / sample_reach;
+    for (size_t k = 0; k < count; ++k) n.regret[k] += values[k] * opp_reach / sample_reach - cf_value;
+    for (size_t k = 0; k < count; ++k) n.strategy_sum[k] += my_reach * policy[k] / sample_reach;
+  }
+  return estimate;
+}
+
+void Mccfr::run(int iterations) {
+  int n = root_.num_players();
+  for (int it = 0; it < iterations; ++it) {
+    for (int player = 0; player < n; ++player) {
+      if (sampling_ == Sampling::External) {
+        external(root_, root_keys_, player);
+      } else {
+        outcome(root_, root_keys_, player, 1.0, 1.0, 1.0);
+      }
+    }
+  }
+}
+
+std::vector<Mccfr::Entry> Mccfr::policy() const {
+  std::vector<Entry> out;
+  for (const auto& [key, n] : table_) {
+    double total = 0.0;
+    for (double x : n.strategy_sum) total += x;
+    std::vector<double> avg(n.strategy_sum.size());
+    for (size_t a = 0; a < avg.size(); ++a) {
+      avg[a] = total > 0 ? n.strategy_sum[a] / total : 1.0 / static_cast<double>(avg.size());
+    }
+    out.push_back(Entry{n.player, key.substr(key.find(':') + 1), std::move(avg)});
+  }
+  return out;
+}
+
+PolicyEF Mccfr::on_tree(const GameTreeEF& tree) const {
+  PolicyEF out;
+  for (const auto& info : tree.infosets) {
+    std::vector<double> probs(info.actions, 1.0 / static_cast<double>(info.actions));
+    auto it = table_.find(std::to_string(info.player) + ":" + info.key);
+    if (it != table_.end()) {
+      double total = 0.0;
+      for (double x : it->second.strategy_sum) total += x;
+      if (total > 0) {
+        for (size_t a = 0; a < probs.size(); ++a) probs[a] = it->second.strategy_sum[a] / total;
+      }
+    }
+    out.push_back(std::move(probs));
+  }
+  return out;
+}
+
 // --- Mejor respuesta y explotabilidad ----------------------------------------------------------
 
 std::vector<double> expected_values(const GameTreeEF& tree, const PolicyEF& policy) {

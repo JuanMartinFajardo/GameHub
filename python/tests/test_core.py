@@ -331,3 +331,13 @@ def test_mcts_prefers_the_center_in_connect_four() -> None:
     result = cpp.mcts(core_game(g).new_state(2), 3000, seed=1)
     assert result["actions"][result["best"]].args == (("c", 3),)
     assert sum(result["visits"]) == 3000
+
+
+def test_mccfr_converges_on_kuhn() -> None:
+    from gamehub.analysis import cpp
+
+    kuhn = nomos("kuhn-poker")
+    external = cpp.mccfr(kuhn, 2000, seed=1, exploitability=True)
+    assert external["infosets"] == 12 and external["exploitability"] < 0.05
+    outcome = cpp.mccfr(kuhn, 20000, sampling="outcome", seed=1, exploitability=True)
+    assert outcome["exploitability"] < 0.05

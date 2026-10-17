@@ -252,6 +252,35 @@ NB_MODULE(gamehub_core, m) {
       },
       nb::arg("state"), nb::arg("iterations"), nb::arg("plus") = true,
       nb::arg("measure_every") = 0, nb::arg("max_nodes") = 10'000'000);
+  m.def(
+      "mccfr",
+      [](const State& s, int iterations, const std::string& sampling, uint64_t seed,
+         double epsilon, bool exploitability_on_tree) {
+        auto kind = sampling == "outcome" ? Mccfr::Sampling::Outcome : Mccfr::Sampling::External;
+        std::vector<Mccfr::Entry> policy;
+        double expl = -1.0;
+        size_t infosets = 0;
+        {
+          nb::gil_scoped_release release;
+          Mccfr solver(s, kind, seed, epsilon);
+          solver.run(iterations);
+          policy = solver.policy();
+          infosets = solver.infosets();
+          if (exploitability_on_tree) {
+            GameTreeEF tree = build_tree(s);
+            expl = exploitability(tree, solver.on_tree(tree));
+          }
+        }
+        nb::list entries;
+        for (const auto& e : policy) entries.append(nb::make_tuple(e.player, e.key, e.average));
+        nb::dict out;
+        out["policy"] = entries;
+        out["infosets"] = infosets;
+        if (expl >= 0) out["exploitability"] = expl;
+        return out;
+      },
+      nb::arg("state"), nb::arg("iterations"), nb::arg("sampling") = "external",
+      nb::arg("seed") = 0, nb::arg("epsilon") = 0.6, nb::arg("exploitability") = false);
   m.def("state_key", [](const State& s) {
     StateKey k = state_key(s);
     return nb::make_tuple(k.a, k.b);

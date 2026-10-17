@@ -25,7 +25,7 @@ from gamehub.engine.core import CoreGame, CoreState, available, core_game
 from gamehub.engine.game import Game
 from gamehub.engine.state import State
 
-__all__ = ["alphabeta", "available", "cfr", "mcts", "perft", "retrograde"]
+__all__ = ["alphabeta", "available", "cfr", "mccfr", "mcts", "perft", "retrograde"]
 
 
 def _core() -> Any:
@@ -130,6 +130,24 @@ def cfr(
     (en el orden de `build_tree`, con sus claves), su explotabilidad y la convergencia."""
     root = core_game(game).new_state(num_players, params)
     return dict(_core().cfr(root.core, iterations, plus, measure_every, max_nodes))
+
+
+def mccfr(
+    game: Game,
+    iterations: int,
+    *,
+    sampling: str = "external",
+    seed: int = 0,
+    epsilon: float = 0.6,
+    exploitability: bool = False,
+    num_players: int | None = None,
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """MCCFR sin construir el árbol (`sampling` "external" u "outcome"): la estrategia media de
+    cada conjunto de información visitado (con las claves de `build_tree`) y, si se pide y el
+    árbol cabe, su explotabilidad."""
+    root = core_game(game).new_state(num_players, params)
+    return dict(_core().mccfr(root.core, iterations, sampling, seed, epsilon, exploitability))
 
 
 def mcts(state: CoreState, simulations: int, *, c: float = 1.4, seed: int = 0) -> dict[str, Any]:
