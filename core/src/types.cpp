@@ -199,7 +199,7 @@ Value TypeTable::decode(const Json& j, const Type& t) const {
     case Type::Kind::Struct: {
       const StructDecl& s = structs_[t.id];
       if (!j.is_object() || j.size() != s.fields.size()) bad("se esperaba un objeto");
-      std::vector<Value> fields;
+      ValueVec fields;
       fields.reserve(s.fields.size());
       for (size_t k = 0; k < s.fields.size(); ++k) {
         const Json* f = j.find(s.fields[k]);
@@ -212,24 +212,24 @@ Value TypeTable::decode(const Json& j, const Type& t) const {
       return j.is_null() ? Value::none() : decode(j, t.inner());
     case Type::Kind::List:
     case Type::Kind::PerPlayer: {
-      std::vector<Value> items;
+      ValueVec items;
       for (const auto& x : as_list(j)) items.push_back(decode(x, t.inner()));
       return Value::tuple(std::move(items));
     }
     case Type::Kind::Set: {
-      std::vector<Value> items;
+      ValueVec items;
       for (const auto& x : as_list(j)) items.push_back(decode(x, t.inner()));
       return Value::set(std::move(items));
     }
     case Type::Kind::Tuple: {
       const auto& items = as_list(j);
       if (items.size() != t.args.size()) bad("tupla de longitud distinta");
-      std::vector<Value> values;
+      ValueVec values;
       for (size_t k = 0; k < items.size(); ++k) values.push_back(decode(items[k], *t.args[k]));
       return Value::tuple(std::move(values));
     }
     case Type::Kind::Map: {
-      std::vector<Value> pairs;
+      ValueVec pairs;
       for (const auto& kv : as_list(j)) {
         const auto& p = as_list(kv);
         if (p.size() != 2) bad("se esperaba un par [clave, valor]");
@@ -241,9 +241,9 @@ Value TypeTable::decode(const Json& j, const Type& t) const {
     case Type::Kind::Zone:
     case Type::Kind::Bag: {
       const Json& raw = j.is_object() ? j.at("items") : j;
-      std::vector<Value> values;
+      ValueVec values;
       for (const auto& x : as_list(raw)) values.push_back(decode(x, t.inner()));
-      std::vector<uint8_t> faces(values.size(), 0);
+      ByteVec faces(values.size(), 0);
       return Value::zone(std::move(values), std::move(faces), t.kind == Type::Kind::Zone);
     }
     case Type::Kind::Grid:

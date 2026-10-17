@@ -8,8 +8,8 @@ namespace gh {
 
 namespace {
 
-constexpr size_t CLASSES = 64;  // bloques de hasta 1 KiB
-constexpr size_t CHUNK = 64 * 1024;
+constexpr size_t CLASSES = 256;  // bloques de hasta 4 KiB
+constexpr size_t CHUNK = 256 * 1024;
 
 struct FreeBlock {
   FreeBlock* next;

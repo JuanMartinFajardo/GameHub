@@ -38,9 +38,15 @@
 #include <utility>
 #include <vector>
 
+#include "gamehub/pool.hpp"
 #include "gamehub/rational.hpp"
 
 namespace gh {
+
+struct Value;
+// Vectores de valores en la arena (el almacén de un estado, los temporales de las sentencias…).
+using ValueVec = PoolVec<Value>;
+using ByteVec = PoolVec<uint8_t>;
 
 enum class Tag : uint8_t {
   // En línea.
@@ -161,12 +167,12 @@ struct Value {
   static Value number(const Rational& r);   // Int si es entero
   static Value text(std::string_view s);
   static Value tuple(std::span<const Value> items);
-  static Value tuple(std::vector<Value>&& items);
-  static Value structure(uint32_t type, std::vector<Value>&& fields);
-  static Value set(std::vector<Value>&& items);    // ordena y quita repetidos
-  static Value map(std::vector<Value>&& pairs);    // k0, v0, k1, v1…; ordena (gana el último)
-  static Value zone(std::vector<Value>&& values, std::vector<uint8_t>&& faces, bool ordered);
-  static Value grid(uint32_t width, uint32_t height, std::vector<Value>&& cells);
+  static Value tuple(ValueVec&& items);
+  static Value structure(uint32_t type, ValueVec&& fields);
+  static Value set(ValueVec&& items);    // ordena y quita repetidos
+  static Value map(ValueVec&& pairs);    // k0, v0, k1, v1…; ordena (gana el último)
+  static Value zone(ValueVec&& values, ByteVec&& faces, bool ordered);
+  static Value grid(uint32_t width, uint32_t height, ValueVec&& cells);
 
   // Un objeto ArrayObj vacío de `n` valores (todos None) con la etiqueta dada.
   static Value alloc_array(Tag tag, uint32_t n, bool with_faces = false);

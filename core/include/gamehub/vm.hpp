@@ -22,7 +22,7 @@ constexpr int32_t NO_SEAT = INT32_MIN;
 
 // --- Azar --------------------------------------------------------------------------------------
 
-using Outcome = std::vector<int64_t>;
+using Outcome = PoolVec<int64_t>;
 
 class Draws {
  public:
@@ -88,30 +88,45 @@ class MemoTable {
  public:
   const Value* find(uint32_t fn, const Value* args, uint32_t argc, uint64_t hash) const;
   void insert(uint32_t fn, const Value* args, uint32_t argc, uint64_t hash, const Value& result);
-  void clear();
+  // Vaciarla es O(1): las entradas de generaciones anteriores cuentan como libres.
+  void clear() {
+    if (count_ == 0) return;
+    ++generation_;
+    count_ = 0;
+  }
   size_t size() const { return count_; }
   static uint64_t key_hash(uint32_t fn, const Value* args, uint32_t argc);
 
  private:
+  static constexpr uint32_t INLINE_ARGS = 3;
   struct Entry {
     uint64_t hash = 0;
+    uint32_t generation = 0;  // 0 = nunca usada
     uint32_t fn = 0;
-    std::vector<Value> args;
+    uint32_t argc = 0;
+    Value args[INLINE_ARGS];
+    ValueVec more;  // los argumentos a partir del cuarto
     Value result;
-    bool used = false;
+    const Value& arg(uint32_t k) const { return k < INLINE_ARGS ? args[k] : more[k - INLINE_ARGS]; }
   };
+  bool live(const Entry& e) const { return e.generation == generation_; }
   void grow();
-  std::vector<Entry> table_;
+  PoolVec<Entry> table_;
   size_t count_ = 0;
+  uint32_t generation_ = 1;
 };
 
 // --- Contexto ----------------------------------------------------------------------------------
 
 // Lo compartido durante una evaluación (como `Ctx` en Python).
+class Vm;
+Vm& vm();
+
 struct Ctx {
+  Vm* vm_ = nullptr;  // la VM del hilo (se busca una vez: el acceso a thread_local cuesta)
   const GameDef* game = nullptr;
-  std::vector<Value>* store = nullptr;  // las transacciones lo modifican en sitio
-  const std::vector<Value>* params = nullptr;
+  ValueVec* store = nullptr;  // las transacciones lo modifican en sitio
+  const ValueVec* params = nullptr;
   int n = 0;
   const std::vector<int>* path = nullptr;  // nodo activo y sus fases
   Draws* draws = nullptr;                  // solo en los puntos de azar
@@ -120,6 +135,10 @@ struct Ctx {
   Value seats;                             // tuple(range(n)), calculada una vez
 
   bool recording() const { return events != nullptr; }
+  Vm& machine() {
+    if (vm_ == nullptr) vm_ = &vm();
+    return *vm_;
+  }
 };
 
 // Ámbito de una evaluación: las ranuras y los asientos de contexto.
@@ -156,23 +175,24 @@ class Vm {
   std::unique_ptr<Value[]> slots_;
   Value* slots_end_;
   Value* slot_top_;
-  std::vector<std::vector<Value>> builders_;
+  std::vector<ValueVec> builders_;
   size_t nbuilders_ = 0;
 };
-
-// La VM del hilo actual.
-Vm& vm();
 
 // Un marco con sus ranuras reservadas mientras vive el objeto.
 class ScopedFrame {
  public:
-  explicit ScopedFrame(uint32_t slots) : n_(slots) { frame.slots = vm().push_slots(slots); }
-  ~ScopedFrame() { vm().pop_slots(n_); }
+  ScopedFrame(Vm& machine, uint32_t slots) : vm_(machine), n_(slots) {
+    frame.slots = vm_.push_slots(slots);
+  }
+  explicit ScopedFrame(uint32_t slots) : ScopedFrame(vm(), slots) {}
+  ~ScopedFrame() { vm_.pop_slots(n_); }
   ScopedFrame(const ScopedFrame&) = delete;
   ScopedFrame& operator=(const ScopedFrame&) = delete;
   Frame frame;
 
  private:
+  Vm& vm_;
   uint32_t n_;
 };
 

@@ -32,12 +32,12 @@ struct LValue {
   TypeRef type;  // tipo estático de la ubicación
 
   // Las claves de los pasos, evaluadas en orden (comprobando cada nivel como `get`).
-  std::vector<Value> keys(Ctx& ctx, Frame& frame) const;
+  ValueVec keys(Ctx& ctx, Frame& frame) const;
   Value get(Ctx& ctx, Frame& frame) const;
-  Value get_with(Ctx& ctx, const std::vector<Value>& keys) const;
-  void set_with(Ctx& ctx, const std::vector<Value>& keys, Value value) const;
+  Value get_with(Ctx& ctx, const ValueVec& keys) const;
+  void set_with(Ctx& ctx, const ValueVec& keys, Value value) const;
   // (variable, dueño): el dueño es el índice del último paso por un per_player.
-  int32_t owner(const std::vector<Value>& keys) const;
+  int32_t owner(const ValueVec& keys) const;
 };
 
 // Escribe una variable de estado (invalida el memo "state").
@@ -52,7 +52,7 @@ struct Selector {
   enum class Kind : uint8_t { All, Top, Bottom, At, Value, Values } kind = Kind::All;
   Chunk arg;
   bool has_arg = false;
-  std::vector<size_t> select(Ctx& ctx, Frame& frame, const Value& zone) const;
+  PoolVec<size_t> select(Ctx& ctx, Frame& frame, const Value& zone) const;
 };
 
 // --- Sentencias --------------------------------------------------------------------------------

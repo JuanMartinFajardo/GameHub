@@ -75,10 +75,18 @@ class Emitter {
  public:
   explicit Emitter(Chunk& c) : c_(c) {}
   void emit(uint32_t op, int delta, std::initializer_list<uint32_t> operands = {}) {
-    c_.code.push_back(op);
-    for (uint32_t x : operands) c_.code.push_back(x);
     depth_ += delta;
     if (depth_ > 0) c_.max_stack = std::max(c_.max_stack, static_cast<uint32_t>(depth_));
+    if (fuse(op)) return;
+    last_op_ = here();
+    last_code_ = op;
+    c_.code.push_back(op);
+    for (uint32_t x : operands) c_.code.push_back(x);
+  }
+  // Una posición a la que se salta: no se fusiona nada a través de ella.
+  uint32_t label() {
+    barrier_ = here();
+    return barrier_;
   }
   uint32_t constant(Value v) {
     c_.consts.push_back(std::move(v));
@@ -87,13 +95,60 @@ class Emitter {
   uint32_t here() const { return static_cast<uint32_t>(c_.code.size()); }
   // Posición del último operando emitido (para parchear un destino).
   uint32_t last() const { return static_cast<uint32_t>(c_.code.size() - 1); }
-  void patch(uint32_t pos, uint32_t target) { c_.code[pos] = target; }
+  void patch(uint32_t pos, uint32_t target) {
+    c_.code[pos] = target;
+    barrier_ = std::max(barrier_, target);
+  }
   int depth() const { return depth_; }
   void set_depth(int d) { depth_ = d; }
 
  private:
+  // LOAD s + VAR_INDEX v → VAR_INDEX_LOCAL s v; LOAD s + EQ → EQ_LOCAL s; CONST k + EQ → EQ_CONST k.
+  bool fuse(uint32_t op) {
+    bool adjacent = barrier_ <= last_op_ && last_op_ + 2 == here() && !c_.code.empty();
+    if (!adjacent) return false;
+    uint32_t operand = c_.code[last_op_ + 1];
+    uint32_t fused = UINT32_MAX;
+    if (last_code_ == OP_LOAD && op == OP_EQ) fused = OP_EQ_LOCAL;
+    if (last_code_ == OP_LOAD && op == OP_NE) fused = OP_NE_LOCAL;
+    if (last_code_ == OP_CONST && op == OP_EQ) fused = OP_EQ_CONST;
+    if (last_code_ == OP_CONST && op == OP_NE) fused = OP_NE_CONST;
+    if (fused != UINT32_MAX) {
+      c_.code[last_op_] = fused;
+      c_.code[last_op_ + 1] = operand;
+      last_code_ = fused;
+      return true;
+    }
+    return false;
+  }
+
+ public:
+  // Si lo último emitido es un LOAD (sin etiqueta detrás), lo quita y devuelve su ranura.
+  uint32_t take_load() {
+    bool adjacent = barrier_ <= last_op_ && last_op_ + 2 == here() && last_code_ == OP_LOAD;
+    if (!adjacent) return UINT32_MAX;
+    uint32_t slot = c_.code[last_op_ + 1];
+    c_.code.resize(last_op_);
+    last_code_ = UINT32_MAX;
+    return slot;
+  }
+
+  // VAR_INDEX v justo después de LOAD s: se emite como VAR_INDEX_LOCAL s v.
+  bool fuse_var_index(uint32_t var) {
+    bool adjacent = barrier_ <= last_op_ && last_op_ + 2 == here() && last_code_ == OP_LOAD;
+    if (!adjacent) return false;
+    c_.code[last_op_] = OP_VAR_INDEX_LOCAL;
+    c_.code.push_back(var);
+    last_code_ = OP_VAR_INDEX_LOCAL;
+    return true;
+  }
+
+ private:
   Chunk& c_;
   int depth_ = 0;
+  uint32_t last_op_ = 0;
+  uint32_t last_code_ = UINT32_MAX;
+  uint32_t barrier_ = 0;
 };
 
 struct Simple {
@@ -199,7 +254,7 @@ class Compiler {
       case Json::Kind::String:
         return Value::text(j.as_string());
       case Json::Kind::Array: {
-        std::vector<Value> items;
+        ValueVec items;
         for (const auto& x : j.as_array()) items.push_back(literal(x));
         return Value::tuple(std::move(items));
       }
@@ -227,6 +282,14 @@ class Compiler {
   void expr(const Json& e, Emitter& em, Scope& scope) {
     const JsonArray& a = e.as_array();
     const std::string& op = a.at(0).as_string();
+    if (op == "index" && a.size() == 3 && a[1].is_array() && a[1].size() == 2 &&
+        a[1][0].is_string() && a[1][0].as_string() == "var") {
+      auto it = g_.var_index.find(a[1][1].as_string());
+      if (it == g_.var_index.end()) throw IrError("variable desconocida: " + a[1][1].as_string());
+      expr(a[2], em, scope);
+      if (!em.fuse_var_index(it->second)) em.emit(OP_VAR_INDEX, 0, {it->second});
+      return;
+    }
     for (const auto& s : SIMPLE) {
       if (op == s.name) {
         if (static_cast<int>(a.size()) - 1 != s.arity) {
@@ -358,7 +421,7 @@ class Compiler {
     } else if (op == "enum_values") {
       int id = g_.types.enum_id(a.at(1).as_string());
       if (id < 0) throw IrError("enumerado desconocido: " + a.at(1).as_string());
-      std::vector<Value> values;
+      ValueVec values;
       size_t count = g_.types.enums()[static_cast<size_t>(id)].values.size();
       for (size_t k = 0; k < count; ++k) {
         values.push_back(Value::enumeration(static_cast<uint32_t>(id), int64_t(k)));
@@ -378,12 +441,12 @@ class Compiler {
 
   void comprehension(IterOp it, const JsonArray& a, Emitter& em, Scope& scope) {
     const std::string& binder = a.at(1).as_string();
-    expr(a.at(2), em, scope);
-    int start = em.depth() - 1;
+    int start = em.depth();
     scope.open();
     uint32_t coll = scope.fresh(), idx = scope.fresh();
     bool nonempty = it == IT_ARGMAX || it == IT_ARGMIN || it == IT_MAX_OF || it == IT_MIN_OF;
-    em.emit(OP_ITER_INIT, -1, {static_cast<uint32_t>(it), coll, idx, nonempty ? 1u : 0u});
+    // Lo que prepara el bucle va antes de la colección (no depende de ella y no falla), para que
+    // una colección que es una local se lea directamente de su ranura.
     uint32_t acc = 0, best = 0, best_key = 0;
     switch (it) {
       case IT_COUNT:
@@ -408,47 +471,53 @@ class Compiler {
       default:
         break;
     }
+    expr(a.at(2), em, scope);
+    uint32_t source = em.take_load();
+    if (source != UINT32_MAX) em.set_depth(em.depth() - 1);
     uint32_t slot = scope.bind(binder);
-    uint32_t loop = em.here();
-    em.emit(OP_ITER_NEXT, 0, {coll, idx, slot, 0});
-    uint32_t to_exit = em.last();
+    em.emit(OP_ITER_FIRST, source == UINT32_MAX ? -1 : 0,
+            {static_cast<uint32_t>(it), coll, idx, nonempty ? 1u : 0u, slot, 0, source});
+    uint32_t to_exit = em.last() - 1;
+    uint32_t body = em.label();
     expr(a.at(3), em, scope);
     uint32_t to_short = 0;
     switch (it) {
       case IT_ALL:
-        em.emit(OP_ALL_STEP, -1, {0});
-        to_short = em.last();
+        em.emit(OP_ALL_LOOP, -1, {0, coll, idx, slot, body});
+        to_short = em.last() - 4;
         break;
       case IT_ANY:
-        em.emit(OP_ANY_STEP, -1, {0});
-        to_short = em.last();
+        em.emit(OP_ANY_LOOP, -1, {0, coll, idx, slot, body});
+        to_short = em.last() - 4;
         break;
       case IT_COUNT:
-        em.emit(OP_COUNT_STEP, -1, {acc});
+        em.emit(OP_COUNT_LOOP, -1, {acc, coll, idx, slot, body});
         break;
       case IT_SUM:
-        em.emit(OP_SUM_STEP, -1, {acc});
+        em.emit(OP_SUM_LOOP, -1, {acc, coll, idx, slot, body});
         break;
       case IT_MAP:
       case IT_MAX_OF:
       case IT_MIN_OF:
-        em.emit(OP_BUILD_PUSH, -1);
+        em.emit(OP_PUSH_LOOP, -1, {0, coll, idx, slot, body});
         break;
       case IT_FILTER:
-        em.emit(OP_FILTER_STEP, -1, {slot});
+        em.emit(OP_FILTER_LOOP, -1, {0, coll, idx, slot, body});
         break;
       case IT_FLAT_MAP:
         em.emit(OP_FLAT_STEP, -1);
+        em.emit(OP_ITER_LOOP, 0, {coll, idx, slot, body});
         break;
       case IT_ARGMAX:
       case IT_ARGMIN:
         em.emit(OP_ARGBEST_STEP, -1, {it == IT_ARGMAX ? 1u : 0u, best, best_key, slot});
+        em.emit(OP_ITER_LOOP, 0, {coll, idx, slot, body});
         break;
       case IT_SORT_BY:
         em.emit(OP_SORT_PUSH, -1, {slot});
+        em.emit(OP_ITER_LOOP, 0, {coll, idx, slot, body});
         break;
     }
-    em.emit(OP_JUMP, 0, {loop});
     em.patch(to_exit, em.here());
     em.set_depth(start);
     switch (it) {
@@ -930,6 +999,11 @@ GameDef::GameDef(const Json& ir_doc) : ir(ir_doc), static_memo(std::make_unique<
             ad.transitions =
                 transitions(list_or_empty(ra, "transitions"), {"action", node.id, ad.name}, args);
             ad.policy = c.policy(opt(ra, "visibility"), Policy::Kind::All);
+            ad.query_frame = std::max<uint32_t>(ad.requires_expr.frame,
+                                                static_cast<uint32_t>(ad.params.size()));
+            for (const auto& p : ad.params) {
+              ad.query_frame = std::max(ad.query_frame, p.domain.frame);
+            }
             node.actions.push_back(std::move(ad));
           }
           if (const Json* e = opt(raw, "actor")) node.actor = c.expr_site(*e);
@@ -971,6 +1045,11 @@ GameDef::GameDef(const Json& ir_doc) : ir(ir_doc), static_memo(std::make_unique<
       };
   compile_nodes(flow["nodes"], {});
   start = node_index.at(flow["start"].as_string());
+  for (const auto& node : nodes) {
+    std::vector<int> path = node.ancestors;
+    path.push_back(node.index);
+    paths.push_back(std::move(path));
+  }
 }
 
 }  // namespace gh

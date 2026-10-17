@@ -21,9 +21,38 @@ namespace gh {
 enum class Status : uint8_t { Chance, Decision, Terminal };
 const char* status_name(Status s);
 
+// Los argumentos de una acción: una tupla compartida (copiar una acción no reserva memoria).
+// Con un solo argumento (lo más frecuente) se guarda el valor tal cual.
+class Args {
+ public:
+  Args() = default;
+  explicit Args(std::span<const Value> items) : n_(static_cast<uint32_t>(items.size())) {
+    if (n_ == 1) {
+      v_ = items[0];
+    } else if (n_ > 1) {
+      v_ = Value::tuple(items);
+    }
+  }
+  size_t size() const { return n_; }
+  bool empty() const { return n_ == 0; }
+  const Value* data() const {
+    if (n_ == 0) return nullptr;
+    return n_ == 1 ? &v_ : v_.arr()->items();
+  }
+  const Value& operator[](size_t k) const { return data()[k]; }
+  const Value& at(size_t k) const {
+    if (k >= size()) throw std::out_of_range("argumento inexistente");
+    return (*this)[k];
+  }
+
+ private:
+  Value v_;
+  uint32_t n_ = 0;
+};
+
 struct Action {
   const ActionDef* def = nullptr;  // nullptr = `pass` (ventanas)
-  std::vector<Value> args;         // en el orden de los parámetros
+  Args args;                       // en el orden de los parámetros
 
   bool is_pass() const { return def == nullptr; }
   const std::string& name(const GameDef& g) const {
@@ -35,8 +64,8 @@ struct Action {
 };
 
 struct Pending {
-  std::vector<int> order;  // asientos convocados
-  std::vector<std::pair<int, Action>> submitted;
+  PoolVec<int> order;  // asientos convocados
+  PoolVec<std::pair<int, Action>> submitted;
   bool responded(int seat) const {
     for (const auto& [s, a] : submitted) {
       if (s == seat) return true;
@@ -65,7 +94,7 @@ class Game;
 // Lo que comparten todos los estados de una partida.
 struct Match {
   int n = 0;
-  std::vector<Value> params;  // `num_players` y los declarados, en orden
+  ValueVec params;  // `num_players` y los declarados, en orden
   Value seats;                // tuple(range(n))
 };
 
@@ -73,15 +102,15 @@ struct StateNode {
   std::shared_ptr<const GameDef> game;
   int n = 0;
   std::shared_ptr<const Match> match;
-  std::vector<Value> store;
+  ValueVec store;
   int node = -1;  // -1 = antes de la preparación (punto de azar)
   std::shared_ptr<const Pending> pending;
   bool terminal = false;
-  std::vector<Value> payoffs;
+  ValueVec payoffs;
   std::shared_ptr<const StateNode> parent;
   Step step;
   int depth = 0;
-  std::vector<int> path;  // fases activas y el nodo
+  const std::vector<int>* path = nullptr;  // fases activas y el nodo (en el GameDef)
   mutable MemoTable memo;  // funciones "state" con este estado (una caché)
 };
 
@@ -100,7 +129,9 @@ class State {
   Status status() const;
   bool is_terminal() const { return s_->terminal; }
   std::vector<int> active_seats() const;
-  const std::vector<Value>& payoffs() const { return s_->payoffs; }
+  bool is_active(int seat) const;
+  int first_active() const;  // -1 si no hay
+  const ValueVec& payoffs() const { return s_->payoffs; }
   const Value& value(const std::string& var) const;
 
   // Acciones legales en orden (declaración, parámetros, dominio; `pass` al final en ventanas).
@@ -118,6 +149,8 @@ class State {
   std::vector<std::pair<Outcome, Rational>> chance_outcomes(size_t limit = 100'000) const;
   Outcome sample_chance(Pcg32& rng) const;
   State apply_chance(const Outcome& outcome, const ApplyOptions& opt = {}) const;
+  // apply_chance(sample_chance(rng)) en una sola ejecución del punto de azar.
+  State sample_and_apply(Pcg32& rng, const ApplyOptions& opt = {}) const;
   Rational outcome_probability(const Outcome& outcome) const;
   // Una copia tras ejecutar sentencias de la IR fuera del flujo (los `set` de los tests).
   State edited(const Json& stmts) const;
@@ -159,7 +192,7 @@ class Game {
 Action decode_action(const GameDef& g, int node, const Json& data);
 
 // Utilidades compartidas con los algoritmos.
-std::vector<int> competition_ranking(const std::vector<Value>& scores);
-Json payoffs_json(const GameDef& g, const std::vector<Value>& payoffs);
+std::vector<int> competition_ranking(const ValueVec& scores);
+Json payoffs_json(const GameDef& g, const ValueVec& payoffs);
 
 }  // namespace gh

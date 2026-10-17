@@ -22,60 +22,62 @@ const Json& hidden() { return *HIDDEN_PTR; }
 Ctx query_ctx(const StateNode& s) {
   Ctx ctx;
   ctx.game = s.game.get();
-  ctx.store = const_cast<std::vector<Value>*>(&s.store);  // las consultas no escriben
+  ctx.store = const_cast<ValueVec*>(&s.store);  // las consultas no escriben
   ctx.params = &s.match->params;
   ctx.n = s.n;
-  ctx.path = &s.path;
+  ctx.path = s.path;
   ctx.memo = &s.memo;
   ctx.seats = s.match->seats;
   return ctx;
-}
-
-std::vector<int> path_of(const GameDef& g, int node) {
-  if (node < 0) return {};
-  std::vector<int> path = g.node(node).ancestors;
-  path.push_back(node);
-  return path;
 }
 
 // --- Enumeración de acciones -------------------------------------------------------------------
 
 // Acciones legales de `a` para `actor`: parámetros en orden, valores en orden del dominio,
 // filtradas por `requires`. Devuelve false si `visit` pidió parar.
-bool complete(const ActionDef& a, Ctx& ctx, int actor, std::vector<Value>& args, size_t i,
-              const std::function<bool(const Action&)>& visit) {
+// Los argumentos ya elegidos están en las ranuras 0..i-1 de `frame` (un marco compartido por
+// todos los dominios y el `requires` de la acción).
+bool complete_in(const ActionDef& a, Ctx& ctx, Frame& frame, size_t i,
+                 const std::function<bool(const Action&)>& visit) {
+  Vm& machine = ctx.machine();
   if (i == a.params.size()) {
     if (a.requires_expr.defined) {
-      Value ok = eval_expr(a.requires_expr, ctx, actor, args.data(), static_cast<uint32_t>(i));
-      if (!expect_bool(ok, "requires", ctx)) return true;
+      Value ok = machine.eval(a.requires_expr.chunk, ctx, frame);
+      bool b = ok.tag == Tag::Bool ? ok.i != 0 : expect_bool(ok, "requires", ctx);
+      if (!b) return true;
     }
-    return visit(Action{&a, args});
+    return visit(Action{&a, Args(std::span<const Value>(frame.slots, i))});
   }
-  Value domain =
-      eval_expr(a.params[i].domain, ctx, actor, args.data(), static_cast<uint32_t>(i));
+  Value domain = machine.eval(a.params[i].domain.chunk, ctx, frame);
   Items it = iterate(domain, "dominio", ctx);
-  args.resize(i + 1);
   for (size_t k = 0; k < it.size; ++k) {
-    args[i] = it[k];
-    if (!complete(a, ctx, actor, args, i + 1, visit)) return false;
+    frame.slots[i] = it[k];
+    if (!complete_in(a, ctx, frame, i + 1, visit)) return false;
   }
-  args.resize(i);
+  frame.slots[i] = Value();
   return true;
+}
+
+bool complete(const ActionDef& a, Ctx& ctx, int actor, const ValueVec& args, size_t i,
+              const std::function<bool(const Action&)>& visit) {
+  ScopedFrame scope(ctx.machine(), a.query_frame);
+  scope.frame.actor = actor;
+  for (size_t k = 0; k < i; ++k) scope.frame.slots[k] = args[k];
+  return complete_in(a, ctx, scope.frame, i, visit);
 }
 
 bool enumerate_node(const NodeDef& node, Ctx& ctx, int actor,
                     const std::function<bool(const Action&)>& visit) {
-  std::vector<Value> args;
+  ValueVec none;
   for (const auto& a : node.actions) {
-    args.clear();
-    if (!complete(a, ctx, actor, args, 0, visit)) return false;
+    if (!complete(a, ctx, actor, none, 0, visit)) return false;
   }
   return true;
 }
 
 // ¿Pertenece `v` al dominio del parámetro `i` (sin enumerarlo cuando se puede)? Devuelve el valor
 // canónico (los subconjuntos, ordenados).
-bool member(const ActionParamDef& p, Ctx& ctx, int actor, const std::vector<Value>& args,
+bool member(const ActionParamDef& p, Ctx& ctx, int actor, const ValueVec& args,
             const Value& v, Value& canonical) {
   auto argc = static_cast<uint32_t>(args.size());
   canonical = v;
@@ -83,7 +85,7 @@ bool member(const ActionParamDef& p, Ctx& ctx, int actor, const std::vector<Valu
     case DomainKind::Subsets: {
       if (!v.is_tuple_like()) return false;
       size_t len = v.tuple_size();
-      std::vector<Value> sorted;
+      ValueVec sorted;
       for (size_t k = 0; k < len; ++k) sorted.push_back(v.tuple_at(k));
       std::stable_sort(sorted.begin(), sorted.end(), canonical_less);
       Value lo = eval_expr(p.lo, ctx, actor, args.data(), argc);
@@ -96,7 +98,7 @@ bool member(const ActionParamDef& p, Ctx& ctx, int actor, const std::vector<Valu
       }
       if (ok) {
         Items pool = iterate(eval_expr(p.coll, ctx, actor, args.data(), argc), "subsets", ctx);
-        std::vector<bool> used(pool.size, false);
+        PoolVec<bool> used(pool.size, false);
         for (size_t k = 0; k < len && ok; ++k) {
           Value x = v.tuple_at(k);
           bool found = false;
@@ -161,16 +163,15 @@ struct Candidates {
 // Transacción mutable que calcula el estado siguiente (como `_Tx`). No sobrevive al paso.
 class Tx {
  public:
-  Tx(std::shared_ptr<const GameDef> game, std::shared_ptr<const Match> match,
-     const std::vector<Value>& store, int node, std::shared_ptr<const Pending> pending,
+  Tx(const std::shared_ptr<const GameDef>& game, const std::shared_ptr<const Match>& match,
+     const ValueVec& store, int node, const std::shared_ptr<const Pending>& pending,
      Draws* draws, bool record)
-      : gp_(std::move(game)), g_(*gp_), match_(std::move(match)), store_(store),
-        pending_(std::move(pending)), record_(record) {
+      : gp_(game), g_(*gp_), match_(match), store_(store), pending_(pending), record_(record) {
     ctx_.game = &g_;
     ctx_.store = &store_;
     ctx_.params = &match_->params;
     ctx_.n = match_->n;
-    ctx_.path = &path_;
+    ctx_.path = path_;
     ctx_.draws = draws;
     ctx_.events = record ? &events_ : nullptr;
     ctx_.memo = &memo_;
@@ -182,7 +183,7 @@ class Tx {
 
   std::shared_ptr<StateNode> commit(const std::shared_ptr<const StateNode>& parent, Step step,
                                     bool history) {
-    auto s = std::make_shared<StateNode>();
+    auto s = std::allocate_shared<StateNode>(PoolAllocator<StateNode>());
     s->game = gp_;
     s->n = match_->n;
     s->match = match_;
@@ -195,12 +196,12 @@ class Tx {
     if (history) s->parent = parent;
     step.events = std::move(events_);
     s->step = std::move(step);
-    s->path = std::move(path_);
+    s->path = path_;
     s->memo = std::move(memo_);
     return s;
   }
 
-  void keep_payoffs(bool terminal, const std::vector<Value>& payoffs) {
+  void keep_payoffs(bool terminal, const ValueVec& payoffs) {
     terminal_ = terminal;
     payoffs_ = payoffs;
   }
@@ -234,7 +235,7 @@ class Tx {
         perform(node, actor, action, true);
         break;
       case NodeKind::Simultaneous: {
-        auto p = std::make_shared<Pending>(*pending_);
+        auto p = std::allocate_shared<Pending>(PoolAllocator<Pending>(), *pending_);
         p->submitted.emplace_back(actor, action);
         bool complete = p->submitted.size() == p->order.size();
         pending_ = p;
@@ -258,15 +259,16 @@ class Tx {
     int target = -1;
   };
 
-  std::shared_ptr<const GameDef> gp_;
+  // Referencias a los del estado de partida (vivo mientras dura la transacción).
+  const std::shared_ptr<const GameDef>& gp_;
   const GameDef& g_;
-  std::shared_ptr<const Match> match_;
-  std::vector<Value> store_;
+  const std::shared_ptr<const Match>& match_;
+  ValueVec store_;
   int node_ = -1;
-  std::vector<int> path_;
+  const std::vector<int>* path_ = nullptr;
   std::shared_ptr<const Pending> pending_;
   bool terminal_ = false;
-  std::vector<Value> payoffs_;
+  ValueVec payoffs_;
   MemoTable memo_;
   std::vector<Event> events_;
   bool record_;
@@ -276,7 +278,8 @@ class Tx {
 
   void set_node(int node) {
     node_ = node;
-    path_ = path_of(g_, node);
+    path_ = g_.path(node);
+    ctx_.path = path_;
   }
 
   void emit_shared(JsonObject payload) {
@@ -374,7 +377,7 @@ class Tx {
         break;
       case NodeKind::Terminal: {
         Items it = iterate(eval_expr(node.payoff, ctx_), "payoff", ctx_);
-        std::vector<Value> payoffs;
+        ValueVec payoffs;
         for (size_t k = 0; k < it.size; ++k) payoffs.push_back(expect_num(it[k], "payoff", ctx_));
         if (static_cast<int>(payoffs.size()) != n) {
           throw RuleError("el pago tiene " + std::to_string(payoffs.size()) + " valores para " +
@@ -388,7 +391,7 @@ class Tx {
       }
       case NodeKind::Decision: {
         int actor = static_cast<int>(expect_seat(eval_expr(node.actor, ctx_), n, "actor", ctx_));
-        auto p = std::make_shared<Pending>();
+        auto p = std::allocate_shared<Pending>(PoolAllocator<Pending>());
         p->order.push_back(actor);
         pending_ = p;
         require_choice(node, actor);
@@ -403,8 +406,8 @@ class Tx {
         std::sort(actors.begin(), actors.end());
         actors.erase(std::unique(actors.begin(), actors.end()), actors.end());
         for (int s : actors) require_choice(node, s);
-        auto p = std::make_shared<Pending>();
-        p->order = actors;
+        auto p = std::allocate_shared<Pending>(PoolAllocator<Pending>());
+        p->order.assign(actors.begin(), actors.end());
         pending_ = p;
         if (actors.empty()) resolve_simultaneous();
         break;
@@ -430,8 +433,8 @@ class Tx {
         for (int s : order) {
           if (std::find(unique.begin(), unique.end(), s) == unique.end()) unique.push_back(s);
         }
-        auto p = std::make_shared<Pending>();
-        p->order = unique;
+        auto p = std::allocate_shared<Pending>(PoolAllocator<Pending>());
+        p->order.assign(unique.begin(), unique.end());
         pending_ = p;
         if (unique.empty()) close_window(NO_SEAT, nullptr);
         break;
@@ -464,7 +467,7 @@ class Tx {
 
   void resolve_simultaneous() {
     const NodeDef& node = g_.node(node_);
-    std::vector<std::pair<int, Action>> submitted = pending_->submitted;
+    PoolVec<std::pair<int, Action>> submitted = pending_->submitted;
     std::stable_sort(submitted.begin(), submitted.end(),
                      [](const auto& x, const auto& y) { return x.first < y.first; });
     for (const auto& [actor, action] : submitted) {
@@ -478,7 +481,7 @@ class Tx {
   }
 
   void respond(const NodeDef& node, int actor, const Action& action) {
-    auto p = std::make_shared<Pending>(*pending_);
+    auto p = std::allocate_shared<Pending>(PoolAllocator<Pending>(), *pending_);
     p->submitted.emplace_back(actor, action);
     bool complete = p->submitted.size() == p->order.size();
     pending_ = p;
@@ -630,7 +633,7 @@ bool Action::operator==(const Action& o) const {
   return true;
 }
 
-std::vector<int> competition_ranking(const std::vector<Value>& scores) {
+std::vector<int> competition_ranking(const ValueVec& scores) {
   std::vector<int> ranks;
   for (const auto& s : scores) {
     int better = 0;
@@ -642,7 +645,7 @@ std::vector<int> competition_ranking(const std::vector<Value>& scores) {
   return ranks;
 }
 
-Json payoffs_json(const GameDef& g, const std::vector<Value>& payoffs) {
+Json payoffs_json(const GameDef& g, const ValueVec& payoffs) {
   JsonArray out;
   for (const auto& p : payoffs) out.push_back(g.types.to_json(p));
   return Json(std::move(out));
@@ -673,7 +676,7 @@ Value initial_value(const GameDef& g, const Ctx& ctx, Value value, const Type& t
   }
   if (is_rows) return grid_from_rows(value, w, h, t, ctx);
   Value cell = coerce(std::move(value), t.inner(), ctx);
-  std::vector<Value> cells(static_cast<size_t>(w * h), cell);
+  ValueVec cells(static_cast<size_t>(w * h), cell);
   return Value::grid(static_cast<uint32_t>(w), static_cast<uint32_t>(h), std::move(cells));
 }
 
@@ -694,12 +697,12 @@ std::shared_ptr<const Match> make_match(const GameDef& g, int n, const Json& giv
   }
   auto match = std::make_shared<Match>();
   match->n = n;
-  std::vector<Value> seats;
+  ValueVec seats;
   for (int s = 0; s < n; ++s) seats.push_back(Value::integer(s));
   match->seats = Value::tuple(std::move(seats));
   match->params.assign(g.params.size(), Value());
   match->params[0] = Value::integer(n);
-  std::vector<Value> empty_store;
+  ValueVec empty_store;
   Ctx ctx;
   ctx.game = &g;
   ctx.store = &empty_store;
@@ -725,22 +728,22 @@ std::shared_ptr<const Match> make_match(const GameDef& g, int n, const Json& giv
   return match;
 }
 
-std::vector<Value> initial_store(const GameDef& g, const Match& match) {
-  std::vector<Value> empty_store;
+ValueVec initial_store(const GameDef& g, const Match& match) {
+  ValueVec empty_store;
   Ctx ctx;
   ctx.game = &g;
   ctx.store = &empty_store;
   ctx.params = &match.params;
   ctx.n = match.n;
   ctx.seats = match.seats;
-  std::vector<Value> store;
+  ValueVec store;
   for (const auto& var : g.vars) {
     if (var.type->kind == Type::Kind::PerPlayer) {
-      std::vector<Value> per;
+      ValueVec per;
       for (int s = 0; s < match.n; ++s) {
-        ScopedFrame scope(var.init.frame);
+        ScopedFrame scope(ctx.machine(), var.init.frame);
         scope.frame.owner = s;
-        Value v = vm().eval(var.init.chunk, ctx, scope.frame);
+        Value v = ctx.machine().eval(var.init.chunk, ctx, scope.frame);
         per.push_back(initial_value(g, ctx, std::move(v), var.type->inner()));
       }
       store.push_back(Value::tuple(std::move(per)));
@@ -755,9 +758,9 @@ std::vector<Value> initial_store(const GameDef& g, const Match& match) {
 
 State Game::new_state(int num_players, const Json& params, const ApplyOptions& opt) const {
   auto match = make_match(*def_, num_players, params.is_null() ? Json::object() : params);
-  std::vector<Value> store = initial_store(*def_, *match);
+  ValueVec store = initial_store(*def_, *match);
   if (def_->setup_is_random) {
-    auto s = std::make_shared<StateNode>();
+    auto s = std::allocate_shared<StateNode>(PoolAllocator<StateNode>());
     s->game = def_;
     s->n = num_players;
     s->match = match;
@@ -791,17 +794,17 @@ Action decode_action(const GameDef& g, int node_index, const Json& data) {
   if (!given->is_object()) {
     throw IllegalAction("argumentos inválidos para " + name + ": se esperaba un objeto");
   }
-  Action out{a, {}};
+  ValueVec values;
   for (const auto& p : a->params) {
     const Json* v = given->find(p.name);
     if (v == nullptr) throw IllegalAction("argumentos inválidos para " + name + ": '" + p.name + "'");
     try {
-      out.args.push_back(g.types.decode(*v, *p.type));
+      values.push_back(g.types.decode(*v, *p.type));
     } catch (const std::invalid_argument& exc) {
       throw IllegalAction("argumentos inválidos para " + name + ": " + exc.what());
     }
   }
-  return out;
+  return Action{a, Args(values)};
 }
 
 // --- Consultas ---------------------------------------------------------------------------------
@@ -825,13 +828,33 @@ std::vector<int> State::active_seats() const {
   return out;
 }
 
+bool State::is_active(int seat) const {
+  if (status() != Status::Decision || !s_->pending) return false;
+  const Pending& p = *s_->pending;
+  const NodeDef& node = game().node(s_->node);
+  bool priority = node.kind == NodeKind::Window && node.mode == WindowMode::Priority;
+  for (int s : p.order) {
+    if (p.responded(s)) continue;
+    if (s == seat) return true;
+    if (priority) return false;  // en prioridad solo actúa el primero que no ha respondido
+  }
+  return false;
+}
+
+int State::first_active() const {
+  if (status() != Status::Decision || !s_->pending) return -1;
+  for (int s : s_->pending->order) {
+    if (!s_->pending->responded(s)) return s;
+  }
+  return -1;
+}
+
 const Value& State::value(const std::string& var) const {
   return s_->store.at(game().var_index.at(var));
 }
 
 void State::for_each_legal(int seat, const std::function<bool(const Action&)>& visit) const {
-  std::vector<int> active = active_seats();
-  if (std::find(active.begin(), active.end(), seat) == active.end()) return;
+  if (!is_active(seat)) return;
   const NodeDef& node = game().node(s_->node);
   Ctx ctx = query_ctx(*s_);
   if (!enumerate_node(node, ctx, seat, visit)) return;
@@ -883,7 +906,7 @@ Json State::options(int seat, const std::string* name, const Json* args) const {
   if (name == nullptr) {
     for (const auto& a : node.actions) {
       bool any = false;
-      std::vector<Value> scratch;
+      ValueVec scratch;
       complete(a, ctx, seat, scratch, 0, [&](const Action&) {
         any = true;
         return false;
@@ -896,7 +919,7 @@ Json State::options(int seat, const std::string* name, const Json* args) const {
   uint32_t id = g.action_name_id(*name);
   const ActionDef* a = id == UINT32_MAX ? nullptr : node.action(id);
   if (a == nullptr) return Json(out);
-  std::vector<Value> chosen;
+  ValueVec chosen;
   const JsonObject empty;
   const JsonObject& given = args != nullptr && args->is_object() ? args->as_object() : empty;
   size_t i = given.size();
@@ -909,7 +932,7 @@ Json State::options(int seat, const std::string* name, const Json* args) const {
                                    static_cast<uint32_t>(i)),
                          "dominio", ctx);
   for (size_t k = 0; k < values.size; ++k) {
-    std::vector<Value> attempt = chosen;
+    ValueVec attempt = chosen;
     attempt.push_back(values[k]);
     bool any = false;
     complete(*a, ctx, seat, attempt, i + 1, [&](const Action&) {
@@ -941,7 +964,7 @@ Action canonical(const State& st, int seat, const Action& action) {
   }
   const ActionDef& a = *action.def;
   Ctx ctx = query_ctx(st.data());
-  std::vector<Value> args;
+  ValueVec args;
   for (size_t k = 0; k < a.params.size(); ++k) {
     Value canonical_value;
     if (!member(a.params[k], ctx, seat, args, action.args.at(k), canonical_value)) {
@@ -956,7 +979,7 @@ Action canonical(const State& st, int seat, const Action& action) {
       throw IllegalAction(a.name + ": no se cumple la condición de la acción");
     }
   }
-  return Action{&a, std::move(args)};
+  return Action{&a, Args(args)};
 }
 
 }  // namespace
@@ -1071,6 +1094,15 @@ State State::apply_chance(const Outcome& outcome, const ApplyOptions& opt) const
   return State(tx->commit(s_, std::move(step), opt.history));
 }
 
+State State::sample_and_apply(Pcg32& rng, const ApplyOptions& opt) const {
+  require_chance(*this);
+  RngDraws draws(rng);
+  Tx tx(s_->game, s_->match, s_->store, s_->node, s_->pending, &draws, opt.events);
+  tx.run_chance();
+  Step step{Step::Kind::Chance, -1, {}, draws.taken, {}};
+  return State(tx.commit(s_, std::move(step), opt.history));
+}
+
 Rational State::outcome_probability(const Outcome& outcome) const {
   require_chance(*this);
   ScriptedDraws draws(outcome);
@@ -1107,7 +1139,7 @@ bool holds_zones(const Type& t) {
 Json redact_zone(Ctx& ctx, const Value& zone_v, const VarDef& var, Frame& frame) {
   const TypeTable& types = ctx.game->types;
   const ArrayObj* z = zone_v.arr();
-  std::vector<bool> shown;
+  PoolVec<bool> shown;
   for (uint32_t k = 0; k < z->n; ++k) {
     frame.face_up = static_cast<int8_t>(z->faces()[k]);
     shown.push_back(var.policy.allows(ctx, frame));

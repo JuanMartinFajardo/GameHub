@@ -39,7 +39,7 @@ void require_ordered(const ArrayObj* z, const char* what) {
 }
 
 // Una zona con otros elementos y el mismo orden (las bolsas se reordenan canónicamente).
-Value zone_with(std::vector<Value>&& values, std::vector<uint8_t>&& faces, bool ordered) {
+Value zone_with(ValueVec&& values, ByteVec&& faces, bool ordered) {
   return Value::zone(std::move(values), std::move(faces), ordered);
 }
 
@@ -53,18 +53,18 @@ bool Policy::allows(Ctx& ctx, Frame& frame) const {
   if (frame.viewer == NO_SEAT || kind == Kind::All) return true;
   if (kind == Kind::None) return false;
   if (kind == Kind::Owner) return frame.viewer == frame.owner;
-  ScopedFrame scope(pred.frame);
+  ScopedFrame scope(ctx.machine(), pred.frame);
   scope.frame.viewer = frame.viewer;
   scope.frame.owner = frame.owner;
   scope.frame.face_up = frame.face_up;
   if (frame.viewer == PUBLIC) {
     try {
-      return expect_bool(vm().eval(pred.chunk, ctx, scope.frame), "visibilidad", ctx);
+      return expect_bool(ctx.machine().eval(pred.chunk, ctx, scope.frame), "visibilidad", ctx);
     } catch (const RuleError&) {
       return false;
     }
   }
-  return expect_bool(vm().eval(pred.chunk, ctx, scope.frame), "visibilidad", ctx);
+  return expect_bool(ctx.machine().eval(pred.chunk, ctx, scope.frame), "visibilidad", ctx);
 }
 
 // --- Escritura y coerción ----------------------------------------------------------------------
@@ -82,27 +82,27 @@ Value coerce(Value v, const Type& t, const Ctx& ctx) {
       if (v.tag == Tag::Zone) {
         if ((v.arr()->a != 0) == ordered) return v;
         const ArrayObj* z = v.arr();
-        std::vector<Value> values(z->items(), z->items() + z->n);
-        std::vector<uint8_t> faces(z->faces(), z->faces() + z->n);
+        ValueVec values(z->items(), z->items() + z->n);
+        ByteVec faces(z->faces(), z->faces() + z->n);
         return zone_with(std::move(values), std::move(faces), ordered);
       }
       Items it = iterate(v, "iteración", ctx);
-      std::vector<Value> values;
+      ValueVec values;
       for (size_t k = 0; k < it.size; ++k) values.push_back(it[k]);
-      std::vector<uint8_t> faces(values.size(), 0);
+      ByteVec faces(values.size(), 0);
       return zone_with(std::move(values), std::move(faces), ordered);
     }
     case Type::Kind::Set: {
       if (v.tag == Tag::Set) return v;
       Items it = iterate(v, "iteración", ctx);
-      std::vector<Value> values;
+      ValueVec values;
       for (size_t k = 0; k < it.size; ++k) values.push_back(it[k]);
       return Value::set(std::move(values));
     }
     case Type::Kind::Map: {
       if (v.tag == Tag::Map) return v;
       Items it = iterate(v, "iteración", ctx);
-      std::vector<Value> pairs;
+      ValueVec pairs;
       for (size_t k = 0; k < it.size; ++k) {
         const Value& p = it[k];
         if (!p.is_tuple_like() || p.tuple_size() != 2) rule_error("se esperaba un par (clave, valor)");
@@ -148,7 +148,7 @@ Value grid_from_rows(const Value& rows, int64_t width, int64_t height, const Typ
     rule_error("se esperaban " + std::to_string(height) + " filas de " + std::to_string(width) +
                " casillas para la rejilla");
   }
-  std::vector<Value> cells;
+  ValueVec cells;
   cells.reserve(static_cast<size_t>(width * height));
   for (size_t r = 0; r < rows.tuple_size(); ++r) {
     Value row = rows.tuple_at(r);
@@ -212,11 +212,11 @@ int64_t write_position(const Ctx& ctx, const LStep& st, const Value& cur, const 
   }
 }
 
-void update(const Ctx& ctx, Value& slot, const LValue& lv, const std::vector<Value>& keys,
+void update(const Ctx& ctx, Value& slot, const LValue& lv, const ValueVec& keys,
             size_t i, Value&& value);
 
 void update_child(const Ctx& ctx, ArrayObj* obj, size_t pos, const LValue& lv,
-                  const std::vector<Value>& keys, size_t i, Value&& value) {
+                  const ValueVec& keys, size_t i, Value&& value) {
   Value& child = obj->items()[pos];
   if (obj->hash > 1) {
     uint64_t old = hash_value(child);
@@ -229,7 +229,7 @@ void update_child(const Ctx& ctx, ArrayObj* obj, size_t pos, const LValue& lv,
   }
 }
 
-void update(const Ctx& ctx, Value& slot, const LValue& lv, const std::vector<Value>& keys,
+void update(const Ctx& ctx, Value& slot, const LValue& lv, const ValueVec& keys,
             size_t i, Value&& value) {
   if (i == lv.steps.size()) {
     slot = std::move(value);
@@ -240,14 +240,14 @@ void update(const Ctx& ctx, Value& slot, const LValue& lv, const std::vector<Val
   if (pos < 0) {
     // Una clave nueva en un mapa: solo puede ser el último paso (los anteriores se leyeron).
     const ArrayObj* m = slot.arr();
-    std::vector<Value> pairs(m->items(), m->items() + m->n);
+    ValueVec pairs(m->items(), m->items() + m->n);
     pairs.push_back(keys[i]);
     pairs.push_back(std::move(value));
     slot = Value::map(std::move(pairs));
     return;
   }
   if (slot.tag == Tag::Cell) {
-    slot = Value::tuple(std::vector<Value>{Value::integer(slot.cell_row()),
+    slot = Value::tuple(ValueVec{Value::integer(slot.cell_row()),
                                            Value::integer(slot.cell_col())});
   }
   update_child(ctx, slot.unique_arr(), static_cast<size_t>(pos), lv, keys, i + 1,
@@ -256,21 +256,21 @@ void update(const Ctx& ctx, Value& slot, const LValue& lv, const std::vector<Val
 
 }  // namespace
 
-std::vector<Value> LValue::keys(Ctx& ctx, Frame& frame) const {
+ValueVec LValue::keys(Ctx& ctx, Frame& frame) const {
   // Claves y lecturas intercaladas, como `get` en Python: el error del primer nivel inválido.
-  std::vector<Value> out;
+  ValueVec out;
   out.reserve(steps.size());
   Value cur = (*ctx.store)[var];
   for (size_t k = 0; k < steps.size(); ++k) {
     const LStep& st = steps[k];
-    Value key = st.is_field ? Value() : vm().eval(st.key, ctx, frame);
+    Value key = st.is_field ? Value() : ctx.machine().eval(st.key, ctx, frame);
     if (k + 1 < steps.size()) cur = step_get(ctx, st, cur, key);
     out.push_back(std::move(key));
   }
   return out;
 }
 
-Value LValue::get_with(Ctx& ctx, const std::vector<Value>& ks) const {
+Value LValue::get_with(Ctx& ctx, const ValueVec& ks) const {
   Value cur = (*ctx.store)[var];
   for (size_t k = 0; k < steps.size(); ++k) cur = step_get(ctx, steps[k], cur, ks[k]);
   return cur;
@@ -278,12 +278,12 @@ Value LValue::get_with(Ctx& ctx, const std::vector<Value>& ks) const {
 
 Value LValue::get(Ctx& ctx, Frame& frame) const { return get_with(ctx, keys(ctx, frame)); }
 
-void LValue::set_with(Ctx& ctx, const std::vector<Value>& ks, Value value) const {
+void LValue::set_with(Ctx& ctx, const ValueVec& ks, Value value) const {
   update(ctx, (*ctx.store)[var], *this, ks, 0, std::move(value));
   if (ctx.memo != nullptr) ctx.memo->clear();
 }
 
-int32_t LValue::owner(const std::vector<Value>& ks) const {
+int32_t LValue::owner(const ValueVec& ks) const {
   int32_t owner = NO_SEAT;
   for (size_t k = 0; k < steps.size(); ++k) {
     if (steps[k].per_player) owner = static_cast<int32_t>(ks[k].i);
@@ -300,10 +300,10 @@ Json location_json(const GameDef& game, uint32_t var, int32_t owner) {
 
 // --- Selectores --------------------------------------------------------------------------------
 
-std::vector<size_t> Selector::select(Ctx& ctx, Frame& frame, const Value& zone_v) const {
+PoolVec<size_t> Selector::select(Ctx& ctx, Frame& frame, const Value& zone_v) const {
   const ArrayObj* z = zone_v.arr();
   size_t size = z->n;
-  std::vector<size_t> chosen;
+  PoolVec<size_t> chosen;
   switch (kind) {
     case Kind::All:
       for (size_t k = 0; k < size; ++k) chosen.push_back(k);
@@ -311,7 +311,7 @@ std::vector<size_t> Selector::select(Ctx& ctx, Frame& frame, const Value& zone_v
     case Kind::Top:
     case Kind::Bottom: {
       const char* name = kind == Kind::Top ? "top" : "bottom";
-      int64_t k = int_arg(vm().eval(arg, ctx, frame), name, ctx);
+      int64_t k = int_arg(ctx.machine().eval(arg, ctx, frame), name, ctx);
       require_ordered(z, name);
       if (k < 0 || k > static_cast<int64_t>(size)) {
         rule_error(std::string("'") + name + " " + std::to_string(k) + "' en una zona de " +
@@ -322,7 +322,7 @@ std::vector<size_t> Selector::select(Ctx& ctx, Frame& frame, const Value& zone_v
       return chosen;
     }
     case Kind::At: {
-      int64_t i = int_arg(vm().eval(arg, ctx, frame), "at", ctx);
+      int64_t i = int_arg(ctx.machine().eval(arg, ctx, frame), "at", ctx);
       require_ordered(z, "at");
       if (i < 0 || i >= static_cast<int64_t>(size)) {
         rule_error("posición " + std::to_string(i) + " fuera de una zona de " +
@@ -333,8 +333,8 @@ std::vector<size_t> Selector::select(Ctx& ctx, Frame& frame, const Value& zone_v
     }
     case Kind::Value:
     case Kind::Values: {
-      Value a = vm().eval(arg, ctx, frame);
-      std::vector<Value> wanted;
+      Value a = ctx.machine().eval(arg, ctx, frame);
+      ValueVec wanted;
       if (kind == Kind::Value) {
         wanted.push_back(a);
       } else {
@@ -362,7 +362,7 @@ std::vector<size_t> Selector::select(Ctx& ctx, Frame& frame, const Value& zone_v
 // --- Sentencias básicas ------------------------------------------------------------------------
 
 void AssignStmt::exec(Ctx& ctx, Frame& frame) const {
-  Value v = vm().eval(value, ctx, frame);
+  Value v = ctx.machine().eval(value, ctx, frame);
   if (target.type->kind == Type::Kind::Grid) {
     if (v.tag != Tag::Grid) {
       auto dim = [&](const std::variant<int64_t, std::string>& d) -> int64_t {
@@ -381,10 +381,10 @@ void AssignStmt::exec(Ctx& ctx, Frame& frame) const {
   target.set_with(ctx, target.keys(ctx, frame), std::move(v));
 }
 
-void LetStmt::exec(Ctx& ctx, Frame& frame) const { frame.slots[slot] = vm().eval(value, ctx, frame); }
+void LetStmt::exec(Ctx& ctx, Frame& frame) const { frame.slots[slot] = ctx.machine().eval(value, ctx, frame); }
 
 void IfStmt::exec(Ctx& ctx, Frame& frame) const {
-  if (expect_bool(vm().eval(cond, ctx, frame), "if", ctx)) {
+  if (expect_bool(ctx.machine().eval(cond, ctx, frame), "if", ctx)) {
     then.run(ctx, frame);
   } else {
     other.run(ctx, frame);
@@ -392,7 +392,7 @@ void IfStmt::exec(Ctx& ctx, Frame& frame) const {
 }
 
 void ForStmt::exec(Ctx& ctx, Frame& frame) const {
-  Items it = iterate(vm().eval(coll, ctx, frame), "for", ctx);
+  Items it = iterate(ctx.machine().eval(coll, ctx, frame), "for", ctx);
   for (size_t k = 0; k < it.size; ++k) {
     frame.slots[slot] = it[k];
     body.run(ctx, frame);
@@ -407,12 +407,12 @@ namespace {
 
 struct Sighting {
   bool size = false;
-  std::vector<bool> items;
+  PoolVec<bool> items;
 };
 
 // Para cada asiento y al final un espectador: ¿ve el tamaño de la zona? ¿y cada elemento?
 std::vector<Sighting> sightings(Ctx& ctx, uint32_t var, int32_t owner,
-                                const std::vector<uint8_t>& faces) {
+                                const ByteVec& faces) {
   const VarDef& def = ctx.game->vars[var];
   std::vector<Sighting> out;
   for (int s = 0; s <= ctx.n; ++s) {
@@ -434,12 +434,12 @@ std::vector<Sighting> sightings(Ctx& ctx, uint32_t var, int32_t owner,
 }  // namespace
 
 void MoveStmt::exec(Ctx& ctx, Frame& frame) const {
-  std::vector<Value> src_keys = src.keys(ctx, frame);
+  ValueVec src_keys = src.keys(ctx, frame);
   Value zone_v = src.get_with(ctx, src_keys);
   const ArrayObj* zone = expect_zone(zone_v, ctx);
-  std::vector<size_t> chosen = sel.select(ctx, frame, zone_v);
-  std::vector<Value> moved;
-  std::vector<uint8_t> moved_faces;
+  PoolVec<size_t> chosen = sel.select(ctx, frame, zone_v);
+  ValueVec moved;
+  ByteVec moved_faces;
   for (size_t k : chosen) {
     moved.push_back(zone->items()[k]);
     moved_faces.push_back(zone->faces()[k]);
@@ -447,10 +447,10 @@ void MoveStmt::exec(Ctx& ctx, Frame& frame) const {
   int32_t src_owner = src.owner(src_keys);
   std::vector<Sighting> before;
   if (ctx.recording()) before = sightings(ctx, src.var, src_owner, moved_faces);
-  std::vector<bool> keep(zone->n, true);
+  PoolVec<bool> keep(zone->n, true);
   for (size_t k : chosen) keep[k] = false;
-  std::vector<Value> rest;
-  std::vector<uint8_t> rest_faces;
+  ValueVec rest;
+  ByteVec rest_faces;
   for (size_t k = 0; k < zone->n; ++k) {
     if (keep[k]) {
       rest.push_back(zone->items()[k]);
@@ -461,11 +461,11 @@ void MoveStmt::exec(Ctx& ctx, Frame& frame) const {
   zone_v = Value();
   src.set_with(ctx, src_keys, zone_with(std::move(rest), std::move(rest_faces), src_ordered));
 
-  std::vector<Value> dst_keys = dst.keys(ctx, frame);
+  ValueVec dst_keys = dst.keys(ctx, frame);
   Value target_v = dst.get_with(ctx, dst_keys);
   const ArrayObj* target = expect_zone(target_v, ctx);
-  std::vector<Value> values;
-  std::vector<uint8_t> faces;
+  ValueVec values;
+  ByteVec faces;
   if (to_top) {
     values = moved;
     faces = moved_faces;
@@ -525,19 +525,19 @@ void MoveStmt::exec(Ctx& ctx, Frame& frame) const {
 }
 
 void FlipStmt::exec(Ctx& ctx, Frame& frame) const {
-  std::vector<Value> keys = target.keys(ctx, frame);
+  ValueVec keys = target.keys(ctx, frame);
   Value zone_v = target.get_with(ctx, keys);
   const ArrayObj* zone = expect_zone(zone_v, ctx);
-  std::vector<size_t> chosen_list = sel.select(ctx, frame, zone_v);
-  std::vector<bool> chosen(zone->n, false);
+  PoolVec<size_t> chosen_list = sel.select(ctx, frame, zone_v);
+  PoolVec<bool> chosen(zone->n, false);
   size_t count = 0;
   for (size_t k : chosen_list) {
     if (!chosen[k]) ++count;
     chosen[k] = true;
   }
-  bool up = expect_bool(vm().eval(face, ctx, frame), "flip", ctx);
-  std::vector<Value> values(zone->items(), zone->items() + zone->n);
-  std::vector<uint8_t> faces(zone->faces(), zone->faces() + zone->n);
+  bool up = expect_bool(ctx.machine().eval(face, ctx, frame), "flip", ctx);
+  ValueVec values(zone->items(), zone->items() + zone->n);
+  ByteVec faces(zone->faces(), zone->faces() + zone->n);
   for (size_t k = 0; k < faces.size(); ++k) {
     if (chosen[k]) faces[k] = up ? 1 : 0;
   }
@@ -556,12 +556,12 @@ void FlipStmt::exec(Ctx& ctx, Frame& frame) const {
 // --- Azar --------------------------------------------------------------------------------------
 
 void ShuffleStmt::exec(Ctx& ctx, Frame& frame) const {
-  std::vector<Value> keys = target.keys(ctx, frame);
+  ValueVec keys = target.keys(ctx, frame);
   Value zone_v = target.get_with(ctx, keys);
   const ArrayObj* zone = expect_zone(zone_v, ctx);
   require_ordered(zone, "shuffle");
-  std::vector<Value> values(zone->items(), zone->items() + zone->n);
-  std::vector<uint8_t> faces(zone->faces(), zone->faces() + zone->n);
+  ValueVec values(zone->items(), zone->items() + zone->n);
+  ByteVec faces(zone->faces(), zone->faces() + zone->n);
   Draws& d = draws(ctx);
   for (size_t i = values.size(); i-- > 1;) {
     auto j = static_cast<size_t>(d.uniform(static_cast<int64_t>(i + 1)));
@@ -591,19 +591,19 @@ void set_target(Ctx& ctx, Frame& frame, const LValue& target, Value v) {
 
 void RollStmt::exec(Ctx& ctx, Frame& frame) const {
   Draws& d = draws(ctx);
-  int64_t n = int_arg(vm().eval(sides, ctx, frame), "roll", ctx);
+  int64_t n = int_arg(ctx.machine().eval(sides, ctx, frame), "roll", ctx);
   int64_t value = d.uniform(n) + 1;
   set_target(ctx, frame, target, Value::integer(value));
 }
 
 void RandomChoiceStmt::exec(Ctx& ctx, Frame& frame) const {
-  Items it = iterate(vm().eval(coll, ctx, frame), "random_choice", ctx);
+  Items it = iterate(ctx.machine().eval(coll, ctx, frame), "random_choice", ctx);
   auto k = static_cast<size_t>(draws(ctx).uniform(static_cast<int64_t>(it.size)));
   set_target(ctx, frame, target, coerce(it[k], *target.type, ctx));
 }
 
 void SampleStmt::exec(Ctx& ctx, Frame& frame) const {
-  Items pairs = iterate(vm().eval(dist, ctx, frame), "sample", ctx);
+  Items pairs = iterate(ctx.machine().eval(dist, ctx, frame), "sample", ctx);
   std::vector<Rational> probs;
   Rational total = Rational::integer(0);
   bool negative = false;
@@ -628,15 +628,15 @@ void SampleStmt::exec(Ctx& ctx, Frame& frame) const {
 
 void RevealStmt::exec(Ctx& ctx, Frame& frame) const {
   int n = ctx.n;
-  std::vector<bool> to(static_cast<size_t>(n), false);
+  PoolVec<bool> to(static_cast<size_t>(n), false);
   size_t count = 0;
-  Items it = iterate(vm().eval(seats, ctx, frame), "reveal", ctx);
+  Items it = iterate(ctx.machine().eval(seats, ctx, frame), "reveal", ctx);
   for (size_t k = 0; k < it.size; ++k) {
     auto s = static_cast<size_t>(expect_seat(it[k], n, "reveal", ctx));
     if (!to[s]) ++count;
     to[s] = true;
   }
-  Value v = vm().eval(value, ctx, frame);
+  Value v = ctx.machine().eval(value, ctx, frame);
   if (!ctx.recording()) return;
   JsonObject payload;
   payload.emplace_back("type", Json("reveal"));
@@ -651,7 +651,7 @@ void RevealStmt::exec(Ctx& ctx, Frame& frame) const {
 void EmitStmt::exec(Ctx& ctx, Frame& frame) const {
   JsonObject values;
   for (const auto& [k, chunk] : fields) {
-    values.emplace_back(k, ctx.game->types.to_json(vm().eval(chunk, ctx, frame)));
+    values.emplace_back(k, ctx.game->types.to_json(ctx.machine().eval(chunk, ctx, frame)));
   }
   if (!ctx.recording()) return;
   JsonObject payload;
@@ -672,8 +672,8 @@ void EmitStmt::exec(Ctx& ctx, Frame& frame) const {
 }
 
 void RewardStmt::exec(Ctx& ctx, Frame& frame) const {
-  int64_t s = expect_seat(vm().eval(seat, ctx, frame), ctx.n, "reward", ctx);
-  Value a = vm().eval(amount, ctx, frame);
+  int64_t s = expect_seat(ctx.machine().eval(seat, ctx, frame), ctx.n, "reward", ctx);
+  Value a = ctx.machine().eval(amount, ctx, frame);
   expect_num(a, "reward", ctx);
   if (!ctx.recording()) return;
   JsonObject payload;

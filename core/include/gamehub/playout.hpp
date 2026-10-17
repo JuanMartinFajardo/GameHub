@@ -29,6 +29,8 @@ struct PlayoutReport {
 // Una partida aleatoria completa (o hasta `max_steps`). Devuelve el estado final.
 State random_playout(const Game& game, int n, const Json& params, uint64_t seed, int max_steps,
                      uint64_t& steps, bool& truncated);
+State random_playout(const Game& game, int n, const Json& params, uint64_t seed, int max_steps,
+                     uint64_t& steps, bool& truncated, std::vector<Action>& scratch);
 
 PlayoutReport random_playouts(const Game& game, int n, const Json& params, uint64_t seed,
                               uint64_t games, int max_steps);

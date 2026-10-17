@@ -79,7 +79,7 @@ Value Value::cell(int64_t r, int64_t c) {
     v.i = c;
     return v;
   }
-  return tuple(std::vector<Value>{integer(r), integer(c)});
+  return tuple(ValueVec{integer(r), integer(c)});
 }
 
 Value Value::number(const Rational& r) {
@@ -110,14 +110,14 @@ Value Value::tuple(std::span<const Value> items) {
   return v;
 }
 
-Value Value::tuple(std::vector<Value>&& items) {
+Value Value::tuple(ValueVec&& items) {
   Value v = alloc_array(Tag::Tuple, static_cast<uint32_t>(items.size()));
   Value* dst = v.arr()->items();
   for (size_t k = 0; k < items.size(); ++k) dst[k] = std::move(items[k]);
   return v;
 }
 
-Value Value::structure(uint32_t type, std::vector<Value>&& fields) {
+Value Value::structure(uint32_t type, ValueVec&& fields) {
   Value v = alloc_array(Tag::Struct, static_cast<uint32_t>(fields.size()));
   v.arr()->a = type;
   Value* dst = v.arr()->items();
@@ -125,9 +125,9 @@ Value Value::structure(uint32_t type, std::vector<Value>&& fields) {
   return v;
 }
 
-Value Value::set(std::vector<Value>&& items) {
+Value Value::set(ValueVec&& items) {
   std::stable_sort(items.begin(), items.end(), canonical_less);
-  std::vector<Value> unique;
+  ValueVec unique;
   unique.reserve(items.size());
   for (auto& x : items) {
     if (unique.empty() || !equals(unique.back(), x)) unique.push_back(std::move(x));
@@ -138,15 +138,15 @@ Value Value::set(std::vector<Value>&& items) {
   return v;
 }
 
-Value Value::map(std::vector<Value>&& pairs) {
+Value Value::map(ValueVec&& pairs) {
   // dict(pares): una clave repetida se queda con el último valor; después, orden por clave.
   size_t count = pairs.size() / 2;
-  std::vector<size_t> order(count);
+  PoolVec<size_t> order(count);
   for (size_t k = 0; k < count; ++k) order[k] = k;
   std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
     return compare_canonical(pairs[2 * a], pairs[2 * b]) < 0;
   });
-  std::vector<size_t> kept;
+  PoolVec<size_t> kept;
   for (size_t k : order) {
     if (!kept.empty() && equals(pairs[2 * kept.back()], pairs[2 * k])) {
       kept.back() = k;  // el último par con esa clave gana
@@ -163,9 +163,9 @@ Value Value::map(std::vector<Value>&& pairs) {
   return v;
 }
 
-Value Value::zone(std::vector<Value>&& values, std::vector<uint8_t>&& faces, bool ordered) {
+Value Value::zone(ValueVec&& values, ByteVec&& faces, bool ordered) {
   size_t n = values.size();
-  std::vector<size_t> order(n);
+  PoolVec<size_t> order(n);
   for (size_t k = 0; k < n; ++k) order[k] = k;
   if (!ordered) {
     // Las bolsas, siempre en orden canónico de (valor, cara).
@@ -185,7 +185,7 @@ Value Value::zone(std::vector<Value>&& values, std::vector<uint8_t>&& faces, boo
   return v;
 }
 
-Value Value::grid(uint32_t width, uint32_t height, std::vector<Value>&& cells) {
+Value Value::grid(uint32_t width, uint32_t height, ValueVec&& cells) {
   Value v = alloc_array(Tag::Grid, static_cast<uint32_t>(cells.size()));
   v.arr()->a = width;
   v.arr()->b = height;

@@ -66,6 +66,7 @@ enum Op : uint32_t {
   OP_LEN,
   OP_CONTAINS,
   OP_INDEX,
+  OP_VAR_INDEX,  // i: index(var i, clave en la cima) sin copiar la variable
   OP_FIELD,  // id del nombre del campo
   OP_FIRST,
   OP_LAST,
@@ -83,6 +84,18 @@ enum Op : uint32_t {
   // Comprensiones
   OP_ITER_INIT,   // nombre, ranura de la colección, ranura del índice, ¿no vacía?
   OP_ITER_NEXT,   // ranura de la colección, ranura del índice, ranura de la variable, salida
+  OP_ITER_LOOP,   // como ITER_NEXT, pero salta al cuerpo si hay elemento (bucle rotado)
+  // ITER_INIT + ITER_NEXT: nombre, colección, índice, ¿no vacía?, variable, salida, origen
+  // (ranura de la que leer la colección, o UINT32_MAX = sacarla de la pila)
+  OP_ITER_FIRST,
+  // Un paso de comprensión seguido del avance del bucle: (operando del paso), colección,
+  // índice, variable, cuerpo
+  OP_ALL_LOOP,     // salida si falso
+  OP_ANY_LOOP,     // salida si verdadero
+  OP_COUNT_LOOP,   // acumulador
+  OP_SUM_LOOP,     // acumulador
+  OP_PUSH_LOOP,    // (sin operando) añade la cima a la lista en construcción
+  OP_FILTER_LOOP,  // (sin operando) añade la variable si la cima es verdadera
   OP_ALL_STEP,    // salida si falso
   OP_ANY_STEP,    // salida si verdadero
   OP_COUNT_STEP,  // ranura del acumulador
@@ -117,6 +130,12 @@ enum Op : uint32_t {
   // Pagos
   OP_WIN_LOSS,
   OP_FILL,
+  // Superinstrucciones (fusionadas al emitir)
+  OP_VAR_INDEX_LOCAL,  // ranura, variable: index(var, local)
+  OP_EQ_LOCAL,         // ranura: cima == local
+  OP_NE_LOCAL,         // ranura
+  OP_EQ_CONST,         // constante: cima == constante
+  OP_NE_CONST,         // constante
   OP_RETURN,
 };
 
@@ -140,7 +159,7 @@ extern const char* const ITER_OPS[];
 // Una expresión compilada. Comparte el marco (las ranuras) de su unidad de compilación.
 struct Chunk {
   std::vector<uint32_t> code;
-  std::vector<Value> consts;
+  ValueVec consts;
   uint32_t max_stack = 0;
 };
 

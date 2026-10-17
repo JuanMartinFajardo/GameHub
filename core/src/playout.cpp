@@ -15,23 +15,27 @@ constexpr ApplyOptions LEAN{false, false, false};
 
 State random_playout(const Game& game, int n, const Json& params, uint64_t seed, int max_steps,
                      uint64_t& steps, bool& truncated) {
+  std::vector<Action> scratch;
+  return random_playout(game, n, params, seed, max_steps, steps, truncated, scratch);
+}
+
+State random_playout(const Game& game, int n, const Json& params, uint64_t seed, int max_steps,
+                     uint64_t& steps, bool& truncated, std::vector<Action>& legal) {
   State state = game.new_state(n, params, LEAN);
   Pcg32 chance(seed, STREAM_CHANCE);
   std::vector<Pcg32> agents;
   for (int s = 0; s < n; ++s) agents.emplace_back(seed, STREAM_AGENT_BASE + static_cast<uint64_t>(s));
   steps = 0;
   truncated = false;
-  std::vector<Action> legal;
   while (!state.is_terminal()) {
     if (steps >= static_cast<uint64_t>(max_steps)) {
       truncated = true;
       return state;
     }
     if (state.status() == Status::Chance) {
-      Outcome o = state.sample_chance(chance);
-      state = state.apply_chance(o, LEAN);
+      state = state.sample_and_apply(chance, LEAN);
     } else {
-      int seat = state.active_seats().front();
+      int seat = state.first_active();
       legal.clear();
       state.for_each_legal(seat, [&](const Action& a) {
         legal.push_back(a);
@@ -50,13 +54,16 @@ PlayoutReport random_playouts(const Game& game, int n, const Json& params, uint6
   PlayoutReport report;
   report.payoff_sums.assign(static_cast<size_t>(n), Rational::integer(0));
   auto started = std::chrono::steady_clock::now();
+  std::vector<Action> scratch;
+  scratch.reserve(64);
   for (uint64_t i = 0; i < games; ++i) {
     uint64_t match_seed = seed + i;
     ++report.games;
     uint64_t steps = 0;
     bool truncated = false;
     try {
-      State final = random_playout(game, n, params, match_seed, max_steps, steps, truncated);
+      State final =
+          random_playout(game, n, params, match_seed, max_steps, steps, truncated, scratch);
       report.steps += steps;
       uint64_t h = mix64(match_seed ^ (steps << 20));
       if (truncated) {

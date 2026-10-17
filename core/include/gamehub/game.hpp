@@ -66,6 +66,11 @@ struct FunctionDef {
   Expr body;
   MemoKind memo = MemoKind::None;
   std::string native;
+  // Memo adaptativo: si tras muchas consultas casi nunca acierta, se deja de memorizar (es una
+  // caché; no cambia ningún resultado).
+  mutable uint32_t memo_lookups = 0;
+  mutable uint32_t memo_hits = 0;
+  mutable bool memo_off = false;
 };
 
 struct TransitionDef {
@@ -97,6 +102,9 @@ struct ActionDef {
   Code effects;
   std::vector<TransitionDef> transitions;
   Policy policy;
+  // Ranuras que bastan para cualquier dominio y el `requires` (los argumentos en 0..k-1): la
+  // enumeración de acciones legales usa un solo marco para todos.
+  uint32_t query_frame = 0;
 };
 
 enum class NodeKind : uint8_t { Decision, Simultaneous, Window, Chance, Auto, Phase, Terminal };
@@ -164,6 +172,14 @@ class GameDef {
   mutable std::vector<std::vector<int>> field_slots;
   // Resultados de las funciones "static" (valen para todas las partidas del juego).
   std::unique_ptr<MemoTable> static_memo;
+  // `cells(g)` y `lines(g, k)` solo dependen de las dimensiones: (tipo, ancho, alto, k) → valor.
+  mutable std::unordered_map<uint64_t, Value> grid_cache;
+  // Ruta (fases activas y el nodo) de cada nodo; la del índice -1 (antes de empezar), vacía.
+  std::vector<std::vector<int>> paths;
+  const std::vector<int>* path(int node) const {
+    static const std::vector<int> none;
+    return node < 0 ? &none : &paths[static_cast<size_t>(node)];
+  }
 
   uint32_t action_name_id(const std::string& name) const;  // UINT32_MAX si no existe
   // Una expresión de la IR fuera de las reglas (tests, invariantes, herramientas).
