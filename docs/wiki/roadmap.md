@@ -281,9 +281,15 @@ See the [log](../../log.md) of 2026-10-17.
 - [ ] IR → C++ code generation for "hot" games (optional)
 - [ ] WASM build (Emscripten) used by `play` and the Studio without a server; the same native
       plugins as in Python
+- [ ] **Global action ids from the IR** (brought forward from F11 on 2026-10-17): every action
+      gets a fixed integer computed from its parameters' types (mixed radix over finite domains;
+      integers bounded by the game's parameters; combinatorial ranking for sets), without
+      exploring the game. `to_openspiel` uses it, so OpenSpiel's algorithms run on any game in
+      the catalog (today the wrapper explores the whole game, ADR-072); F11's tensorization
+      reuses it for the action space
 
 **Acceptance:** ≥ 50× more playouts/s than Python in tic-tac-toe, Connect Four and Kuhn; identical
-traces.
+traces; OpenSpiel's MCTS and MCCFR run on the wrapped chess and Texas Hold'em.
 
 ## F9 — Heuristics, bots, arena and balance analytics (75 → 82 %) · L
 
@@ -319,7 +325,7 @@ merges it; anyone plays the new version online from the browser.
 
 ## F11 — AI: RL, Deep RL, LLM (91 → 98 %) · XL
 
-- [ ] Automatic tensorization of observations and actions from the IR
+- [ ] Automatic tensorization of observations from the IR (actions are numbered since F8)
 - [ ] Gymnasium / PettingZoo / OpenSpiel adapters; vectorized environments in C++
 - [ ] Recipes: PPO, DQN; **AlphaZero** (C++ MCTS + PyTorch); NFSP, Deep CFR, PSRO
 - [ ] Model registry, ONNX export, inference in C++ and in the browser
@@ -345,5 +351,6 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F8: the C++ core, bindings and WASM (and Connect Four 7×6, ADR-074).
+1. F8: the C++ core, bindings and WASM (and Connect Four 7×6, ADR-074; global action ids from
+   the IR, so the OpenSpiel bridge works on every game).
 2. Heuristic bots for the second-wave games (F9) and custom UIs for Skat and Solitaire.

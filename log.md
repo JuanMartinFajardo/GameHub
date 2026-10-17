@@ -21,6 +21,22 @@ Solitaire.
 
 ---
 
+## 2026-10-17 — Global action ids brought forward to F8
+
+**Question**: what GameHub and OpenSpiel share and what each can do that the other cannot. One
+limit came up: `to_openspiel` numbers the actions by exploring the whole game, so OpenSpiel's
+algorithms only reach small games (Kuhn, Leduc, tic-tac-toe), not chess or Hold'em.
+
+**Decision (the user's)**: bring forward to F8 the **global action ids computed from the IR**:
+each action's number follows from its parameters' types (e.g. chess: `play` 64 × 64 + `promote`
+64 × 64 × 4 + `claim_draw` = 20,481 ids), with no exploration. It was part of F11's
+tensorization; F11 reuses it. F8's acceptance adds OpenSpiel's MCTS and MCCFR on the wrapped
+chess and Hold'em. The ADR will be written with the design, in F8.
+
+**Progress**: ≈ 66 % (unchanged).
+
+---
+
 ## 2026-10-17 — F7 approved and merged into `main`
 
 **Answer received**: "I approve" to question 25: ADR-068 to 074 accepted (Connect Four 7×6 moves

@@ -160,4 +160,5 @@ index theorem (an odd number of equilibria) on random nondegenerate games.
 - Not implemented yet: QRE, replicator dynamics, fictitious play, ESS and Moran processes;
   *-minimax and proof-number search; partizan canonical forms and temperature (CGSuite export);
   DCFR, MCCFR and the sequence form for more than two players.
-- The OpenSpiel wrapper needs the game to fit in memory (its action ids are global).
+- The OpenSpiel wrapper needs the game to fit in memory (it explores the game to number the
+  actions); F8 computes the ids from the IR's action types instead, so it will work on any game.

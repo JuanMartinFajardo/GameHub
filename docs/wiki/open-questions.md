@@ -43,3 +43,4 @@
 | 2026-10-16 | 23 | Do you approve ADR-060 to 066 of Phase 6 and merge the `f6/catalogo-ola-2` branch? | Yes: ADR-060 to 066 accepted and F6 merged into `main`. Next: the documentation, in English. |
 | 2026-10-16 | — | Language of the project | The documentation (wiki, READMEs, log, CLAUDE.md) moves to **English**: the project must look professional. Games may keep Spanish as an optional translation they ship. → [ADR-067](decisions.md) |
 | 2026-10-17 | 25 | Do you approve ADR-068 to 074 of Phase 7 and merge the `f7/teoria-de-juegos` branch (which brings `docs/english`)? | Yes: ADR-068 to 074 accepted (Connect Four 7×6 moves to F8) and F7 merged into `main` together with the English documentation. Next: F8. |
+| 2026-10-17 | — | Bring forward global action ids from the IR (for the OpenSpiel bridge on large games)? | Yes, to F8 (they were part of F11's tensorization). → [roadmap](roadmap.md) |

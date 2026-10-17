@@ -15,7 +15,7 @@
 | **Quality** | F7 acceptance: every reference result of [game theory §6](game-theory.md) reproduced exactly (tic-tac-toe a draw with its 5,478 positions and 255,168 games; the prisoner's dilemma, rock-paper-scissors and matching pennies equilibria; Kuhn's −1/18 with exploitability 0; Nim's P-positions) except Connect Four 7×6, which needs the C++ core (F8; checked on small boards). Gambit and OpenSpiel confirm our exports. F6: chess *perft(5)* = 4,865,609; Skat against the ISkO examples; 10⁵ random matches without errors of chess, Skat, Wizard and Parchís |
 | **Recent decisions** | Accepted for F7, ADR-068 to 074: game theory on the reference engine in exact arithmetic (extensive form with the engine's information sets, state graph); an exact rational simplex with HiGHS for large programs; the solution concepts per class; the feasibility advisor; Gambit and OpenSpiel; `gamehub analyze` and the Studio's Analysis tab; Connect Four 7×6 moves to F8. ADR-067: the documentation in English |
 | **Waiting on you** | [Question 24](open-questions.md) (how far the English switch goes: code comments, CLI messages, commit messages) and the rest of the [open questions](open-questions.md) |
-| **Next step** | F8: the C++ core, bindings and WASM (×50 speed; Connect Four 7×6) |
+| **Next step** | F8: the C++ core, bindings and WASM (×50 speed; Connect Four 7×6; global action ids from the IR, so the OpenSpiel bridge works on every game) |
 
 Detailed history: [`log.md`](../../log.md). Original prototype: [`structure.py`](../../structure.py) ([analysis](structure-py-analysis.md)).
 

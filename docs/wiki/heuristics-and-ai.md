@@ -84,7 +84,7 @@ These metrics feed the **Balance CI** of [hub](hub.md) PRs.
 ## 5. AI (Phase 11)
 
 - **Automatic tensorization** from the IR: zones and boards → one-hot planes, counters →
-  normalized scalars, actions → indices with a legality mask. Any game in the catalog can be
+  normalized scalars, actions → indices with a legality mask (the action ids come from F8). Any game in the catalog can be
   trained on without writing encoding code.
 - **Adapters:** Gymnasium (1 agent), PettingZoo (AEC/parallel), OpenSpiel.
 - **Vectorized environments in C++** (thousands of matches in parallel).
