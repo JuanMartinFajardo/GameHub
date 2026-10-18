@@ -5,6 +5,20 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-18 — F10 approved and merged into `main`
+
+**Answer received**: "I approve" to question 30: ADR-090 to 097 accepted and `f10/hub` merged into
+`main` with `--no-ff`. Nothing has been pushed.
+
+**Still open**: question 14 (where to host the hub; decided in F12) and question 24 (code
+comments, CLI messages and commit messages stay in Spanish until it is answered).
+
+**Next steps**: F11 (AI) or F12 (hardening and hosting the hub).
+
+**Progress**: ≈ 90 % (F0 to F10 in `main`, without the Connect Four 7×6 proof).
+
+---
+
 ## 2026-10-18 — Session 13: Phase 10, the web hub
 
 **Request**: "I approve what you say, merge, then implement phase 10" (F9 merged; branch

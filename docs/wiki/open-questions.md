@@ -5,7 +5,6 @@
 
 | # | Question | Default recommendation | Affects |
 |---|---|---|---|
-| 30 | Do you approve **ADR-090 to 097** of Phase 10 (the hub's backend with Starlette, SQLite or PostgreSQL and our own git service instead of FastAPI and Forgejo; the interface hash and automatic semver; accounts and OAuth; hub dependencies; proposals in four layers; sandboxed jobs and quotas; playing on the hub with matchmaking and human ratings; search, family tree, Pages, moderation and the website) and merge the `f10/hub` branch into `main`? | Yes | F10 → `main` |
 | 24 | How far does the English switch go beyond the documentation: **code comments and docstrings**, **CLI and terminal messages** (`/listo`, "partidas en … s"), the **default language of the games and UIs** (Spanish today, English as a translation) and **commit messages**? | Everything in English: comments, docstrings, CLI messages and commands, commit messages from now on; games and UIs with English as the default and Spanish as an optional translation they ship | Whole repository |
 | 20 | Do you need to play **over the internet** (outside the LAN) before the hub is hosted? | The hub (F10) plays any published version online, with matchmaking; it needs a reachable machine (question 14). Until then, `gamehub serve` or `gamehub hub serve` on a reachable machine or a Tailscale-like tunnel | F4, F10, F12 |
 | 3b | Will there be a remote repository on GitHub (or another host)? | Whenever you like; CI is ready | Everything |
@@ -48,5 +47,6 @@
 | 2026-10-17 | — | Install the Emscripten SDK for the WASM build? | Yes (`~/emsdk`). |
 | 2026-10-17 | 27 | Do you approve ADR-075 to 080 and 082 of Phase 8 and merge the `f8/nucleo-cpp` branch? | Yes ("do it"): ADR-075 to 080 and 082 accepted and F8 merged into `main`. The optional IR → C++ code generation stays unticked. Next: F9. |
 | 2026-10-17 | 13 | Exact numeric payoffs (rationals) or floating point? | Rationals in the IR and in the reference engine; **exact 64-bit integers and rationals** in the C++ core (a result that does not fit is a rule error), accepted with ADR-076. → [ADR-076](decisions.md) |
+| 2026-10-18 | 30 | Do you approve ADR-090 to 097 of Phase 10 and merge the `f10/hub` branch? | Yes ("I approve"): ADR-090 to 097 accepted (Starlette, SQLite or PostgreSQL and our own git service instead of FastAPI and Forgejo, among them) and F10 merged into `main`. Next: F11 or F12. |
 | 2026-10-18 | 29 | Do you approve ADR-083 to 088 of Phase 9 and merge the `f9/heuristicas-bots` branch? | Yes ("I approve what you say, merge"): ADR-083 to 088 accepted and F9 merged into `main`. Next: F10. |
 | 2026-10-18 | 28 | Connect Four 7×6: how do we close it? | The recommendation: (d) documented now and (a) later, with F8's optional IR → C++ code generation plus sound pruning. → [ADR-089](decisions.md) |

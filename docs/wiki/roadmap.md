@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 90 % (F0 to F9 in `main`,
-> without the Connect Four 7×6 proof; F10 in its branch; F8's optional code generation left).**
+> % is computed with the weight of each phase. **Current progress: ≈ 90 % (F0 to F10 in `main`,
+> without the Connect Four 7×6 proof; F8's optional code generation left).**
 
 ## Summary
 
@@ -382,8 +382,7 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. Your review of F10 (question 30); then F11 (AI) and F12 (hardening, hosting the hub:
-   question 14).
+1. F11 (AI) or F12 (hardening, hosting the hub: question 14).
 2. Custom UIs for Skat and Solitaire (left from the F9 plan; not part of its checklist).
 3. Optional: the IR → C++ code generation for "hot" games (F8) and with it Connect Four 7×6
    (ADR-089).
