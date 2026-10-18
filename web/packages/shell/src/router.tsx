@@ -41,9 +41,18 @@ export function navigate(to: string, options: { replace?: boolean } = {}): void 
 
 /** La ruta actual; se actualiza al navegar y con atrás/adelante. */
 export function useRoute(): Route {
-  const [route, setRoute] = useState(() => parseRoute(location.pathname));
+  return parseRoute(useLocation().pathname);
+}
+
+function readLocation(): { pathname: string; search: string } {
+  return { pathname: location.pathname, search: location.search };
+}
+
+/** La dirección actual (ruta y consulta), para apps con sus propias rutas (el hub). */
+export function useLocation(): { pathname: string; search: string } {
+  const [current, setCurrent] = useState(readLocation);
   useEffect(() => {
-    const update = () => setRoute(parseRoute(location.pathname));
+    const update = () => setCurrent(readLocation());
     window.addEventListener("popstate", update);
     window.addEventListener(EVENT, update);
     return () => {
@@ -51,7 +60,7 @@ export function useRoute(): Route {
       window.removeEventListener(EVENT, update);
     };
   }, []);
-  return route;
+  return current;
 }
 
 /** Un parámetro de la URL (`?players=3`). */

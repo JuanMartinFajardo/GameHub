@@ -1,0 +1,37 @@
+{
+  "name": "@gamehub/hub-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "La app web del hub de GameHub (la sirve `gamehub hub serve`): explorar, repositorios, versiones, propuestas y jugar.",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@codemirror/state": "catalog:",
+    "@codemirror/view": "catalog:",
+    "@gamehub/auto-ui": "workspace:*",
+    "@gamehub/client": "workspace:*",
+    "@gamehub/i18n": "workspace:*",
+    "@gamehub/protocol": "workspace:*",
+    "@gamehub/shell": "workspace:*",
+    "@gamehub/studio": "workspace:*",
+    "@gamehub/ui-kit": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

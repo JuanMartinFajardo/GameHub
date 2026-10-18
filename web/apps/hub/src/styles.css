@@ -1,0 +1,516 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* La app del hub: cabecera con búsqueda, tarjetas, pestañas, diffs y páginas de repositorio. */
+
+.hub-header {
+  flex-wrap: wrap;
+}
+
+.hub-search {
+  flex: 1 1 200px;
+  max-width: 360px;
+}
+
+.hub-search .gh-input {
+  width: 100%;
+  min-height: 32px;
+}
+
+.hub-nav,
+.hub-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.92rem;
+}
+
+.hub-footer {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 12px 16px 32px;
+  font-size: 0.85rem;
+}
+
+.hub-narrow {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.hub-hero {
+  padding: 24px 0 8px;
+}
+
+.hub-hero p {
+  max-width: 64ch;
+  color: var(--gh-text-muted);
+}
+
+.hub-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hub-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 18px;
+  align-items: start;
+}
+
+.hub-columns--rules {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 460px);
+}
+
+.hub-columns > aside {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 860px) {
+  .hub-columns,
+  .hub-columns--rules {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.hub-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--gh-border);
+  border-radius: 12px;
+  background: var(--gh-surface);
+}
+
+.hub-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hub-card__title {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.hub-card__text,
+.hub-card__meta {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.hub-labels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hub-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.hub-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.hub-filters .gh-field:first-child {
+  grid-column: 1 / -1;
+}
+
+.hub-form {
+  display: grid;
+  gap: 12px;
+}
+
+.hub-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.hub-check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.hub-oauth {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.hub-templates {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--gh-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.hub-template {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+}
+
+.hub-template .gh-muted {
+  grid-column: 2;
+  font-size: 0.85rem;
+}
+
+.hub-profile {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.hub-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--gh-accent), #ec4899);
+  color: #fff;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.hub-repo-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.hub-repo-head h1 {
+  word-break: break-word;
+}
+
+.hub-repo-head__actions,
+.hub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.hub-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--gh-border);
+  scrollbar-width: thin;
+}
+
+a.hub-tab {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--gh-text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+a.hub-tab.hub-tab--active {
+  border-bottom-color: var(--gh-accent);
+  color: var(--gh-text);
+  font-weight: 600;
+}
+
+.hub-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.hub-crumbs {
+  font-family: var(--gh-mono);
+  font-size: 0.9rem;
+}
+
+.hub-tree-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 1px solid var(--gh-border);
+  border-radius: 10px;
+  background: var(--gh-surface);
+}
+
+.hub-tree-list li {
+  padding: 7px 12px;
+  border-top: 1px solid var(--gh-border);
+}
+
+.hub-tree-list li:first-child {
+  border-top: none;
+}
+
+.hub-tree,
+.hub-tree ul {
+  list-style: none;
+  padding-left: 18px;
+  border-left: 1px dashed var(--gh-border);
+}
+
+.hub-tree li {
+  margin: 6px 0;
+}
+
+.hub-tree__current {
+  font-weight: 800;
+}
+
+.hub-editor {
+  border: 1px solid var(--gh-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--gh-surface);
+}
+
+.hub-editor .cm-editor {
+  max-height: 70vh;
+}
+
+.hub-code,
+.hub-patch {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--gh-text) 5%, var(--gh-surface));
+  font-family: var(--gh-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.hub-patch__add {
+  display: block;
+  background: var(--gh-success-soft);
+  color: var(--gh-success);
+}
+
+.hub-patch__del {
+  display: block;
+  background: var(--gh-danger-soft);
+  color: var(--gh-danger);
+}
+
+.hub-patch__hunk {
+  display: block;
+  color: var(--gh-accent);
+}
+
+.hub-changes {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.hub-change pre {
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-family: var(--gh-mono);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+
+.hub-change--add > strong,
+.hub-change--add > code {
+  color: var(--gh-success);
+}
+
+.hub-change--del > strong,
+.hub-change--del > code {
+  color: var(--gh-danger);
+}
+
+.hub-change--mod > strong,
+.hub-change--mod > code {
+  color: var(--gh-warning);
+}
+
+.hub-diagram__img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--gh-border);
+  background: #fff;
+}
+
+.hub-diff-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.hub-diff {
+  font-weight: 700;
+}
+
+.hub-diff--added {
+  color: var(--gh-success);
+}
+
+.hub-diff--removed {
+  color: var(--gh-danger);
+}
+
+.hub-diff--changed {
+  color: var(--gh-warning);
+}
+
+.hub-hash {
+  font-size: 0.82rem;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--gh-text) 7%, transparent);
+}
+
+.hub-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0;
+}
+
+.hub-facts dt {
+  color: var(--gh-text-muted);
+}
+
+.hub-facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.hub-pulls {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.hub-notice {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--gh-accent-soft);
+}
+
+.hub-token code {
+  word-break: break-all;
+}
+
+.hub-waiting {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.hub-plan {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.hub-markdown {
+  line-height: 1.6;
+  max-width: 80ch;
+}
+
+.hub-markdown h2 {
+  font-size: 1.4rem;
+  margin: 18px 0 8px;
+}
+
+.hub-markdown h3 {
+  font-size: 1.15rem;
+  margin: 16px 0 6px;
+}
+
+.hub-markdown h4,
+.hub-markdown h5 {
+  font-size: 1rem;
+  margin: 12px 0 6px;
+}
+
+.hub-markdown code {
+  font-family: var(--gh-mono);
+  font-size: 0.88em;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--gh-text) 7%, transparent);
+}
+
+.hub-markdown pre code {
+  padding: 0;
+  background: none;
+}
+
+.hub-markdown blockquote {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-left: 3px solid var(--gh-border);
+  color: var(--gh-text-muted);
+}
+
+.hub-table-wrap {
+  overflow-x: auto;
+}
+
+.hub-table-wrap table,
+.hub-markdown table {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.hub-table-wrap th,
+.hub-table-wrap td {
+  padding: 5px 10px;
+  border: 1px solid var(--gh-border);
+  text-align: left;
+}
+
+.hub-table-wrap th {
+  background: color-mix(in srgb, var(--gh-text) 4%, var(--gh-surface));
+}
+
+/* Los enlaces con forma de botón (la cabecera y OAuth) no toman el color de los enlaces. */
+.hub a.gh-button {
+  text-decoration: none;
+}
+
+.hub a.gh-button--primary {
+  color: var(--gh-accent-contrast);
+}
+
+.hub a.gh-button--secondary {
+  color: var(--gh-text);
+}

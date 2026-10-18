@@ -10,12 +10,13 @@
   },
   "scripts": {
     "dev": "pnpm --filter @gamehub/play dev",
-    "build": "pnpm --filter @gamehub/play --filter @gamehub/studio-app build",
+    "build": "pnpm --filter @gamehub/play --filter @gamehub/studio-app --filter @gamehub/hub-app build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "biome check",
     "format": "biome check --write",
-    "dev:studio": "pnpm --filter @gamehub/studio-app dev"
+    "dev:studio": "pnpm --filter @gamehub/studio-app dev",
+    "dev:hub": "pnpm --filter @gamehub/hub-app dev"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
