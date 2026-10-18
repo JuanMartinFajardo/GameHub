@@ -41,6 +41,9 @@
 - `uv run gamehub wasm --check` (the C++ core compiled to WebAssembly in
   `web/packages/engine/wasm`; `--write` after touching `core/`, with Emscripten in `~/emsdk`)
 - After changing the rules of a game with a custom UI: `pnpm types` in `games/<game>/ui`
+- `uv run gamehub hub serve --data DIR` (the hub, F10; its website: `pnpm build` at the root);
+  `GAMEHUB_TEST_POSTGRES=postgresql://… uv run pytest tests/test_hub.py` runs the hub's tests
+  against PostgreSQL. The hub (`python/src/gamehub/hub`, `web/apps/hub`) is AGPL-3.0-or-later.
 - Comment separators `# --- Title ---…` of at most 100 columns (ruff E501).
 
 ## Git (policy agreed on 2026-10-09)

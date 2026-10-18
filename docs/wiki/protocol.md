@@ -48,7 +48,7 @@ stateDiagram-v2
 | `POST` | `/api/v1/rooms` | Create a room: `{game}` (from the catalog) or `{ir}` (if the server allows it), `players`, `params`, `settings`, `name` → `{code, token, url, room}` (the token is the host's session) |
 | `GET` | `/api/v1/rooms/{code}` | Public state of the room (`Room`) |
 | `GET` | `/api/v1/rooms/{code}/ir` | IR of the room's game (for interfaces and bots) |
-| `GET` | `/api/v1/games/{id}` | IR of a catalog game |
+| `GET` | `/api/v1/games/{id}` | IR of a catalog game (on the hub, `{id}` is a version reference, `owner/name@1.2.0`, URL-encoded) |
 | `GET` | `/api/v1/matches` | Latest finished matches (summary) |
 | `GET` | `/api/v1/replays/{id}` | Replay of a **finished** match (reveals the server seed) |
 | `GET` | `/api/v1/replays/{id}/frames?seat=all\|public\|N` | The match state by state (view and events) as a seat, a spectator or someone seeing everything saw it, with the IR (to watch replays in an interface) |

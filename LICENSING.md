@@ -3,12 +3,13 @@
 | Part of the repository | License | File |
 |---|---|---|
 | Everything, except what is listed below (engine, the Nomos language, specifications, SDKs, tools, documentation) | Apache-2.0 | [`LICENSE`](LICENSE) |
-| The hub server (`hub/`, once it exists) | AGPL-3.0-or-later | `hub/LICENSE` (to be added in Phase 10) |
+| The hub server and its website (`python/src/gamehub/hub/`, `web/apps/hub/`, the hub's tests) | AGPL-3.0-or-later | [`python/src/gamehub/hub/LICENSE`](python/src/gamehub/hub/LICENSE), [`web/apps/hub/LICENSE`](web/apps/hub/LICENSE) |
 | Content of the official games in `games/` (rules, texts, art) | CC-BY-4.0 | [`games/LICENSE.md`](games/LICENSE.md) |
 | Code of the games' interfaces in `games/*/ui/` | Apache-2.0 | [`LICENSE`](LICENSE) |
 
 - Every source file carries its SPDX identifier in the header
-  (`SPDX-License-Identifier: Apache-2.0`).
+  (`SPDX-License-Identifier: Apache-2.0`, or `AGPL-3.0-or-later` in the hub). The Python package
+  declares both (`Apache-2.0 AND AGPL-3.0-or-later`): the hub travels in it as `gamehub.hub`.
 - Games published on the hub by third parties carry the license their author chooses
   (recommended: CC-BY-4.0).
 - Decision recorded in [ADR-016](docs/wiki/decisions.md).

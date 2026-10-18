@@ -40,7 +40,7 @@
 | Information leak | Hidden data reaching someone who should not see it (through the state, an event, the path taken or the legal moves); `gamehub check` warns about it (W405). |
 | Information set | Histories a player cannot tell apart (same information state). |
 | Information state | The sequence of a player's observations and own actions. |
-| Interface hash | A digest of the view/action/event schemas; compatibility of UIs and bots. |
+| Interface hash | The SHA-256 of a game's interface: options, view, action signatures, events and the types they use (`gamehub.ir.interface`); compatibility of UIs and bots and the basis of the hub's automatic semver. |
 | Invariant | A condition that must hold in every reachable state; `gamehub test` checks it in tests and random matches. |
 | ISMCTS / PIMC | Search with hidden information: MCTS over a fresh determinization per simulation / the mean of a search over several determinizations (F9). |
 | Knuth's estimator | An unbiased estimate of a tree's size from random walks: each depth weighs the product of the branching factors (at chance, the inverse of the outcome's probability). |
@@ -48,7 +48,7 @@
 | Layout (of the diagram) | Where each box of the Studio diagram goes: ELK computes it and the user adjusts it; it is stored in `<game>.layout.json`, outside the rules. |
 | Legal action | An action whose parameters are within their domain and whose guard holds. |
 | Location | An addressable part of the state (variable, zone, size, attribute) on which visibility is defined. |
-| Lockfile | `game.lock`: the exact commit of each git dependency of a package. |
+| Lockfile | `game.lock`: the exact commit of each git dependency of a package (and, for hub dependencies, the version chosen by the registry). |
 | Match | A concrete run of a game: parameters + seed + actions. |
 | Memoization (of functions) | Results of IR functions kept according to what they depend on: forever if only on their arguments (*static*), while the state does not change if they read it (*state*). |
 | Mod / variant | A game that extends another one (`extends`) with `override`, `remove` and `extend node`. |

@@ -1,8 +1,8 @@
 # Roadmap: from 0 % to 100 %
 
 > Status: **v0.1** (2026-10-09). Checkboxes are ticked as the project moves forward; the overall
-> % is computed with the weight of each phase. **Current progress: ≈ 81 % (F0 to F9 in `main`,
-> without the Connect Four 7×6 proof; F8's optional code generation left).**
+> % is computed with the weight of each phase. **Current progress: ≈ 90 % (F0 to F9 in `main`,
+> without the Connect Four 7×6 proof; F10 in its branch; F8's optional code generation left).**
 
 ## Summary
 
@@ -334,17 +334,25 @@ report for Parchís and Wizard ✅ ([Parchís](../reports/f9-balance-parchis.md)
 
 See [hub](hub.md).
 
-- [ ] Backend: FastAPI + PostgreSQL + object storage + git (Forgejo or our own service)
-- [ ] Accounts (OAuth), organizations, game and library repositories
-- [ ] Game page: rules + diagram, code, **Play**, analysis, bots, interfaces, variants
-- [ ] Version registry with hashes; **automatic semver**; dependencies
-- [ ] Forks, branches, proposals (PRs) with textual, semantic, visual and balance diffs
-- [ ] Hosted rooms, matchmaking, human ratings
-- [ ] Search by mathematical properties; family tree; Pages for UIs
-- [ ] Sandboxed job queues (analysis, arena); quotas; moderation; terms of use
+- [x] Backend: Starlette (like the match server) + SQLite or PostgreSQL + a content-addressed object
+      store + our own git service (bare repositories, `git http-backend`); `gamehub hub serve`
+      (ADR-090)
+- [x] Accounts (passwords, tokens, OAuth), organizations, game and library repositories (ADR-092)
+- [x] Game page: rules + diagram, code, **Play**, analysis, bots, interfaces, variants
+      (`web/apps/hub`, ADR-097)
+- [x] Version registry with hashes; **automatic semver** from the interface hash; dependencies
+      (`"owner/name" = "^1.2"`, resolved by the registry) (ADR-091, 093)
+- [x] Forks, branches, proposals (PRs) with textual, semantic, visual and balance diffs (ADR-094)
+- [x] Hosted rooms, matchmaking, human ratings (Elo, Glicko-2, TrueSkill per rules hash; ADR-096)
+- [x] Search by mathematical properties; family tree; Pages for UIs (ADR-097)
+- [x] Sandboxed job queues (analysis, balance, arena); quotas; moderation; terms of use (ADR-095)
 
 **Acceptance:** A publishes a game, B forks it, creates a variant and opens a PR with diffs; A
-merges it; anyone plays the new version online from the browser.
+merges it; anyone plays the new version online from the browser ✅ — end to end in
+`tests/test_hub.py` (Nim: 1.0.0, the misère variant proposed from a fork with its text, semantic,
+visual and Balance CI diffs, merged, 1.1.0 chosen automatically as a minor change, a full match of
+1.1.0 over the network without an account), also against PostgreSQL, and in the browser (merge,
+publish and play from the website).
 
 ## F11 — AI: RL, Deep RL, LLM (91 → 98 %) · XL
 
@@ -374,7 +382,8 @@ i18n · security · up-to-date examples · recorded decisions.
 
 ## Immediate next steps
 
-1. F10, the web hub (branch `f10/hub`).
+1. Your review of F10 (question 30); then F11 (AI) and F12 (hardening, hosting the hub:
+   question 14).
 2. Custom UIs for Skat and Solitaire (left from the F9 plan; not part of its checklist).
 3. Optional: the IR → C++ code generation for "hot" games (F8) and with it Connect Four 7×6
    (ADR-089).

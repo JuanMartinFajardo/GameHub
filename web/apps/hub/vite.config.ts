@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: { dedupe: ["react", "react-dom"] },
   server: {
-    port: 5175,
+    port: 5176,
     proxy: {
       "/api": hub,
       "/auth": hub,

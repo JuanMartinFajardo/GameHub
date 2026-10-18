@@ -5,8 +5,9 @@
 
 | # | Question | Default recommendation | Affects |
 |---|---|---|---|
+| 30 | Do you approve **ADR-090 to 097** of Phase 10 (the hub's backend with Starlette, SQLite or PostgreSQL and our own git service instead of FastAPI and Forgejo; the interface hash and automatic semver; accounts and OAuth; hub dependencies; proposals in four layers; sandboxed jobs and quotas; playing on the hub with matchmaking and human ratings; search, family tree, Pages, moderation and the website) and merge the `f10/hub` branch into `main`? | Yes | F10 → `main` |
 | 24 | How far does the English switch go beyond the documentation: **code comments and docstrings**, **CLI and terminal messages** (`/listo`, "partidas en … s"), the **default language of the games and UIs** (Spanish today, English as a translation) and **commit messages**? | Everything in English: comments, docstrings, CLI messages and commands, commit messages from now on; games and UIs with English as the default and Spanish as an optional translation they ship | Whole repository |
-| 20 | Do you need to play **over the internet** (outside the LAN) before the hub? | Until F10, `gamehub serve` on a reachable machine or a Tailscale-like tunnel; our own relay with the hub (F10) | F4, F10 |
+| 20 | Do you need to play **over the internet** (outside the LAN) before the hub is hosted? | The hub (F10) plays any published version online, with matchmaking; it needs a reachable machine (question 14). Until then, `gamehub serve` or `gamehub hub serve` on a reachable machine or a Tailscale-like tunnel | F4, F10, F12 |
 | 3b | Will there be a remote repository on GitHub (or another host)? | Whenever you like; CI is ready | Everything |
 | 6 | Who will use the visual editor? Should someone who does not program be able to design a game (Scratch-like blocks for conditions)? | As in Phase 5: conditions and effects written in Nomos in the fields, with completion and the error in place; visual blocks as a later improvement | Studio, after F5 |
 | 7 | Are you happy with TypeScript + React for the web? Do you have experience with any framework? | TS + React + React Flow + CodeMirror, as F4 and F5 already use (ADR-044, 054, 055) | Web |
@@ -15,7 +16,7 @@
 | 10 | Do you work alone? How many hours per week? A target date for the MVP? | Alone + AI; pace to be defined | Order and size of phases |
 | 11 | Continuous real-time games (arcade-like), or are discrete + `race` nodes enough? | Discrete + `race`; continuous out of scope | Model |
 | 12 | Platforms: only macOS, or also Linux/Windows? | Development on macOS; CI on Linux. The F3 server and client are portable (no mandatory Unix signals, input in a thread) but **have not been tested on Windows**: add it to CI once there is a remote repository (3b) | F0, F8 |
-| 14 | Hub hosting (own server, cloud, budget?) | Decide in F10; everything works locally before that | F10 |
+| 14 | Hub hosting (own server, cloud, budget?) | The hub is ready to self-host (`gamehub hub serve` behind a TLS proxy, SQLite for a small community or PostgreSQL); a small VPS is enough to start. Decide in F12, with S3 storage, Pages on their own domain and backups | F12 |
 | 15 | Store statistics of human matches for balance analytics? (privacy) | Since F3 the server stores replays only locally (SQLite, with player names); using them for analytics: optional and anonymous, enabled by the host | F9 |
 
 ## Answered

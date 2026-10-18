@@ -95,6 +95,14 @@
 | 087 | Balance analytics from bot matches (seat advantage, draws and length, branching, skill vs. luck, skill chain, tension, dominant actions, rule coverage, kingmaking) and a Balance CI that compares two versions | Accepted (2026-10-18, user) |
 | 088 | Weight tuning: CMA-ES and SPSA against the current weights in mirror matches; Texel by logistic regression on self-play positions; `--write` edits the `.game` | Accepted (2026-10-18, user) |
 | 089 | Connect Four 7×6: heuristic ordering is not enough with the generic VM; the proof waits for F8's optional IR → C++ code generation and sound pruning (question 28) | Accepted (2026-10-18, user) |
+| 090 | The hub's backend: Starlette (like the match server, not FastAPI), SQLite by default and PostgreSQL optional behind one SQL dialect layer, a content-addressed object store on disk (S3 later), and our own git service: bare repositories served by `git http-backend` and changed with git's plumbing (not Forgejo); AGPL-3.0-or-later | Proposed (2026-10-18) |
+| 091 | The interface hash (options, view, actions, events and the types they use) and automatic semver: an incompatible interface change is major, a rules change or an interface extension minor, the rest patch (one level down in 0.y.z); publishing compiles the commit, stores the IR and tags `vX.Y.Z` | Proposed (2026-10-18) |
+| 092 | Accounts: scrypt passwords, hashed browser sessions (`HttpOnly`, `SameSite=Lax`, Origin check), hashed API tokens for the CLI and git, OAuth 2 (GitHub, Google, generic); organizations with owners and members; terms of use with a version | Proposed (2026-10-18) |
+| 093 | Hub dependencies in `game.toml` (`"owner/name" = "^1.2"`): Cargo requirements resolved by the registry and pinned in `game.lock` as git commits; on the server only hub dependencies and paths inside the repository | Proposed (2026-10-18) |
+| 094 | Proposals reviewed in four layers (git text diff, IR semantic diff with interface changes and semver level, the diagram's visual diff, Balance CI as a job); the branch is copied to `refs/pull/N/head`; merging without a working tree (`merge-tree`) | Proposed (2026-10-18) |
+| 095 | A job queue in the database run by child processes with OS limits and a deadline, receiving only the IR and options, only with the core's bots; per-account quotas; automatic jobs for each version's analysis and each proposal's Balance CI | Proposed (2026-10-18) |
+| 096 | Playing on the hub: the match server embedded with a catalog of published versions (`owner/name@version`), seats tied to accounts, Elo-window matchmaking and human Elo, Glicko-2 and TrueSkill per rules hash from rated matches (distinct people, no bots) | Proposed (2026-10-18) |
+| 097 | Search by the automatic classification and analysis (with a query parser in English and Spanish), the family tree from forks and dependencies, Pages bound to an interface hash and served sandboxed, reports and moderation; the hub's website in `web/apps/hub` | Proposed (2026-10-18) |
 
 ---
 
@@ -1120,3 +1128,100 @@
   moves under a rival threat, not only ordering them after the rest).
 - **Consequences:** F9 is merged without it; the roadmap item stays unticked and moves with F8's
   optional item.
+
+### ADR-090 — The hub's backend
+- **Context:** F10 planned "FastAPI + PostgreSQL + object storage + git (Forgejo or our own
+  service)". The match server already uses Starlette (ADR-036), with contracts in JSON Schema; the
+  hub must embed it. Hosting is not decided (question 14) and the machine has no PostgreSQL or
+  Docker running.
+- **Decision:** Starlette and uvicorn, as the match server (FastAPI adds pydantic for nothing we
+  need). A `Database` layer with one SQL dialect (`?` placeholders, `RETURNING`) over **SQLite**
+  (default, WAL) or **PostgreSQL** (`psycopg`, the `gamehub[hub-postgres]` extra); migrations by
+  version. Objects (IRs, job inputs, Pages) in a content-addressed store on disk (`objects/ab/…`,
+  SHA-256), with the interface of an S3 store. **Our own git service**: one bare repository per
+  repository, served to clients by git's `http-backend` (clone, fetch, push with a token as the
+  password) and changed by the hub with plumbing (`commit-tree`, `merge-tree`, `update-ref`), always
+  without the global or system git configuration; Forgejo would duplicate accounts, permissions
+  and pull requests that the hub must understand anyway. The hub's code and website are
+  AGPL-3.0-or-later, as ADR-016 planned (`LICENSE` next to each).
+- **Consequences:** a hub is one process and a data directory; the tests run it in a thread
+  (also against PostgreSQL). Scaling rooms horizontally and S3 wait for hosting (F12).
+
+### ADR-091 — Interface hash and automatic semver
+- **Context:** the hub must say when a new version breaks UIs and bots (hub.md §6); the IR only had
+  the rules hash.
+- **Decision:** the **interface** of a game is the room options with their types, the view (each
+  state variable that someone sees, with its type, visibility and size visibility), every
+  signature of every action, the events with their fields and the declarations of the types those
+  mention; its hash is the SHA-256 of its canonical JSON (`gamehub.ir.interface`). Comparing two
+  versions: removing or changing anything of it is **major**; a rules change or only additions,
+  **minor**; texts, presentation or heuristics, **patch**; in `0.y.z` one level down (Cargo).
+  Publishing compiles the package at a commit, refuses versions that are too low (and says the
+  minimum), picks `previous.bump(level)` when no version is given and tags `vX.Y.Z`; a version is
+  immutable and can only be yanked.
+- **Consequences:** adding an enum value used by the view or an action is major (UIs switch over
+  values and action ids change); agents with numbered actions (F11) pin the interface hash.
+
+### ADR-092 — Accounts and permissions
+- **Decision:** scrypt passwords (standard library); browser sessions as a random secret in an
+  `HttpOnly`, `SameSite=Lax` cookie, stored as its SHA-256; API tokens `ghb_…` stored hashed, for
+  the CLI (`Authorization: Bearer`) and git (HTTP Basic); OAuth 2 authorization code with `state`
+  (GitHub and Google presets, or any provider with authorize, token and userinfo URLs), creating an
+  account with a free name the first time. Organizations share the account namespace; their
+  members write to their repositories and their owners administer them. A cookie-authenticated
+  request that changes something from another `Origin` is refused. Names are lowercase with
+  dashes and avoid the hub's routes. Signing up requires accepting the terms' current version.
+- **Consequences:** no e-mail verification or password reset yet (they need an e-mail service).
+
+### ADR-093 — Hub dependencies
+- **Decision:** `game.toml` accepts `"owner/name" = "requirement"` or `name = { hub = "owner/name",
+  version = "…", registry = "…" }`; the import name is the part after the slash. `gamehub fetch`
+  asks the registry for the highest non-yanked version that matches and pins its git URL, tag,
+  commit, version and hub in `game.lock`, reusing the git cache. The hub compiles a version with
+  its hub dependencies exported from its own repositories (`HUB_RESOLVER`) and refuses git
+  dependencies and paths outside the repository.
+- **Consequences:** ADR-033's "without a central registry" now has an optional registry; plain git
+  dependencies keep working outside the hub.
+
+### ADR-094 — Proposals and their four layers
+- **Decision:** a proposal takes a branch of a repository of the same fork family (or the same
+  repository) into a branch of the target; the hub fetches it into `refs/pull/N/head` and
+  refreshes it when the source moves. Review in four layers: the git text diff from the merge
+  base; the IR semantic diff (`gamehub.render.diff`) with the interface changes and the semver
+  level; the Studio's model of both sides for the visual diff (the SVG marks added, removed and
+  changed boxes and arrows); and a Balance CI job (both versions, same bots and seeds). Merging is
+  a fast-forward or a merge commit made with `git merge-tree --write-tree`; conflicts are refused
+  and resolved in the fork. Publishing stays a separate, explicit step.
+
+### ADR-095 — Sandboxed jobs and quotas
+- **Decision:** jobs (`analyze`, `balance`, `balance_ci`, `arena`) are rows of a queue with their
+  input in the object store. Worker threads of the hub take them and run each in a child process
+  (`python -m gamehub.hub.worker`) with `RLIMIT_CPU`, `RLIMIT_AS` where supported, no core dumps,
+  its own session, an empty environment and temporary home, and a wall-clock timeout; the child
+  reads the IR and options from stdin and writes the result to stdout, never touching the
+  database. Only the core's bot kinds play (no paths, no Python). Automatic jobs belong to the
+  hub; requested ones count against per-account quotas (jobs per day and at once), as do
+  repositories, sizes and requests per second.
+- **Consequences:** an analysis of a huge game ends at its deadline instead of blocking the hub.
+
+### ADR-096 — Playing on the hub
+- **Decision:** the hub embeds the match server with a catalog that loads any published version by
+  reference (`owner/name@1.2.0`, or `owner/name` for the latest), cached; the protocol, pages and
+  custom UIs are those of `gamehub serve`. A seat taken with a hub session is tied to the account.
+  Finished matches are stored with their players; those with every seat a distinct signed-in person
+  and no bots or takeovers are rated, and Elo (maximum likelihood), Glicko-2 and TrueSkill are
+  recomputed per rules hash from all rated matches. Matchmaking keeps tickets per (version,
+  players), groups by Elo with a window that widens with the wait, opens the room and seats
+  everyone with a token.
+- **Consequences:** ratings, like the arena's, never mix rule versions; replays of hub rooms live
+  in the match server's store (SQLite, or memory with PostgreSQL).
+
+### ADR-097 — Explore, family tree, Pages, moderation and the website
+- **Decision:** each version stores its classification (players, chance, perfect information,
+  simultaneity, zero-sum) as columns and its analysis job adds mean branching and length; the
+  search filters on them and parses free text in English or Spanish ("2 players zero-sum perfect
+  information branching < 10"). The family tree is the fork network from the original plus hub
+  dependencies and dependents. Pages are `.tar.gz` static interfaces bound to an interface hash,
+  served with `Content-Security-Policy: sandbox`. Reports go to moderators, who hide repositories
+  and suspend accounts. The website (`web/apps/hub`) reuses the shell's room pages, the Studio's
+  diagram and editor setup, and renders authors' Markdown without HTML.

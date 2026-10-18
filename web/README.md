@@ -18,6 +18,7 @@ app to play in the browser and the visual editor.
 | [`@gamehub/nomos`](packages/nomos) | Nomos (the `.game` language) for CodeMirror 6: highlighting, indentation, folding and light/dark theme |
 | [`@gamehub/studio`](packages/studio) | **The Studio** as a React library: connection to `gamehub studio` (LSP and its own methods over WebSocket), diagram (React Flow + ELK), text editor and Nomos fields (CodeMirror), inspector, component designer, simulator, batch runs, tree, compare and export |
 | [`apps/studio`](apps/studio) | The Studio app (Vite) served by `gamehub studio` |
+| [`apps/hub`](apps/hub) | The hub's website (Vite) served by `gamehub hub serve` (AGPL-3.0-or-later) |
 
 ## Requirements
 
@@ -37,12 +38,14 @@ pnpm test             # tests of every package (Vitest); integration tests start
                       # skips them)
 pnpm typecheck        # strict TypeScript
 pnpm lint             # Biome: lint and formatting (pnpm format to fix)
-pnpm build            # builds the apps (web/apps/play/dist and web/apps/studio/dist), which
-                      # gamehub serve and gamehub studio then serve
+pnpm build            # builds the apps (web/apps/{play,studio,hub}/dist), which gamehub serve,
+                      # gamehub studio and gamehub hub serve then serve
 pnpm dev              # the app with hot reload (http://localhost:5173), against a local match
                       # server: cd python && uv run gamehub serve ../games
 pnpm dev:studio       # the Studio with hot reload (http://localhost:5175/?token=…), against
                       # `GAMEHUB_STUDIO_TOKEN=… uv run gamehub studio ../games`
+pnpm dev:hub          # the hub's website with hot reload (http://localhost:5176), against
+                      # `uv run gamehub hub serve --data hub-data` (port 7430)
 ```
 
 To play in the browser, it is enough to build once and start the server:
