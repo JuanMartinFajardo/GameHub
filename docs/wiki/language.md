@@ -168,11 +168,16 @@ forked_from = "url@commit"       # written by gamehub fork
 [dependencies]
 prisoners-dilemma = { path = "../prisoners-dilemma" }
 cards = { git = "https://…", rev = "v1.0" }    # branch, tag or commit
+"juanma/tricks" = "^1.2"                       # from a hub: owner/name and a semver requirement
+bids = { hub = "juanma/bids", version = "~0.3", registry = "https://hub.example.org" }
 ```
 
 `gamehub fetch` downloads the git dependencies (also those of the dependencies) into the cache
 (`~/.cache/gamehub/git`) and writes `game.lock` with the exact commit of each one; with the lock,
-compilation is reproducible (`--update` resolves again). `gamehub new` creates a package with a
+compilation is reproducible (`--update` resolves again). A hub dependency is imported by the
+part after the slash (`import tricks.{…}`); the registry (`registry`, `GAMEHUB_HUB` or the hub of
+`gamehub login`) picks the highest version that matches the requirement (Cargo syntax: `^1.2`,
+`~1.2.3`, `>=0.3, <0.4`, `1.*`) and the lock pins its commit ([hub](hub.md#6-dependencies)). `gamehub new` creates a package with a
 game that compiles and passes its tests, from a template (`--template`: `vacio` (empty),
 `carrera` (race, the default), `tablero` (board), `cartas` (cards), `dados` (dice) or `matriz`
 (2×2 matrix); the same ones as the Studio); `gamehub clone` clones and downloads dependencies;

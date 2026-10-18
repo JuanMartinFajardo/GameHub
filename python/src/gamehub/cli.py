@@ -380,13 +380,18 @@ def _parser() -> argparse.ArgumentParser:
     fetch.set_defaults(handler=_fetch)
 
     clone = commands.add_parser("clone", help="clona un juego (repositorio git) y sus dependencias")
-    clone.add_argument("source", metavar="URL")
+    clone.add_argument("source", metavar="ORIGEN", help="URL git o dueño/nombre del hub")
     clone.add_argument("dir", nargs="?", type=Path, metavar="DIR")
+    clone.add_argument("--hub", help="URL del hub (con dueño/nombre)")
     clone.set_defaults(handler=_clone)
 
     fork = commands.add_parser("fork", help="copia un juego para modificarlo, anotando su origen")
-    fork.add_argument("source", metavar="ORIGEN", help="URL git o directorio de un paquete")
+    fork.add_argument(
+        "source", metavar="ORIGEN", help="URL git, directorio de un paquete o dueño/nombre del hub"
+    )
     fork.add_argument("dir", nargs="?", type=Path, metavar="DIR")
+    fork.add_argument("--as", dest="new_name", help="nombre del fork en el hub")
+    fork.add_argument("--hub", help="URL del hub (con dueño/nombre)")
     fork.set_defaults(handler=_fork)
 
     conformance = commands.add_parser("conformance", help="trazas doradas de spec/conformance")
@@ -494,6 +499,7 @@ def _parser() -> argparse.ArgumentParser:
     bot_run.set_defaults(handler=_bot_run)
 
     _bots_commands(commands)
+    _hub_commands(commands)
 
     protocol = commands.add_parser("protocol", help="protocolo de partidas (spec/protocol)")
     protocol_commands = protocol.add_subparsers(dest="protocol_command", required=True)
@@ -1195,6 +1201,13 @@ def _game_files(paths: list[Path]) -> list[Path]:
     return files
 
 
+def _hub_commands(commands: Any) -> None:
+    """El hub: `hub serve|search|whoami|pr`, `login`, `logout` y `publish` (F10)."""
+    from gamehub.hub import commands as hub
+
+    hub.register(commands)
+
+
 def _bots_commands(commands: Any) -> None:
     """Heurísticas, arena, SPRT, balance, ajuste de pesos y solver (F9)."""
     from gamehub.bots import commands as bots
@@ -1841,10 +1854,21 @@ def _fetch(args: argparse.Namespace) -> int:
     return 0
 
 
+def _hub_source(source: str) -> bool:
+    """¿Es `dueño/nombre` del hub (y no un directorio que exista)?"""
+    from gamehub.hub.commands import HUB_REF
+
+    return HUB_REF.match(source) is not None and not Path(source).exists()
+
+
 def _clone(args: argparse.Namespace) -> int:
     from gamehub.packages import PackageError, clone
 
     root = args.dir or Path(_repo_name(args.source))
+    if _hub_source(args.source):
+        from gamehub.hub.commands import clone_from_hub
+
+        return clone_from_hub(args.source, root, args.hub)
     try:
         manifest = clone(args.source, root)
     except PackageError as exc:
@@ -1858,6 +1882,11 @@ def _clone(args: argparse.Namespace) -> int:
 def _fork(args: argparse.Namespace) -> int:
     from gamehub.packages import PackageError, fork
 
+    if _hub_source(args.source):
+        from gamehub.hub.commands import fork_on_hub
+
+        name = args.new_name or _repo_name(args.source)
+        return fork_on_hub(args.source, args.dir or Path(name), args.new_name, args.hub)
     root = args.dir or Path(_repo_name(args.source) + "-fork")
     try:
         manifest = fork(args.source, root)

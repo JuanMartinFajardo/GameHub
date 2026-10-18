@@ -13,6 +13,8 @@ dependencias git) y la caché donde se descargan.
     [dependencies]
     prisoners-dilemma = { path = "../prisoners-dilemma" }
     cartas = { git = "https://…", rev = "v1.0" }   # rev: rama, etiqueta o commit (opcional)
+    "juanma/bazas" = "^1.2"                        # del hub: dueño/nombre y requisito semver
+    pujas = { hub = "juanma/pujas", version = "~0.3", registry = "https://hub.example.org" }
 
 Un `import nombre.…` busca primero en la biblioteca estándar (`std`), después entre las
 dependencias del paquete al que pertenece el archivo (por `nombre` o con guiones en lugar de
@@ -22,6 +24,12 @@ dependencia; `import dep.sub.{X}`, `sub.game` dentro de ella.
 `gamehub fetch` descarga las dependencias git (también las de las dependencias) en la caché
 (`~/.cache/gamehub/git`, o `GAMEHUB_CACHE`) y escribe `game.lock` con el commit de cada una; si
 el lock ya existe, se usan sus commits (compilaciones reproducibles) salvo con `--update`.
+
+Una dependencia del hub se importa por la parte del nombre tras la barra (`import bazas.{…}`). El
+registro (`registry`, si no `GAMEHUB_HUB` o el hub de `gamehub login`) elige la versión más alta
+que cumple el requisito y da su repositorio git y su commit, que se descargan y se fijan en el
+lock como cualquier dependencia git. El propio hub, al compilar una versión, las resuelve sin red
+(`HUB_RESOLVER`).
 """
 
 from __future__ import annotations
@@ -32,6 +40,8 @@ import re
 import shutil
 import subprocess
 import tomllib
+from collections.abc import Callable
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -50,6 +60,10 @@ class Dependency:
     path: str | None = None
     git: str | None = None
     rev: str | None = None
+    #: Del hub: "dueño/nombre", el requisito de versión y la URL del hub (opcional).
+    hub: str | None = None
+    version: str | None = None
+    registry: str | None = None
 
 
 @dataclass
@@ -78,6 +92,16 @@ class Locked:
     git: str
     rev: str | None
     commit: str
+    #: Las del hub: la versión elegida y de qué repositorio del hub sale.
+    version: str | None = None
+    hub: str | None = None
+
+
+#: En el servidor del hub: cómo se resuelve una dependencia del hub sin red (devuelve el
+#: directorio con su árbol). Fuera del hub, None: se usa el lock.
+HUB_RESOLVER: ContextVar[Callable[[Dependency], Path] | None] = ContextVar(
+    "HUB_RESOLVER", default=None
+)
 
 
 # --- manifiesto ---------------------------------------------------------------------------------
@@ -125,12 +149,45 @@ def load_manifest(root: Path) -> Manifest:
     if not isinstance(deps, dict):
         raise PackageError(f"{path}: [dependencies] tiene que ser una tabla")
     for dep_name, spec in deps.items():
-        if not isinstance(spec, dict) or ("path" in spec) == ("git" in spec):
-            raise PackageError(f'{path}: la dependencia {dep_name} necesita path = "…" o git = "…"')
-        manifest.dependencies[dep_name] = Dependency(
-            dep_name, path=spec.get("path"), git=spec.get("git"), rev=spec.get("rev")
-        )
+        dep = _dependency(dep_name, spec, path)
+        if dep.name in manifest.dependencies:
+            raise PackageError(f"{path}: dos dependencias se llaman {dep.name}")
+        manifest.dependencies[dep.name] = dep
     return manifest
+
+
+def _dependency(key: str, spec: object, path: Path) -> Dependency:
+    if isinstance(spec, str):
+        if "/" not in key:
+            raise PackageError(
+                f'{path}: la dependencia {key} = "{spec}" es del hub: escribe "dueño/{key}" = '
+                f'"{spec}" (o una tabla con path, git o hub)'
+            )
+        spec = {"hub": key, "version": spec}
+        key = key.split("/", 1)[1]
+    if not isinstance(spec, dict) or sum(k in spec for k in ("path", "git", "hub")) != 1:
+        raise PackageError(
+            f'{path}: la dependencia {key} necesita path = "…", git = "…" o hub = "dueño/nombre"'
+        )
+    hub = spec.get("hub")
+    if hub is not None:
+        if not isinstance(hub, str) or not re.match(r"^[a-z0-9-]+/[a-z0-9-]+$", hub):
+            raise PackageError(f"{path}: {key}: hub = {hub!r} no es dueño/nombre")
+        from gamehub.semver import Requirement, VersionError
+
+        try:
+            Requirement.parse(spec.get("version") or "*")
+        except VersionError as exc:
+            raise PackageError(f"{path}: {key}: {exc}") from None
+    return Dependency(
+        key,
+        path=spec.get("path"),
+        git=spec.get("git"),
+        rev=spec.get("rev"),
+        hub=hub,
+        version=spec.get("version"),
+        registry=spec.get("registry"),
+    )
 
 
 def _text(table: dict[str, object], key: str, path: Path) -> str | None:
@@ -162,10 +219,10 @@ def manifest_toml(m: Manifest) -> str:
         lines += ["", "[dependencies]"]
         for dep in m.dependencies.values():
             parts = [f"path = {_q(dep.path)}"] if dep.path is not None else []
-            if dep.git is not None:
-                parts.append(f"git = {_q(dep.git)}")
-            if dep.rev is not None:
-                parts.append(f"rev = {_q(dep.rev)}")
+            for key in ("git", "rev", "hub", "version", "registry"):
+                value = getattr(dep, key)
+                if value is not None:
+                    parts.append(f"{key} = {_q(value)}")
             lines.append(f"{_key(dep.name)} = {{ {', '.join(parts)} }}")
     return "\n".join(lines) + "\n"
 
@@ -194,7 +251,9 @@ def load_lock(root: Path) -> dict[str, Locked]:
     except tomllib.TOMLDecodeError as exc:
         raise PackageError(f"{path}: TOML no válido: {exc}") from None
     return {
-        p["name"]: Locked(p["name"], p["git"], p.get("rev"), p["commit"])
+        p["name"]: Locked(
+            p["name"], p["git"], p.get("rev"), p["commit"], p.get("version"), p.get("hub")
+        )
         for p in data.get("package", [])
     }
 
@@ -202,7 +261,12 @@ def load_lock(root: Path) -> dict[str, Locked]:
 def save_lock(root: Path, entries: dict[str, Locked]) -> None:
     lines = ["# Generado por `gamehub fetch`: no lo edites a mano.", "version = 1"]
     for entry in sorted(entries.values(), key=lambda e: e.name):
-        lines += ["", "[[package]]", f"name = {_q(entry.name)}", f"git = {_q(entry.git)}"]
+        lines += ["", "[[package]]", f"name = {_q(entry.name)}"]
+        if entry.hub is not None:
+            lines.append(f"hub = {_q(entry.hub)}")
+        if entry.version is not None:
+            lines.append(f"version = {_q(entry.version)}")
+        lines.append(f"git = {_q(entry.git)}")
         if entry.rev is not None:
             lines.append(f"rev = {_q(entry.rev)}")
         lines.append(f"commit = {_q(entry.commit)}")
@@ -223,11 +287,13 @@ def dependency_root(manifest: Manifest, dep: Dependency, lock: dict[str, Locked]
     """Directorio de una dependencia (para git, su copia en la caché según el lock)."""
     if dep.path is not None:
         return (manifest.root / dep.path).resolve()
-    assert dep.git is not None
+    resolver = HUB_RESOLVER.get()
+    if dep.hub is not None and resolver is not None:
+        return resolver(dep)
     locked = lock.get(dep.name)
-    if locked is None or locked.git != dep.git:
+    if locked is None or (locked.hub != dep.hub if dep.hub else locked.git != dep.git):
         raise PackageError(f"la dependencia {dep.name} no está descargada: ejecuta `gamehub fetch`")
-    root = checkout_dir(dep.git, locked.commit)
+    root = checkout_dir(locked.git, locked.commit)
     if not root.is_dir():
         raise PackageError(
             f"la dependencia {dep.name} no está en la caché: ejecuta `gamehub fetch`"
@@ -247,7 +313,16 @@ def fetch(manifest: Manifest, *, update: bool = False) -> dict[str, Locked]:
             continue
         seen.add(current.root)
         for dep in current.dependencies.values():
-            if dep.git is None:
+            if dep.hub is not None:
+                locked = previous.get(dep.name)
+                if locked is None or not _hub_lock_ok(locked, dep):
+                    locked = _resolve_hub(dep)
+                other = resolved.get(dep.name)
+                if other is not None and other != locked:
+                    raise PackageError(f"dos dependencias distintas se llaman {dep.name}")
+                resolved[dep.name] = locked
+                root = _checkout(locked)
+            elif dep.git is None:
                 root = (current.root / (dep.path or ".")).resolve()
             else:
                 locked = previous.get(dep.name)
@@ -262,6 +337,32 @@ def fetch(manifest: Manifest, *, update: bool = False) -> dict[str, Locked]:
                 pending.append(load_manifest(root))
     save_lock(manifest.root, resolved)
     return resolved
+
+
+def _hub_lock_ok(locked: Locked, dep: Dependency) -> bool:
+    """¿Sigue valiendo lo fijado en el lock para esta dependencia del hub?"""
+    from gamehub.semver import Requirement, Version, VersionError
+
+    if locked.hub != dep.hub or locked.version is None:
+        return False
+    try:
+        return Requirement.parse(dep.version or "*").matches(Version.parse(locked.version))
+    except VersionError:
+        return False
+
+
+def _resolve_hub(dep: Dependency) -> Locked:
+    """Pregunta al registro qué versión usar (la más alta que cumple el requisito)."""
+    from gamehub.hub.client import ClientError, resolve_dependency
+
+    assert dep.hub is not None
+    try:
+        found = resolve_dependency(dep.hub, dep.version or "*", registry=dep.registry)
+    except ClientError as exc:
+        raise PackageError(f"{dep.name}: {exc}") from None
+    return Locked(
+        dep.name, found["git"], f"v{found['version']}", found["commit"], found["version"], dep.hub
+    )
 
 
 def _git(*args: str, cwd: Path | None = None) -> str:

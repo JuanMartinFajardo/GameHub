@@ -606,7 +606,13 @@ def compare(before: BalanceReport, after: BalanceReport) -> Comparison:
             f"{s0:.3f}",
             f"{s1:.3f}",
             after.seat_advantage and s1 > s0 + 0.03,
-            "aparece una ventaja de asiento significativa" if after.seat_advantage else "",
+            (
+                "aparece una ventaja de asiento significativa"
+                if not before.seat_advantage
+                else "sigue habiendo ventaja de asiento"
+            )
+            if after.seat_advantage
+            else "",
         )
     )
     out.changes.append(

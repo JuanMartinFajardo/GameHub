@@ -3,7 +3,7 @@ name = "gamehub"
 version = "0.0.1"
 description = "GameHub: diseñar, jugar y analizar juegos definidos formalmente (lenguaje Nomos)."
 readme = "README.md"
-license = "Apache-2.0"
+license = "Apache-2.0 AND AGPL-3.0-or-later"
 requires-python = ">=3.12"
 authors = [{ name = "Juan Martin Fajardo" }]
 dependencies = [
@@ -26,6 +26,8 @@ analysis = ["highspy>=1.7"]
 openspiel = ["open-spiel>=1.5"]
 # El núcleo C++ (F8): la misma semántica, decenas de veces más rápido (gamehub.engine.core).
 core = ["gamehub-core"]
+# El hub (F10) con PostgreSQL en vez de SQLite.
+hub-postgres = ["psycopg[binary]>=3.2"]
 
 [project.scripts]
 gamehub = "gamehub.cli:main"
@@ -40,6 +42,7 @@ dev = [
   "ninja>=1.11",
   "open-spiel>=1.5",
   "pre-commit>=4.0",
+  "psycopg[binary]>=3.2",
   "pyright>=1.1.390",
   "pytest>=8.3",
   "ruff>=0.8",

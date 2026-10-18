@@ -129,7 +129,7 @@ heuristic has its own `heuristic_hash` (its content plus the rules hash). Added 
 |---|---|---|
 | **Rules hash** | The resolved IR as canonical JSON (RFC 8785), without `meta`, `ui`, `heuristics`, `doc`, constraint messages or explicit default values ([ADR-025](decisions.md)) | Identifies the rules exactly. Bots, replays, analyses and ratings reference it. Implemented: `gamehub.ir.hashing.rules_hash`. |
 | **Heuristic hash** | One heuristic (without `doc`) plus the rules hash | Identifies a bot's knowledge in the arena. `gamehub.ir.hashing.heuristic_hash`. |
-| **Interface hash** | View schema + action schema + events | Compatibility of UIs and bots; **automatic semver**: if it changes incompatibly, the *major* version must go up. |
+| **Interface hash** | Options (with types), view (visible state variables with type and visibility), every action signature, events and the declarations of the types they use | Compatibility of UIs and bots; the hub's **automatic semver**: an incompatible change requires a *major* version, a rules change or an extension a *minor* one ([ADR-091](decisions.md)). `gamehub.ir.interface`. |
 
 A cosmetic change (renaming a title, moving a box in the diagram) does not change the rules hash.
 

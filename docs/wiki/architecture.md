@@ -49,11 +49,12 @@ flowchart TB
 
 ## 2. Monorepo layout
 
-> **Status (2026-10-17, Phase 8):** there are `core/` (the [C++ core](core.md): VM, compact
+> **Status (2026-10-18, Phase 10):** there are `core/` (the [C++ core](core.md): VM, compact
 > values, algorithms and the `gamehub-core` Python package), `spec/` (IR v0, protocol v1, conformance traces),
 > `python/` (the `gamehub` package: the Nomos language, validation, analysis, the engine with
-> native plugins, renderers, packages, protocol, match server, client SDK, LSP, Studio, CLI and the
-> UI template), `web/` (TypeScript SDK, UI kit, generic UI, the play app and the Studio), `stdlib/`
+> native plugins, renderers, packages, protocol, match server, client SDK, LSP, Studio, the hub, CLI
+> and the UI template), `web/` (TypeScript SDK, UI kit, generic UI, the play app, the Studio and the
+> hub's website), `stdlib/`
 > (9 modules and the plugins in `stdlib/std/native`), `games/` (22 packages with 23 games; seven
 > with a custom UI in `games/<game>/ui`), `editors/vscode/` and `docs/`. The JavaScript side is a
 > pnpm workspace at the root (`package.json`, `pnpm-workspace.yaml`, `biome.json`). The remaining
@@ -68,12 +69,13 @@ GameHub/
 ├── python/src/gamehub/    # Python package (pip install gamehub)
 │   ├── lang/              # Nomos: lexer, parser, AST, types and translation, modules, mods,
 │   │                      #   combinators, formatter, decompiler, test runner
-│   ├── ir/                # schema, operator catalog, validation, canonical hash
+│   ├── ir/                # schema, operator catalog, validation, canonical hash, interface hash
 │   ├── build.py           # Python builder API → IR
 │   ├── engine/            # reference engine (IR interpreter, generated code, native plugins)
 │   ├── analysis/          # warnings and classification (F2), perft (F6); game theory (F7): feasibility, trees, Nash, CFR…
 │   ├── render/            # flow diagram, rulebook and semantic diff (F2)
-│   ├── packages.py        # game.toml, game.lock, dependencies, new/clone/fork (F2)
+│   ├── packages.py        # game.toml, game.lock, dependencies (path, git, hub), new/clone/fork (F2, F10)
+│   ├── semver.py          # versions and Cargo-style requirements (F10)
 │   ├── bots/              # heuristics, the core's bots, arena and ratings, packages and
 │   │                      #   sandbox, balance analytics, tuning (F9)
 │   ├── protocol/          # protocol v1: message validation and generated types (F3)
@@ -82,6 +84,8 @@ GameHub/
 │   ├── lsp/               # Nomos language server (pygls): gamehub lsp and the Studio's (F5)
 │   ├── studio/            # the Studio: server, session, tree edits, model, simulator,
 │   │                      #   workspace (F5)
+│   ├── hub/               # the hub (F10, AGPL): database, objects, git service, accounts,
+│   │                      #   registry, proposals, jobs and worker, play, explore, Pages, app, CLI
 │   ├── templates/games/   # game templates (gamehub new --template and the Studio)
 │   ├── interop/           # OpenSpiel, Gambit, PettingZoo, PGN…
 │   └── cli.py             # gamehub check|fmt|test|viz|rules|diff|new|play|perft|serve|host|join|rooms|bot|studio|lsp|natives|…
@@ -98,7 +102,7 @@ GameHub/
 │   ├── packages/studio    # the Studio as a library (diagram, editors, inspector, simulator)
 │   ├── apps/play          # the web app (served by gamehub serve)
 │   ├── apps/studio        # the Studio app (served by gamehub studio, F5)
-│   └── apps/hub           # the hub's website (later)
+│   └── apps/hub           # the hub's website (served by gamehub hub serve, F10, AGPL)
 ├── stdlib/std/            # .game modules: cards, dice, grid, graph, boards, tricktaking, bidding,
 │                          #   betting, poker; native/ = WebAssembly plugins (.wat and .wasm)
 ├── games/                 # Official catalog: one package per game (game.toml, .game with its tests,
@@ -169,7 +173,7 @@ the server, the Studio's simulator, the RL trainer, tournaments).
 | Text editor | **CodeMirror 6** + LSP (`pygls`) (F5, [ADR-053](decisions.md), [054](decisions.md)) | Lightweight, dozens of fields per page, official LSP client | Monaco |
 | Analysis | Our own exact rational simplex; HiGHS (`highspy`, optional) for large LPs; export to Gambit; OpenSpiel wrapper (optional) | Exact results for small games, mature solvers for the rest (ADR-068 to 072) | — |
 | RL | PyTorch, Gymnasium, PettingZoo | Standard | JAX |
-| Hub | FastAPI + PostgreSQL + S3/MinIO + **Forgejo** (git) | Don't reinvent git | Gitea, our own git |
+| Hub | **Starlette** + SQLite or **PostgreSQL** (`psycopg`) + a content-addressed object store + **our own git service** (`git http-backend` and plumbing) (F10, [ADR-090](decisions.md)) | Don't reinvent git, but own what the hub must understand (proposals, permissions); one process to self-host | FastAPI, Forgejo/Gitea, S3/MinIO (when hosted) |
 
 ## 5. Quality strategy
 
@@ -197,3 +201,7 @@ the server, the Studio's simulator, the RL trainer, tournaments).
   Origin checked (against DNS rebinding and other pages in the browser), and only `.game` files
   in the working directory.
 - Third-party bots: in a separate process / container / WASM, with CPU, memory and time limits.
+- **The hub** ([ADR-092](decisions.md), [095](decisions.md)): hashed passwords, sessions and tokens;
+  a cookie request from another origin is refused; jobs run in child processes with limits and only
+  the core's bots; pushes cannot touch release tags or proposal refs; git runs without global
+  configuration; Pages are served sandboxed; quotas and rate limits; moderation.

@@ -5,6 +5,85 @@ Format: date · what was done · decisions · pending / next steps.
 
 ---
 
+## 2026-10-18 — F10 approved and merged into `main`
+
+**Answer received**: "I approve" to question 30: ADR-090 to 097 accepted and `f10/hub` merged into
+`main` with `--no-ff`. Nothing has been pushed.
+
+**Still open**: question 14 (where to host the hub; decided in F12) and question 24 (code
+comments, CLI messages and commit messages stay in Spanish until it is answered).
+
+**Next steps**: F11 (AI) or F12 (hardening and hosting the hub).
+
+**Progress**: ≈ 90 % (F0 to F10 in `main`, without the Connect Four 7×6 proof).
+
+---
+
+## 2026-10-18 — Session 13: Phase 10, the web hub
+
+**Request**: "I approve what you say, merge, then implement phase 10" (F9 merged; branch
+`f10/hub`).
+
+**Done**
+- **Interface hash and automatic semver** (ADR-091): `gamehub.semver` (versions and Cargo-style
+  requirements) and `gamehub.ir.interface` (options, view, action signatures, events and the types
+  they use; its hash; `compare` and `change_level`: incompatible → major, rules or extensions →
+  minor, the rest → patch, one level down in 0.y.z). Every catalog game has an interface.
+- **Hub dependencies** (ADR-093): `"owner/name" = "^1.2"` in `game.toml`, resolved by the registry
+  and pinned in `game.lock`; the hub compiles versions with them without network.
+- **The hub's backend** (`gamehub.hub`, AGPL-3.0-or-later, ADR-090): SQLite or PostgreSQL behind one
+  dialect layer, a SHA-256 object store, bare git repositories served by `git http-backend` (clone,
+  push with tokens; release tags and proposal refs protected by a hook) and changed with git's
+  plumbing; accounts with scrypt passwords, hashed sessions and tokens, OAuth 2, organizations,
+  terms of use (ADR-092); repositories, forks, commits from the web, stars, activity; the version
+  registry (compile at a commit, IR, hashes, classification, tag, yank); proposals with text,
+  semantic, interface and visual diffs, comments, merge without a working tree (ADR-094); a job
+  queue in child processes with limits and quotas, with automatic analysis of every version and
+  Balance CI of every proposal (ADR-095); the match server embedded with the published versions,
+  seats tied to accounts, matchmaking and human Elo/Glicko-2/TrueSkill per rules hash (ADR-096);
+  search by properties with a query parser in English and Spanish, the family tree, Pages served
+  sandboxed, reports and moderation (ADR-097).
+- **CLI**: `gamehub hub serve|search|whoami|pr create|list|show|merge|close`, `gamehub login`,
+  `logout`, `publish` (creates the repository, pushes and publishes with the version the change
+  requires), and `clone`/`fork` of `owner/name`.
+- **The hub's website** (`web/apps/hub`): explore and search, sign up and in (OAuth), settings,
+  profiles and organizations, new repositories from the game templates, each game's page (rules and
+  diagram, code with editing from the browser, versions with a dry run, proposals, analysis and
+  jobs, leaderboard, interfaces, variants, activity), proposals with their four layers, play
+  (room, matchmaking, this device) with the shell's pages, moderation. The Studio's SVG now marks
+  added, removed and changed elements.
+
+**Acceptance**: A publishes Nim 1.0.0; B forks it, makes the misère variant on a new branch from
+the web and proposes it; the proposal shows its text diff, the semantic diff (`option misere`,
+"minor"), both diagrams and the Balance CI report; A merges it and publishes: the hub picks 1.1.0;
+two anonymous clients play a full match of `ana/nim@1.1.0` over the network
+(`tests/test_hub.py`, also against PostgreSQL with `pgserver`). In the browser: sign in, the game
+page, the proposal's tabs, merge, publish 1.1.0 and start a match against a bot.
+
+**Fixed on the way**: the match server replaced an empty catalog by a new one (`Catalog` is
+"falsy" when empty), which would have broken any server with a dynamic catalog; the Balance CI
+said that a seat advantage "appears" when it was already there.
+
+**Tests**: `tests/test_hub.py` (19: semver, interface, hub dependencies in manifests and locks,
+migrations, PostgreSQL, the service, the acceptance, semver enforcement, a library dependency
+resolved by the registry and by `gamehub fetch`, git over HTTP, the CLI, matchmaking and ratings,
+jobs and quotas, Pages, OAuth with a fake provider, moderation and CSRF, the query parser); the
+hub website's pure modules (Vitest). Full Python suite, ruff, pyright, IR check, the web's lint,
+types, tests and build green. One timing-dependent web test (Parchís with the generic UI) timed
+out once under load and passed alone in 19 s.
+
+**Notes**: `pnpm lint` from the root fails because of a nested `biome.json` in
+`.claude/worktrees/f8` (an old worktree outside git); `biome check web games/*/ui` passes.
+
+**Decisions**: ADR-090 to 097 (proposed). Question 30 opened; questions 14 and 20 updated.
+
+**Next steps**: your review of F10 (question 30); then F11 (AI) or F12 (hardening and hosting the
+hub, question 14).
+
+**Progress**: ≈ 90 % (F0 to F9 in `main` without the 7×6 proof; F10 in its branch).
+
+---
+
 ## 2026-10-18 — F9 approved and merged into `main`
 
 **Answers received**: "I approve what you say, merge" to questions 29 and 28: ADR-083 to 088

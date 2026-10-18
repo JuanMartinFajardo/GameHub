@@ -17,6 +17,7 @@ export * from "./diagram/diff";
 export * from "./diagram/export";
 export * from "./diagram/graph";
 export * from "./diagram/layout";
+export * from "./editor/setup";
 export * from "./editor/TextEditor";
 export * from "./messages";
 export * from "./StudioApp";

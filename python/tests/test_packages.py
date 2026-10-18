@@ -142,7 +142,10 @@ def test_clone_and_fork(tmp_path: Path) -> None:
     [
         ("[game]\n", "falta [game]"),
         ('[game]\nname = "Mal"\n', "nombre de paquete no válido"),
-        ('[game]\nname = "ok"\n[dependencies]\nx = { rev = "v1" }\n', 'path = "…" o git = "…"'),
+        (
+            '[game]\nname = "ok"\n[dependencies]\nx = { rev = "v1" }\n',
+            'path = "…", git = "…" o hub = "dueño/nombre"',
+        ),
         ("[game\n", "TOML no válido"),
     ],
 )

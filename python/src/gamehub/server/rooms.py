@@ -51,7 +51,7 @@ class Rooms:
         limits: Limits | None = None,
         name: str = "GameHub",
     ) -> None:
-        self.catalog = catalog or Catalog()
+        self.catalog = catalog if catalog is not None else Catalog()
         self.store: Store = store or MemoryStore()
         self.allow_upload = allow_upload
         self.limits = limits or Limits()

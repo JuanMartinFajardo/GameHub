@@ -28,6 +28,13 @@ const COLORS: Record<string, { fill: string; stroke: string }> = {
   terminal: { fill: "#f0fdf4", stroke: "#15803d" },
 };
 
+/** Cómo se marca lo que cambió respecto a otra versión (el diff visual de una propuesta). */
+const DIFF: Record<string, { stroke: string; label: string; dash: string }> = {
+  added: { stroke: "#16a34a", label: "+ añadido", dash: "" },
+  removed: { stroke: "#dc2626", label: "− quitado", dash: "6 4" },
+  changed: { stroke: "#d97706", label: "~ cambiado", dash: "" },
+};
+
 function esc(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -136,6 +143,13 @@ export function toSvg(graph: Graph, placements: Placements, title = ""): string 
     const data = n.data as BoxData;
     const color = COLORS[data.kind] ?? { fill: "#fff", stroke: "#475569" };
     const double = data.kind === "simultaneous" || data.kind === "terminal";
+    const mark = data.diff ? DIFF[data.diff] : undefined;
+    if (mark) {
+      parts.push(
+        `<rect x="${s.x - 5}" y="${s.y - 5}" width="${s.width + 10}" height="${s.height + 10}" rx="14" fill="none" stroke="${mark.stroke}" stroke-width="3"${mark.dash ? ` stroke-dasharray="${mark.dash}"` : ""}/>`,
+        `<text x="${s.x + s.width - 4}" y="${s.y - 9}" font-size="10.5" font-weight="700" text-anchor="end" fill="${mark.stroke}">${esc(mark.label)}</text>`,
+      );
+    }
     parts.push(
       `<rect x="${s.x}" y="${s.y}" width="${s.width}" height="${s.height}" rx="${data.kind === "chance" ? 18 : 10}" fill="${color.fill}" stroke="${color.stroke}" stroke-width="${double ? 3 : 1.5}"/>`,
     );
@@ -184,8 +198,11 @@ function edgeSvg(
     if (data && i >= 0) handleY = 34 + data.lines.length * 18 + 12 + i * 24;
   }
   const path = edgePath(shift(a), shift(b), handleY);
+  const mark = e.data.diff ? DIFF[e.data.diff] : undefined;
+  const stroke = mark ? mark.stroke : "#475569";
+  const dash = mark?.dash ? ` stroke-dasharray="${mark.dash}"` : "";
   const out = [
-    `<path d="${path}" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>`,
+    `<path d="${path}" fill="none" stroke="${stroke}" stroke-width="${mark ? 2.5 : 1.5}"${dash} marker-end="url(#arrow)"/>`,
   ];
   const label = [e.data.order ? `${e.data.order}.` : "", e.label].filter(Boolean).join(" ");
   if (label) {
