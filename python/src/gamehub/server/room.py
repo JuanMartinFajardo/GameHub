@@ -98,6 +98,8 @@ class Participant:
     seed: str = ""
     legal_limit: int = DEFAULT_LEGAL_LIMIT
     recent: deque[str] = field(default_factory=lambda: deque(maxlen=RECENT_IDS))
+    #: La cuenta del hub de quien se conectó con sesión (solo en las salas del hub).
+    account: int | None = None
 
     @property
     def role(self) -> str:
